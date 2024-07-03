@@ -282,6 +282,7 @@ export default defineComponent({
 }
 
 .sidebar {
+	display: none;
 	grid-area: sidebar;
 	height: 100vh;
 	z-index: 999;
