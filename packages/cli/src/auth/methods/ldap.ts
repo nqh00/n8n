@@ -1,32 +1,32 @@
-import { Container } from 'typedi';
-
 import { InternalHooks } from '@/InternalHooks';
-import { LdapService } from '@/Ldap/ldap.service';
 import {
 	createLdapUserOnLocalDb,
+	findAndAuthenticateLdapUser,
+	getLdapConfig,
+	getLdapUserRole,
 	getUserByEmail,
 	getAuthIdentityByLdapId,
-	isLdapEnabled,
+	isLdapDisabled,
 	mapLdapAttributesToUser,
 	createLdapAuthIdentity,
 	updateLdapUserOnLocalDb,
 } from '@/Ldap/helpers';
 import type { User } from '@db/entities/User';
-import { EventRelay } from '@/eventbus/event-relay.service';
+import { Container } from 'typedi';
 
 export const handleLdapLogin = async (
 	loginId: string,
 	password: string,
 ): Promise<User | undefined> => {
-	if (!isLdapEnabled()) return undefined;
+	if (isLdapDisabled()) return undefined;
 
-	const ldapService = Container.get(LdapService);
+	const ldapConfig = await getLdapConfig();
 
-	if (!ldapService.config.loginEnabled) return undefined;
+	if (!ldapConfig.loginEnabled) return undefined;
 
-	const { loginIdAttribute, userFilter } = ldapService.config;
+	const { loginIdAttribute, userFilter } = ldapConfig;
 
-	const ldapUser = await ldapService.findAndAuthenticateLdapUser(
+	const ldapUser = await findAndAuthenticateLdapUser(
 		loginId,
 		password,
 		loginIdAttribute,
@@ -35,7 +35,7 @@ export const handleLdapLogin = async (
 
 	if (!ldapUser) return undefined;
 
-	const [ldapId, ldapAttributesValues] = mapLdapAttributesToUser(ldapUser, ldapService.config);
+	const [ldapId, ldapAttributesValues] = mapLdapAttributesToUser(ldapUser, ldapConfig);
 
 	const { email: emailAttributeValue } = ldapAttributesValues;
 
@@ -50,12 +50,12 @@ export const handleLdapLogin = async (
 			const identity = await createLdapAuthIdentity(emailUser, ldapId);
 			await updateLdapUserOnLocalDb(identity, ldapAttributesValues);
 		} else {
-			const user = await createLdapUserOnLocalDb(ldapAttributesValues, ldapId);
+			const role = await getLdapUserRole();
+			const user = await createLdapUserOnLocalDb(role, ldapAttributesValues, ldapId);
 			void Container.get(InternalHooks).onUserSignup(user, {
 				user_type: 'ldap',
 				was_disabled_ldap_user: false,
 			});
-			Container.get(EventRelay).emit('user-signed-up', { user });
 			return user;
 		}
 	} else {

@@ -42,7 +42,7 @@ export const documentFields: INodeProperties[] = [
 		description: 'Name of the file',
 	},
 	{
-		displayName: 'Input Binary Field',
+		displayName: 'Binary Property',
 		name: 'binaryPropertyName',
 		type: 'string',
 		default: 'data',
@@ -54,7 +54,7 @@ export const documentFields: INodeProperties[] = [
 			},
 		},
 		placeholder: '',
-		hint: 'The name of the input binary field containing the file to be uploaded',
+		description: 'Name of the binary property which contains the data for the file to be uploaded',
 	},
 	{
 		displayName: 'Additional Fields',

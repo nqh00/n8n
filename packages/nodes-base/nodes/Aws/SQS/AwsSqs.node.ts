@@ -1,4 +1,3 @@
-import { URL } from 'url';
 import type {
 	IDataObject,
 	IExecuteFunctions,
@@ -12,8 +11,11 @@ import type {
 } from 'n8n-workflow';
 import { NodeApiError } from 'n8n-workflow';
 
-import { pascalCase } from 'change-case';
+import { URL } from 'url';
+
 import { awsApiRequestSOAP } from '../GenericFunctions';
+
+import { pascalCase } from 'change-case';
 
 export class AwsSqs implements INodeType {
 	description: INodeTypeDescription = {
@@ -296,16 +298,10 @@ export class AwsSqs implements INodeType {
 				const options = this.getNodeParameter('options', i, {});
 				const sendInputData = this.getNodeParameter('sendInputData', i) as boolean;
 
-				let message = sendInputData
+				const message = sendInputData
 					? JSON.stringify(items[i].json)
-					: this.getNodeParameter('message', i);
-
-				// This prevents [object Object] from being sent as message when sending json in an expression
-				if (typeof message === 'object') {
-					message = JSON.stringify(message);
-				}
-
-				params.push(`MessageBody=${encodeURIComponent(message as string)}`);
+					: (this.getNodeParameter('message', i) as string);
+				params.push(`MessageBody=${message}`);
 
 				if (options.delaySeconds) {
 					params.push(`DelaySeconds=${options.delaySeconds}`);
@@ -378,7 +374,7 @@ export class AwsSqs implements INodeType {
 				const result = responseData.SendMessageResponse.SendMessageResult;
 				returnData.push(result as IDataObject);
 			} catch (error) {
-				if (this.continueOnFail(error)) {
+				if (this.continueOnFail()) {
 					returnData.push({ error: error.description });
 					continue;
 				}

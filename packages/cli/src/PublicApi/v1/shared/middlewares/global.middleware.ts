@@ -1,50 +1,29 @@
 /* eslint-disable @typescript-eslint/no-invalid-void-type */
+
 import type express from 'express';
 import { Container } from 'typedi';
 
-import { License } from '@/License';
-import type { AuthenticatedRequest } from '@/requests';
-
-import type { PaginatedRequest } from '../../../types';
+import type { AuthenticatedRequest, PaginatedRequest } from '../../../types';
 import { decodeCursor } from '../services/pagination.service';
-import type { Scope } from '@n8n/permissions';
-import { userHasScope } from '@/permissions/checkAccess';
+import { License } from '@/License';
 
 const UNLIMITED_USERS_QUOTA = -1;
 
-export type ProjectScopeResource = 'workflow' | 'credential';
-
-const buildScopeMiddleware = (
-	scopes: Scope[],
-	resource?: ProjectScopeResource,
-	{ globalOnly } = { globalOnly: false },
-) => {
-	return async (
-		req: AuthenticatedRequest<{ id?: string }>,
+export const authorize =
+	(authorizedRoles: readonly string[]) =>
+	(
+		req: AuthenticatedRequest,
 		res: express.Response,
 		next: express.NextFunction,
-	): Promise<express.Response | void> => {
-		const params: { credentialId?: string; workflowId?: string } = {};
-		if (req.params.id) {
-			if (resource === 'workflow') {
-				params.workflowId = req.params.id;
-			} else if (resource === 'credential') {
-				params.credentialId = req.params.id;
-			}
-		}
-		if (!(await userHasScope(req.user, scopes, globalOnly, params))) {
+	): express.Response | void => {
+		const { name } = req.user.globalRole;
+
+		if (!authorizedRoles.includes(name)) {
 			return res.status(403).json({ message: 'Forbidden' });
 		}
 
 		return next();
 	};
-};
-
-export const globalScope = (scopes: Scope | Scope[]) =>
-	buildScopeMiddleware(Array.isArray(scopes) ? scopes : [scopes], undefined, { globalOnly: true });
-
-export const projectScope = (scopes: Scope | Scope[], resource: ProjectScopeResource) =>
-	buildScopeMiddleware(Array.isArray(scopes) ? scopes : [scopes], resource, { globalOnly: false });
 
 export const validCursor = (
 	req: PaginatedRequest,
@@ -73,7 +52,7 @@ export const validCursor = (
 };
 
 export const validLicenseWithUserQuota = (
-	_: express.Request,
+	req: express.Request,
 	res: express.Response,
 	next: express.NextFunction,
 ): express.Response | void => {

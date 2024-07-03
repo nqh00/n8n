@@ -1,12 +1,6 @@
-import type {
-	IExecuteFunctions,
-	IHookFunctions,
-	IDataObject,
-	JsonObject,
-	IHttpRequestMethods,
-	IRequestOptions,
-} from 'n8n-workflow';
+import type { IExecuteFunctions, IHookFunctions, IDataObject, JsonObject } from 'n8n-workflow';
 import { NodeApiError } from 'n8n-workflow';
+import type { OptionsWithUri } from 'request';
 
 /**
  * Make an API request to Gitlab
@@ -14,13 +8,13 @@ import { NodeApiError } from 'n8n-workflow';
  */
 export async function gitlabApiRequest(
 	this: IHookFunctions | IExecuteFunctions,
-	method: IHttpRequestMethods,
+	method: string,
 	endpoint: string,
 	body: object,
-	query?: IDataObject,
+	query?: object,
 	option: IDataObject = {},
 ): Promise<any> {
-	const options: IRequestOptions = {
+	const options: OptionsWithUri = {
 		method,
 		headers: {},
 		body,
@@ -57,7 +51,7 @@ export async function gitlabApiRequest(
 
 export async function gitlabApiRequestAllItems(
 	this: IHookFunctions | IExecuteFunctions,
-	method: IHttpRequestMethods,
+	method: string,
 	endpoint: string,
 
 	body: any = {},

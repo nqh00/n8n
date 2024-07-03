@@ -1,21 +1,21 @@
 import type express from 'express';
-import { Container } from 'typedi';
 
 import { clean, getAllUsersAndCount, getUser } from './users.service.ee';
 
 import { encodeNextCursor } from '../../shared/services/pagination.service';
 import {
-	globalScope,
+	authorize,
 	validCursor,
 	validLicenseWithUserQuota,
 } from '../../shared/middlewares/global.middleware';
 import type { UserRequest } from '@/requests';
 import { InternalHooks } from '@/InternalHooks';
+import Container from 'typedi';
 
 export = {
 	getUser: [
 		validLicenseWithUserQuota,
-		globalScope('user:read'),
+		authorize(['owner']),
 		async (req: UserRequest.Get, res: express.Response) => {
 			const { includeRole = false } = req.query;
 			const { id } = req.params;
@@ -41,7 +41,7 @@ export = {
 	getUsers: [
 		validLicenseWithUserQuota,
 		validCursor,
-		globalScope(['user:list', 'user:read']),
+		authorize(['owner']),
 		async (req: UserRequest.Get, res: express.Response) => {
 			const { offset = 0, limit = 100, includeRole = false } = req.query;
 

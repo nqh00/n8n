@@ -1,18 +1,23 @@
+import type { OptionsWithUri } from 'request';
 import type {
 	IDataObject,
 	IExecuteFunctions,
+	IExecuteSingleFunctions,
 	IHookFunctions,
-	IHttpRequestMethods,
 	ILoadOptionsFunctions,
-	IRequestOptions,
 	IWebhookFunctions,
 	JsonObject,
 } from 'n8n-workflow';
 import { NodeApiError } from 'n8n-workflow';
 
 export async function jotformApiRequest(
-	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions | IWebhookFunctions,
-	method: IHttpRequestMethods,
+	this:
+		| IHookFunctions
+		| IExecuteFunctions
+		| IExecuteSingleFunctions
+		| ILoadOptionsFunctions
+		| IWebhookFunctions,
+	method: string,
 	resource: string,
 
 	body: any = {},
@@ -21,7 +26,7 @@ export async function jotformApiRequest(
 	option: IDataObject = {},
 ): Promise<any> {
 	const credentials = await this.getCredentials('jotFormApi');
-	let options: IRequestOptions = {
+	let options: OptionsWithUri = {
 		headers: {
 			APIKEY: credentials.apiKey,
 			'Content-Type': 'application/x-www-form-urlencoded',

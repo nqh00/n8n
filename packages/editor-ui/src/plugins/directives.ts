@@ -1,10 +1,11 @@
-import type { Plugin } from 'vue';
-import VueTouchEvents from 'vue3-touch-events';
-import { vOnClickOutside } from '@vueuse/components';
+import type { PluginObject } from 'vue';
+import Vue2TouchEvents from 'vue2-touch-events';
+// @ts-ignore
+import vClickOutside from 'v-click-outside';
 
-export const GlobalDirectivesPlugin: Plugin = {
+export const GlobalDirectivesPlugin: PluginObject<{}> = {
 	install(app) {
-		app.use(VueTouchEvents);
-		app.directive('on-click-outside', vOnClickOutside);
+		app.use(Vue2TouchEvents);
+		app.use(vClickOutside);
 	},
 };

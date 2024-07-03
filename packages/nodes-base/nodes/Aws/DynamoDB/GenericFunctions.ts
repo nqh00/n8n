@@ -6,16 +6,15 @@ import type {
 	IWebhookFunctions,
 	IHttpRequestOptions,
 	INodeExecutionData,
-	IHttpRequestMethods,
 } from 'n8n-workflow';
-import { ApplicationError, deepCopy } from 'n8n-workflow';
+import { deepCopy } from 'n8n-workflow';
 
 import type { IRequestBody } from './types';
 
 export async function awsApiRequest(
 	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions | IWebhookFunctions,
 	service: string,
-	method: IHttpRequestMethods,
+	method: string,
 	path: string,
 	body?: object | IRequestBody,
 	headers?: object,
@@ -38,38 +37,28 @@ export async function awsApiRequest(
 			(await this.helpers.requestWithAuthentication.call(this, 'aws', requestOptions)) as string,
 		);
 	} catch (error) {
-		const statusCode = (error.statusCode || error.cause?.statusCode) as number;
-		let errorMessage =
+		const errorMessage =
 			error.response?.body?.message || error.response?.body?.Message || error.message;
-
-		if (statusCode === 403) {
+		if (error.statusCode === 403) {
 			if (errorMessage === 'The security token included in the request is invalid.') {
-				throw new ApplicationError('The AWS credentials are not valid!', { level: 'warning' });
+				throw new Error('The AWS credentials are not valid!');
 			} else if (
 				errorMessage.startsWith(
 					'The request signature we calculated does not match the signature you provided',
 				)
 			) {
-				throw new ApplicationError('The AWS credentials are not valid!', { level: 'warning' });
+				throw new Error('The AWS credentials are not valid!');
 			}
 		}
 
-		if (error.cause?.error) {
-			try {
-				errorMessage = JSON.parse(error.cause?.error).message;
-			} catch (ex) {}
-		}
-
-		throw new ApplicationError(`AWS error response [${statusCode}]: ${errorMessage}`, {
-			level: 'warning',
-		});
+		throw new Error(`AWS error response [${error.statusCode}]: ${errorMessage}`);
 	}
 }
 
 export async function awsApiRequestAllItems(
 	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions | IWebhookFunctions,
 	service: string,
-	method: IHttpRequestMethods,
+	method: string,
 	path: string,
 	body?: IRequestBody,
 	headers?: object,

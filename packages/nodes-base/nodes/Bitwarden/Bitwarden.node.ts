@@ -8,8 +8,6 @@ import type {
 } from 'n8n-workflow';
 import { NodeOperationError } from 'n8n-workflow';
 
-import isEmpty from 'lodash/isEmpty';
-import partialRight from 'lodash/partialRight';
 import {
 	bitwardenApiRequest as tokenlessBitwardenApiRequest,
 	getAccessToken,
@@ -33,6 +31,9 @@ import type {
 	MemberUpdateFields,
 } from './descriptions/MemberDescription';
 import { memberFields, memberOperations } from './descriptions/MemberDescription';
+
+import isEmpty from 'lodash/isEmpty';
+import partialRight from 'lodash/partialRight';
 
 export class Bitwarden implements INodeType {
 	description: INodeTypeDescription = {
@@ -94,11 +95,11 @@ export class Bitwarden implements INodeType {
 	methods = {
 		loadOptions: {
 			async getGroups(this: ILoadOptionsFunctions) {
-				return await loadResource.call(this, 'groups');
+				return loadResource.call(this, 'groups');
 			},
 
 			async getCollections(this: ILoadOptionsFunctions) {
-				return await loadResource.call(this, 'collections');
+				return loadResource.call(this, 'collections');
 			},
 		},
 	};
@@ -567,6 +568,6 @@ export class Bitwarden implements INodeType {
 			}
 		}
 
-		return [returnData];
+		return this.prepareOutputData(returnData);
 	}
 }

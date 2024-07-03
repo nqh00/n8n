@@ -1,23 +1,19 @@
-import type {
-	IDataObject,
-	IExecuteFunctions,
-	IHttpRequestMethods,
-	ILoadOptionsFunctions,
-	IRequestOptions,
-} from 'n8n-workflow';
+import type { OptionsWithUri } from 'request';
+
+import type { IDataObject, IExecuteFunctions, ILoadOptionsFunctions } from 'n8n-workflow';
 
 export async function rocketchatApiRequest(
 	this: IExecuteFunctions | ILoadOptionsFunctions,
 	resource: string,
-	method: IHttpRequestMethods,
+	method: string,
 	operation: string,
 
 	body: any = {},
-	headers?: IDataObject,
+	headers?: object,
 ): Promise<any> {
 	const credentials = await this.getCredentials('rocketchatApi');
 
-	const options: IRequestOptions = {
+	const options: OptionsWithUri = {
 		headers,
 		method,
 		body,
@@ -27,7 +23,7 @@ export async function rocketchatApiRequest(
 	if (Object.keys(options.body as IDataObject).length === 0) {
 		delete options.body;
 	}
-	return await this.helpers.requestWithAuthentication.call(this, 'rocketchatApi', options);
+	return this.helpers.requestWithAuthentication.call(this, 'rocketchatApi', options);
 }
 
 export function validateJSON(json: string | undefined): any {

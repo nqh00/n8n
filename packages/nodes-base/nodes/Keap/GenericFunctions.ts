@@ -1,10 +1,10 @@
+import type { OptionsWithUri } from 'request';
+
 import type {
 	IDataObject,
 	IExecuteFunctions,
 	IHookFunctions,
-	IHttpRequestMethods,
 	ILoadOptionsFunctions,
-	IRequestOptions,
 	IWebhookFunctions,
 	JsonObject,
 } from 'n8n-workflow';
@@ -14,7 +14,7 @@ import { snakeCase } from 'change-case';
 
 export async function keapApiRequest(
 	this: IWebhookFunctions | IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions,
-	method: IHttpRequestMethods,
+	method: string,
 	resource: string,
 
 	body: any = {},
@@ -23,7 +23,7 @@ export async function keapApiRequest(
 	headers: IDataObject = {},
 	option: IDataObject = {},
 ): Promise<any> {
-	let options: IRequestOptions = {
+	let options: OptionsWithUri = {
 		headers: {
 			'Content-Type': 'application/json',
 		},
@@ -51,7 +51,7 @@ export async function keapApiRequest(
 export async function keapApiRequestAllItems(
 	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions,
 	propertyName: string,
-	method: IHttpRequestMethods,
+	method: string,
 	endpoint: string,
 
 	body: any = {},

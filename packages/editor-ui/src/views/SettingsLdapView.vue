@@ -6,13 +6,13 @@
 			</n8n-heading>
 		</div>
 
-		<n8n-info-tip type="note" theme="info" tooltip-placement="right" class="mb-l">
+		<n8n-info-tip type="note" theme="info-light" tooltipPlacement="right" class="mb-l">
 			{{ $locale.baseText('settings.ldap.note') }}
 		</n8n-info-tip>
 		<n8n-action-box
 			:description="$locale.baseText('settings.ldap.disabled.description')"
-			:button-text="$locale.baseText('settings.ldap.disabled.buttonText')"
-			@click:button="goToUpgrade"
+			:buttonText="$locale.baseText('settings.ldap.disabled.buttonText')"
+			@click="goToUpgrade"
 		>
 			<template #heading>
 				<span>{{ $locale.baseText('settings.ldap.disabled.title') }}</span>
@@ -28,7 +28,9 @@
 			</div>
 			<div :class="$style.docsInfoTip">
 				<n8n-info-tip theme="info" type="note">
-					<span v-html="$locale.baseText('settings.ldap.infoTip')"></span>
+					<template>
+						<span v-html="$locale.baseText('settings.ldap.infoTip')"></span>
+					</template>
 				</n8n-info-tip>
 			</div>
 			<div :class="$style.settingsForm">
@@ -36,10 +38,10 @@
 					v-if="formInputs"
 					ref="ldapConfigForm"
 					:inputs="formInputs"
-					:event-bus="formBus"
-					:column-view="true"
-					vertical-spacing="l"
-					@update="onInput"
+					:eventBus="formBus"
+					:columnView="true"
+					verticalSpacing="l"
+					@input="onInput"
 					@ready="onReadyToSubmit"
 					@submit="onSubmit"
 				/>
@@ -71,49 +73,52 @@
 				$locale.baseText('settings.ldap.section.synchronization.title')
 			}}</n8n-heading>
 			<div :class="$style.syncTable">
-				<ElTable
-					:key="tableKey"
+				<el-table
 					v-loading="loadingTable"
 					:border="true"
 					:stripe="true"
 					:data="dataTable"
 					:cell-style="cellClassStyle"
 					style="width: 100%"
-					max-height="250"
+					height="250"
+					:key="tableKey"
 				>
-					<ElTableColumn
+					<el-table-column
 						prop="status"
 						:label="$locale.baseText('settings.ldap.synchronizationTable.column.status')"
 					>
-					</ElTableColumn>
-					<ElTableColumn
+					</el-table-column>
+					<el-table-column
 						prop="endedAt"
 						:label="$locale.baseText('settings.ldap.synchronizationTable.column.endedAt')"
 					>
-					</ElTableColumn>
-					<ElTableColumn
+					</el-table-column>
+					<el-table-column
 						prop="runMode"
 						:label="$locale.baseText('settings.ldap.synchronizationTable.column.runMode')"
 					>
-					</ElTableColumn>
-					<ElTableColumn
+					</el-table-column>
+					<el-table-column
 						prop="runTime"
 						:label="$locale.baseText('settings.ldap.synchronizationTable.column.runTime')"
 					>
-					</ElTableColumn>
-					<ElTableColumn
+					</el-table-column>
+					<el-table-column
 						prop="details"
 						:label="$locale.baseText('settings.ldap.synchronizationTable.column.details')"
 					>
-					</ElTableColumn>
+					</el-table-column>
 					<template #empty>{{
 						$locale.baseText('settings.ldap.synchronizationTable.empty.message')
 					}}</template>
 					<template #append>
-						<InfiniteLoading target=".el-table__body-wrapper" @infinite="getLdapSynchronizations">
-						</InfiniteLoading>
+						<infinite-loading
+							@infinite="getLdapSynchronizations"
+							force-use-infinite-wrapper=".el-table__body-wrapper"
+						>
+						</infinite-loading>
 					</template>
-				</ElTable>
+				</el-table>
 			</div>
 			<div class="pb-3xl">
 				<n8n-button
@@ -138,12 +143,9 @@
 </template>
 
 <script lang="ts">
-import type { CSSProperties } from 'vue';
 import { defineComponent } from 'vue';
-import { capitalizeFirstLetter } from '@/utils/htmlUtils';
-import { convertToDisplayDate } from '@/utils/typesUtils';
-import { useToast } from '@/composables/useToast';
-import { useMessage } from '@/composables/useMessage';
+import { convertToDisplayDate } from '@/utils';
+import { useToast, useMessage } from '@/composables';
 import type {
 	ILdapConfig,
 	ILdapSyncData,
@@ -155,17 +157,19 @@ import type {
 import { MODAL_CONFIRM } from '@/constants';
 
 import humanizeDuration from 'humanize-duration';
-import { ElTable, ElTableColumn } from 'element-plus';
-import type { Events } from 'v3-infinite-loading';
-import InfiniteLoading from 'v3-infinite-loading';
+import type { rowCallbackParams, cellCallbackParams } from 'element-ui/types/table';
+import { capitalizeFirstLetter } from '@/utils';
+import InfiniteLoading from 'vue-infinite-loading';
 import { mapStores } from 'pinia';
 import { useUsersStore } from '@/stores/users.store';
 import { useSettingsStore } from '@/stores/settings.store';
-import { useUIStore } from '@/stores/ui.store';
-import { createEventBus } from 'n8n-design-system/utils';
-import type { TableColumnCtx } from 'element-plus';
+import { useUIStore } from '@/stores';
+import { createEventBus } from 'n8n-design-system';
+import type { N8nFormInputs } from 'n8n-design-system';
 
-type TableRow = {
+type N8nFormInputsRef = InstanceType<typeof N8nFormInputs>;
+
+type tableRow = {
 	status: string;
 	startAt: string;
 	endedAt: string;
@@ -173,44 +177,14 @@ type TableRow = {
 	runMode: string;
 };
 
-type LDAPConfigForm = {
-	loginEnabled: boolean;
-	loginLabel: string;
-	serverAddress: string;
-	allowUnauthorizedCerts: boolean;
-	port: number;
-	connectionSecurity: string;
-	baseDn: string;
-	bindingType: 'admin' | 'anonymous';
-	adminDn: string;
-	adminPassword: string;
-	email: string;
-	firstName: string;
-	lastName: string;
-	loginId: string;
-	ldapId: string;
-	userFilter: string;
-	synchronizationEnabled: boolean;
-	synchronizationInterval: string;
-	pageSize: string;
-	searchTimeout: string;
-};
+type rowType = rowCallbackParams & tableRow;
 
-type CellClassStyleMethodParams<T> = {
-	data: {
-		row: T;
-		rowIndex: number;
-		column: TableColumnCtx<T>;
-		columnIndex: number;
-	};
-};
+type cellType = cellCallbackParams & { property: keyof tableRow };
 
 export default defineComponent({
 	name: 'SettingsLdapView',
 	components: {
 		InfiniteLoading,
-		ElTable,
-		ElTableColumn,
 	},
 	setup() {
 		return {
@@ -236,25 +210,24 @@ export default defineComponent({
 			syncEnabled: false,
 		};
 	},
+	async mounted() {
+		if (!this.isLDAPFeatureEnabled) return;
+		await this.getLdapConfig();
+	},
 	computed: {
 		...mapStores(useUsersStore, useSettingsStore, useUIStore),
 		currentUser(): null | IUser {
 			return this.usersStore.currentUser;
 		},
 		isLDAPFeatureEnabled(): boolean {
-			return this.settingsStore.settings.enterprise.ldap;
+			return this.settingsStore.settings.enterprise.ldap === true;
 		},
-	},
-	async mounted() {
-		if (!this.isLDAPFeatureEnabled) return;
-		await this.getLdapConfig();
 	},
 	methods: {
 		goToUpgrade() {
-			void this.uiStore.goToUpgrade('ldap', 'upgrade-ldap');
+			this.uiStore.goToUpgrade('ldap', 'upgrade-ldap');
 		},
-		cellClassStyle({ data }: CellClassStyleMethodParams<TableRow>): CSSProperties {
-			const { row, column } = data;
+		cellClassStyle({ row, column }: { row: rowType; column: cellType }) {
 			if (column.property === 'status') {
 				if (row.status === 'Success') {
 					return { color: 'green' };
@@ -302,8 +275,7 @@ export default defineComponent({
 		async onSubmit(): Promise<void> {
 			// We want to save all form values (incl. the hidden onces), so we are using
 			// `values` data prop of the `FormInputs` child component since they are all preserved there
-			const formInputsRef = this.$refs.ldapConfigForm as { values: LDAPConfigForm };
-
+			const formInputsRef = this.$refs.ldapConfigForm as N8nFormInputsRef | undefined;
 			if (!this.hasAnyChanges || !formInputsRef) {
 				return;
 			}
@@ -335,7 +307,7 @@ export default defineComponent({
 			let saveForm = true;
 
 			try {
-				if (this.adConfig.loginEnabled && !newConfiguration.loginEnabled) {
+				if (this.adConfig.loginEnabled === true && newConfiguration.loginEnabled === false) {
 					const confirmAction = await this.confirm(
 						this.$locale.baseText('settings.ldap.confirmMessage.beforeSaveForm.message'),
 						this.$locale.baseText('settings.ldap.confirmMessage.beforeSaveForm.headline'),
@@ -430,11 +402,11 @@ export default defineComponent({
 				this.loginEnabled = this.adConfig.loginEnabled;
 				this.syncEnabled = this.adConfig.synchronizationEnabled;
 				const whenLoginEnabled: IFormInput['shouldDisplay'] = (values) =>
-					values.loginEnabled === true;
+					values['loginEnabled'] === true;
 				const whenSyncAndLoginEnabled: IFormInput['shouldDisplay'] = (values) =>
-					values.synchronizationEnabled === true && values.loginEnabled === true;
+					values['synchronizationEnabled'] === true && values['loginEnabled'] === true;
 				const whenAdminBindingAndLoginEnabled: IFormInput['shouldDisplay'] = (values) =>
-					values.bindingType === 'admin' && values.loginEnabled === true;
+					values['bindingType'] === 'admin' && values['loginEnabled'] === true;
 				this.formInputs = [
 					{
 						name: 'loginEnabled',
@@ -515,7 +487,7 @@ export default defineComponent({
 							required: false,
 						},
 						shouldDisplay(values): boolean {
-							return values.connectionSecurity !== 'none' && values.loginEnabled === true;
+							return values['connectionSecurity'] !== 'none' && values['loginEnabled'] === true;
 						},
 					},
 					{
@@ -714,7 +686,7 @@ export default defineComponent({
 				this.showError(error, this.$locale.baseText('settings.ldap.configurationError'));
 			}
 		},
-		async getLdapSynchronizations(state: Parameters<Events['infinite']>[0]) {
+		async getLdapSynchronizations(state: any) {
 			try {
 				this.loadingTable = true;
 				const data = await this.settingsStore.getLdapSynchronizations({

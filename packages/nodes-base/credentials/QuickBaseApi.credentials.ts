@@ -20,7 +20,6 @@ export class QuickBaseApi implements ICredentialType {
 			displayName: 'User Token',
 			name: 'userToken',
 			type: 'string',
-			typeOptions: { password: true },
 			default: '',
 			required: true,
 		},

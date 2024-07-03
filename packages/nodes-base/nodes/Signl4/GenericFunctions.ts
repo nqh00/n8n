@@ -1,11 +1,7 @@
-import type {
-	IExecuteFunctions,
-	IDataObject,
-	JsonObject,
-	IRequestOptions,
-	IHttpRequestMethods,
-} from 'n8n-workflow';
+import type { IExecuteFunctions, IDataObject, JsonObject } from 'n8n-workflow';
 import { NodeApiError } from 'n8n-workflow';
+
+import type { OptionsWithUri } from 'request';
 
 /**
  * Make an API request to SIGNL4
@@ -16,7 +12,7 @@ import { NodeApiError } from 'n8n-workflow';
 
 export async function SIGNL4ApiRequest(
 	this: IExecuteFunctions,
-	method: IHttpRequestMethods,
+	method: string,
 	body: string,
 	query: IDataObject = {},
 	option: IDataObject = {},
@@ -25,7 +21,7 @@ export async function SIGNL4ApiRequest(
 
 	const teamSecret = credentials?.teamSecret as string;
 
-	let options: IRequestOptions = {
+	let options: OptionsWithUri = {
 		headers: {
 			Accept: '*/*',
 		},

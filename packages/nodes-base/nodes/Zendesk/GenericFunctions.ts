@@ -1,10 +1,11 @@
+import type { OptionsWithUri } from 'request';
+
 import type {
 	IDataObject,
 	IExecuteFunctions,
+	IExecuteSingleFunctions,
 	IHookFunctions,
 	ILoadOptionsFunctions,
-	IHttpRequestMethods,
-	IRequestOptions,
 } from 'n8n-workflow';
 
 function getUri(resource: string, subdomain: string) {
@@ -16,8 +17,8 @@ function getUri(resource: string, subdomain: string) {
 }
 
 export async function zendeskApiRequest(
-	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions,
-	method: IHttpRequestMethods,
+	this: IHookFunctions | IExecuteFunctions | IExecuteSingleFunctions | ILoadOptionsFunctions,
+	method: string,
 	resource: string,
 
 	body: any = {},
@@ -35,7 +36,7 @@ export async function zendeskApiRequest(
 		credentials = (await this.getCredentials('zendeskOAuth2Api')) as { subdomain: string };
 	}
 
-	let options: IRequestOptions = {
+	let options: OptionsWithUri = {
 		method,
 		qs,
 		body,
@@ -53,7 +54,7 @@ export async function zendeskApiRequest(
 
 	const credentialType = authenticationMethod === 'apiToken' ? 'zendeskApi' : 'zendeskOAuth2Api';
 
-	return await this.helpers.requestWithAuthentication.call(this, credentialType, options);
+	return this.helpers.requestWithAuthentication.call(this, credentialType, options);
 }
 
 /**
@@ -63,7 +64,7 @@ export async function zendeskApiRequest(
 export async function zendeskApiRequestAllItems(
 	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions,
 	propertyName: string,
-	method: IHttpRequestMethods,
+	method: string,
 	resource: string,
 
 	body: any = {},

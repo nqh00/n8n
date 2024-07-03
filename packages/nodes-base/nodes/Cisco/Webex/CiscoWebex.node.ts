@@ -8,7 +8,6 @@ import type {
 	INodeTypeDescription,
 } from 'n8n-workflow';
 
-import moment from 'moment-timezone';
 import { getAttachments, webexApiRequest, webexApiRequestAllItems } from './GenericFunctions';
 
 import {
@@ -19,6 +18,8 @@ import {
 	messageFields,
 	messageOperations,
 } from './descriptions';
+
+import moment from 'moment-timezone';
 
 export class CiscoWebex implements INodeType {
 	description: INodeTypeDescription = {
@@ -489,7 +490,7 @@ export class CiscoWebex implements INodeType {
 
 				returnData.push(...(responseData as INodeExecutionData[]));
 			} catch (error) {
-				if (this.continueOnFail(error)) {
+				if (this.continueOnFail()) {
 					returnData.push({ error: error.toString(), json: {}, itemIndex: i });
 					continue;
 				}
@@ -548,7 +549,7 @@ export class CiscoWebex implements INodeType {
 		// 					returnData.push(...responseData.items);
 		// 				}
 		// 			} catch (error) {
-		// 				if (this.continueOnFail(error)) {
+		// 				if (this.continueOnFail()) {
 		// 					returnData.push({
 		// 						error: error.message,
 		// 					});
@@ -558,6 +559,6 @@ export class CiscoWebex implements INodeType {
 		// 	}
 		// }
 
-		return [returnData];
+		return this.prepareOutputData(returnData);
 	}
 }

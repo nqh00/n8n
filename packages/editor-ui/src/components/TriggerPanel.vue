@@ -1,10 +1,10 @@
 <template>
 	<div :class="$style.container">
 		<transition name="fade" mode="out-in">
-			<div v-if="hasIssues || hideContent" key="empty"></div>
-			<div v-else-if="isListeningForEvents" key="listening">
+			<div key="empty" v-if="hasIssues"></div>
+			<div key="listening" v-else-if="isListeningForEvents">
 				<n8n-pulse>
-					<NodeIcon :node-type="nodeType" :size="40"></NodeIcon>
+					<NodeIcon :nodeType="nodeType" :size="40"></NodeIcon>
 				</n8n-pulse>
 				<div v-if="isWebhookNode">
 					<n8n-text tag="div" size="large" color="text-dark" class="mb-2xs" bold>{{
@@ -14,14 +14,14 @@
 						<n8n-text>
 							{{
 								$locale.baseText('ndv.trigger.webhookNode.requestHint', {
-									interpolate: { type: webhookHttpMethod ?? '' },
+									interpolate: { type: this.webhookHttpMethod },
 								})
 							}}
 						</n8n-text>
 					</div>
 					<CopyInput
 						:value="webhookTestUrl"
-						:toast-title="$locale.baseText('ndv.trigger.copiedTestUrl')"
+						:toastTitle="$locale.baseText('ndv.trigger.copiedTestUrl')"
 						class="mb-2xl"
 						size="medium"
 						:collapse="true"
@@ -29,39 +29,35 @@
 						@copy="onTestLinkCopied"
 					></CopyInput>
 					<NodeExecuteButton
-						data-test-id="trigger-execute-button"
-						:node-name="nodeName"
-						size="medium"
-						telemetry-source="inputs"
+						:nodeName="nodeName"
 						@execute="onNodeExecute"
+						size="medium"
+						telemetrySource="inputs"
 					/>
 				</div>
 				<div v-else>
 					<n8n-text tag="div" size="large" color="text-dark" class="mb-2xs" bold>{{
-						listeningTitle
+						$locale.baseText('ndv.trigger.webhookBasedNode.listening')
 					}}</n8n-text>
 					<div :class="[$style.shake, 'mb-xs']">
 						<n8n-text tag="div">
-							{{ listeningHint }}
+							{{
+								$locale.baseText('ndv.trigger.webhookBasedNode.serviceHint', {
+									interpolate: { service: serviceName },
+								})
+							}}
 						</n8n-text>
 					</div>
-					<div v-if="displayChatButton">
-						<n8n-button class="mb-xl" @click="openWebhookUrl()">
-							{{ $locale.baseText('ndv.trigger.chatTrigger.openChat') }}
-						</n8n-button>
-					</div>
-
 					<NodeExecuteButton
-						data-test-id="trigger-execute-button"
-						:node-name="nodeName"
-						size="medium"
-						telemetry-source="inputs"
+						:nodeName="nodeName"
 						@execute="onNodeExecute"
+						size="medium"
+						telemetrySource="inputs"
 					/>
 				</div>
 			</div>
-			<div v-else key="default">
-				<div v-if="isActivelyPolling" class="mb-xl">
+			<div key="default" v-else>
+				<div class="mb-xl" v-if="isActivelyPolling">
 					<n8n-spinner type="ring" />
 				</div>
 
@@ -76,31 +72,29 @@
 					</div>
 
 					<NodeExecuteButton
-						data-test-id="trigger-execute-button"
-						:node-name="nodeName"
-						size="medium"
-						telemetry-source="inputs"
+						:nodeName="nodeName"
 						@execute="onNodeExecute"
+						size="medium"
+						telemetrySource="inputs"
 					/>
 				</div>
 
-				<n8n-text v-if="activationHint" size="small" @click="onLinkClick">
+				<n8n-text size="small" @click="onLinkClick" v-if="activationHint">
 					<span v-html="activationHint"></span>&nbsp;
 				</n8n-text>
 				<n8n-link
-					v-if="activationHint && executionsHelp"
 					size="small"
+					v-if="activationHint && executionsHelp"
 					@click="expandExecutionHelp"
 					>{{ $locale.baseText('ndv.trigger.moreInfo') }}</n8n-link
 				>
 				<n8n-info-accordion
-					v-if="executionsHelp"
 					ref="help"
+					v-if="executionsHelp"
 					:class="$style.accordion"
 					:title="$locale.baseText('ndv.trigger.executionsHint.question')"
 					:description="executionsHelp"
-					:event-bus="executionsHelpEventBus"
-					@click:body="onLinkClick"
+					@click="onLinkClick"
 				></n8n-info-accordion>
 			</div>
 		</transition>
@@ -110,30 +104,26 @@
 <script lang="ts">
 import { defineComponent } from 'vue';
 import { mapStores } from 'pinia';
-import {
-	CHAT_TRIGGER_NODE_TYPE,
-	VIEWS,
-	WEBHOOK_NODE_TYPE,
-	WORKFLOW_SETTINGS_MODAL_KEY,
-	FORM_TRIGGER_NODE_TYPE,
-} from '@/constants';
+import { EXECUTIONS_MODAL_KEY, WEBHOOK_NODE_TYPE, WORKFLOW_SETTINGS_MODAL_KEY } from '@/constants';
 import type { INodeUi } from '@/Interface';
 import type { INodeTypeDescription } from 'n8n-workflow';
-import { getTriggerNodeServiceName } from '@/utils/nodeTypesUtils';
+import { getTriggerNodeServiceName } from '@/utils';
 import NodeExecuteButton from '@/components/NodeExecuteButton.vue';
+import { workflowHelpers } from '@/mixins/workflowHelpers';
 import CopyInput from '@/components/CopyInput.vue';
 import NodeIcon from '@/components/NodeIcon.vue';
+import { copyPaste } from '@/mixins/copyPaste';
 import { useUIStore } from '@/stores/ui.store';
 import { useWorkflowsStore } from '@/stores/workflows.store';
 import { useNDVStore } from '@/stores/ndv.store';
 import { useNodeTypesStore } from '@/stores/nodeTypes.store';
-import { createEventBus } from 'n8n-design-system/utils';
-import { useRouter } from 'vue-router';
-import { useWorkflowHelpers } from '@/composables/useWorkflowHelpers';
-import { isTriggerPanelObject } from '@/utils/typeGuards';
+import type { N8nInfoAccordion } from 'n8n-design-system';
+
+type HelpRef = InstanceType<typeof N8nInfoAccordion>;
 
 export default defineComponent({
 	name: 'TriggerPanel',
+	mixins: [workflowHelpers, copyPaste],
 	components: {
 		NodeExecuteButton,
 		CopyInput,
@@ -142,26 +132,10 @@ export default defineComponent({
 	props: {
 		nodeName: {
 			type: String,
-			required: true,
 		},
-		pushRef: {
+		sessionId: {
 			type: String,
-			default: '',
 		},
-	},
-	emits: { activate: null, execute: null },
-	setup() {
-		const router = useRouter();
-		const workflowHelpers = useWorkflowHelpers({ router });
-
-		return {
-			workflowHelpers,
-		};
-	},
-	data: () => {
-		return {
-			executionsHelpEventBus: createEventBus(),
-		};
 	},
 	computed: {
 		...mapStores(useNodeTypesStore, useNDVStore, useUIStore, useWorkflowsStore),
@@ -175,34 +149,11 @@ export default defineComponent({
 
 			return null;
 		},
-		triggerPanel() {
-			const panel = this.nodeType?.triggerPanel;
-			if (isTriggerPanelObject(panel)) {
-				return panel;
-			}
-			return undefined;
-		},
-		hideContent(): boolean {
-			const hideContent = this.triggerPanel?.hideContent;
-			if (typeof hideContent === 'boolean') {
-				return hideContent;
-			}
-
-			if (this.node) {
-				const hideContentValue = this.workflowHelpers
-					.getCurrentWorkflow()
-					.expression.getSimpleParameterValue(this.node, hideContent, 'internal', {});
-
-				if (typeof hideContentValue === 'boolean') {
-					return hideContentValue;
-				}
-			}
-
-			return false;
-		},
 		hasIssues(): boolean {
 			return Boolean(
-				this.node?.issues && (this.node.issues.parameters ?? this.node.issues.credentials),
+				this.node &&
+					this.node.issues &&
+					(this.node.issues.parameters || this.node.issues.credentials),
 			);
 		},
 		serviceName(): string {
@@ -212,49 +163,42 @@ export default defineComponent({
 
 			return '';
 		},
-		displayChatButton(): boolean {
-			return Boolean(
-				this.node &&
-					this.node.type === CHAT_TRIGGER_NODE_TYPE &&
-					this.node.parameters.mode !== 'webhook',
-			);
-		},
 		isWebhookNode(): boolean {
 			return Boolean(this.node && this.node.type === WEBHOOK_NODE_TYPE);
 		},
 		webhookHttpMethod(): string | undefined {
-			if (!this.node || !this.nodeType?.webhooks?.length) {
+			if (
+				!this.node ||
+				!this.nodeType ||
+				!this.nodeType.webhooks ||
+				!this.nodeType.webhooks.length
+			) {
 				return undefined;
 			}
 
-			const httpMethod = this.workflowHelpers.getWebhookExpressionValue(
-				this.nodeType.webhooks[0],
-				'httpMethod',
-				false,
-			);
-
-			if (Array.isArray(httpMethod)) {
-				return httpMethod.join(', ');
-			}
-
-			return httpMethod;
+			return this.getWebhookExpressionValue(this.nodeType.webhooks[0], 'httpMethod');
 		},
 		webhookTestUrl(): string | undefined {
-			if (!this.node || !this.nodeType?.webhooks?.length) {
+			if (
+				!this.node ||
+				!this.nodeType ||
+				!this.nodeType.webhooks ||
+				!this.nodeType.webhooks.length
+			) {
 				return undefined;
 			}
 
-			return this.workflowHelpers.getWebhookUrl(this.nodeType.webhooks[0], this.node, 'test');
+			return this.getWebhookUrl(this.nodeType.webhooks[0], this.node, 'test');
 		},
 		isWebhookBasedNode(): boolean {
-			return Boolean(this.nodeType?.webhooks?.length);
+			return Boolean(this.nodeType && this.nodeType.webhooks && this.nodeType.webhooks.length);
 		},
 		isPollingNode(): boolean {
-			return Boolean(this.nodeType?.polling);
+			return Boolean(this.nodeType && this.nodeType.polling);
 		},
 		isListeningForEvents(): boolean {
-			const waitingOnWebhook = this.workflowsStore.executionWaitingForWebhook;
-			const executedNode = this.workflowsStore.executedNode;
+			const waitingOnWebhook = this.workflowsStore.executionWaitingForWebhook as boolean;
+			const executedNode = this.workflowsStore.executedNode as string | undefined;
 			return (
 				!!this.node &&
 				!this.node.disabled &&
@@ -274,23 +218,6 @@ export default defineComponent({
 		isWorkflowActive(): boolean {
 			return this.workflowsStore.isWorkflowActive;
 		},
-		listeningTitle(): string {
-			return this.nodeType?.name === FORM_TRIGGER_NODE_TYPE
-				? this.$locale.baseText('ndv.trigger.webhookNode.formTrigger.listening')
-				: this.$locale.baseText('ndv.trigger.webhookNode.listening');
-		},
-		listeningHint(): string {
-			switch (this.nodeType?.name) {
-				case CHAT_TRIGGER_NODE_TYPE:
-					return this.$locale.baseText('ndv.trigger.webhookBasedNode.chatTrigger.serviceHint');
-				case FORM_TRIGGER_NODE_TYPE:
-					return this.$locale.baseText('ndv.trigger.webhookBasedNode.formTrigger.serviceHint');
-				default:
-					return this.$locale.baseText('ndv.trigger.webhookBasedNode.serviceHint', {
-						interpolate: { service: this.serviceName },
-					});
-			}
-		},
 		header(): string {
 			const serviceName = this.nodeType ? getTriggerNodeServiceName(this.nodeType) : '';
 
@@ -298,8 +225,12 @@ export default defineComponent({
 				return this.$locale.baseText('ndv.trigger.pollingNode.fetchingEvent');
 			}
 
-			if (this.triggerPanel?.header) {
-				return this.triggerPanel.header;
+			if (
+				this.nodeType &&
+				this.nodeType.triggerPanel &&
+				typeof this.nodeType.triggerPanel.header === 'string'
+			) {
+				return this.nodeType.triggerPanel.header;
 			}
 
 			if (this.isWebhookBasedNode) {
@@ -321,15 +252,19 @@ export default defineComponent({
 			return '';
 		},
 		executionsHelp(): string {
-			if (this.triggerPanel?.executionsHelp) {
-				if (typeof this.triggerPanel.executionsHelp === 'string') {
-					return this.triggerPanel.executionsHelp;
+			if (
+				this.nodeType &&
+				this.nodeType.triggerPanel &&
+				this.nodeType.triggerPanel.executionsHelp !== undefined
+			) {
+				if (typeof this.nodeType.triggerPanel.executionsHelp === 'string') {
+					return this.nodeType.triggerPanel.executionsHelp;
 				}
-				if (!this.isWorkflowActive && this.triggerPanel.executionsHelp.inactive) {
-					return this.triggerPanel.executionsHelp.inactive;
+				if (!this.isWorkflowActive && this.nodeType.triggerPanel.executionsHelp.inactive) {
+					return this.nodeType.triggerPanel.executionsHelp.inactive;
 				}
-				if (this.isWorkflowActive && this.triggerPanel.executionsHelp.active) {
-					return this.triggerPanel.executionsHelp.active;
+				if (this.isWorkflowActive && this.nodeType.triggerPanel.executionsHelp.active) {
+					return this.nodeType.triggerPanel.executionsHelp.active;
 				}
 			}
 
@@ -360,22 +295,29 @@ export default defineComponent({
 			return '';
 		},
 		activationHint(): string {
-			if (this.isActivelyPolling || !this.triggerPanel) {
+			if (this.isActivelyPolling) {
 				return '';
 			}
 
-			if (this.triggerPanel.activationHint) {
-				if (typeof this.triggerPanel.activationHint === 'string') {
-					return this.triggerPanel.activationHint;
+			if (
+				this.nodeType &&
+				this.nodeType.triggerPanel &&
+				this.nodeType.triggerPanel.activationHint
+			) {
+				if (typeof this.nodeType.triggerPanel.activationHint === 'string') {
+					return this.nodeType.triggerPanel.activationHint;
 				}
 				if (
 					!this.isWorkflowActive &&
-					typeof this.triggerPanel.activationHint.inactive === 'string'
+					typeof this.nodeType.triggerPanel.activationHint.inactive === 'string'
 				) {
-					return this.triggerPanel.activationHint.inactive;
+					return this.nodeType.triggerPanel.activationHint.inactive;
 				}
-				if (this.isWorkflowActive && typeof this.triggerPanel.activationHint.active === 'string') {
-					return this.triggerPanel.activationHint.active;
+				if (
+					this.isWorkflowActive &&
+					typeof this.nodeType.triggerPanel.activationHint.active === 'string'
+				) {
+					return this.nodeType.triggerPanel.activationHint.active;
 				}
 			}
 
@@ -409,17 +351,8 @@ export default defineComponent({
 	methods: {
 		expandExecutionHelp() {
 			if (this.$refs.help) {
-				this.executionsHelpEventBus.emit('expand');
+				(this.$refs.help as HelpRef).$emit('expand');
 			}
-		},
-		openWebhookUrl() {
-			this.$telemetry.track('User clicked ndv link', {
-				workflow_id: this.workflowsStore.workflowId,
-				push_ref: this.pushRef,
-				pane: 'input',
-				type: 'open-chat',
-			});
-			window.open(this.webhookTestUrl, '_blank', 'noreferrer');
 		},
 		onLinkClick(e: MouseEvent) {
 			if (!e.target) {
@@ -428,7 +361,7 @@ export default defineComponent({
 			const target = e.target as HTMLElement;
 			if (target.localName !== 'a') return;
 
-			if (target.dataset?.key) {
+			if (target.dataset && target.dataset.key) {
 				e.stopPropagation();
 				e.preventDefault();
 
@@ -437,14 +370,12 @@ export default defineComponent({
 				} else if (target.dataset.key === 'executions') {
 					this.$telemetry.track('User clicked ndv link', {
 						workflow_id: this.workflowsStore.workflowId,
-						push_ref: this.pushRef,
+						session_id: this.sessionId,
 						pane: 'input',
 						type: 'open-executions-log',
 					});
 					this.ndvStore.activeNodeName = null;
-					void this.$router.push({
-						name: VIEWS.EXECUTIONS,
-					});
+					this.uiStore.openModal(EXECUTIONS_MODAL_KEY);
 				} else if (target.dataset.key === 'settings') {
 					this.uiStore.openModal(WORKFLOW_SETTINGS_MODAL_KEY);
 				}

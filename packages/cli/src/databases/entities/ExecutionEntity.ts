@@ -9,8 +9,7 @@ import {
 	OneToOne,
 	PrimaryColumn,
 	Relation,
-	DeleteDateColumn,
-} from '@n8n/typeorm';
+} from 'typeorm';
 import { datetimeColumnType } from './AbstractEntity';
 import { idStringifier } from '../utils/transformers';
 import type { ExecutionData } from './ExecutionData';
@@ -40,7 +39,7 @@ export class ExecutionEntity {
 	@Column({ nullable: true })
 	retrySuccessId: string;
 
-	@Column('varchar')
+	@Column('varchar', { nullable: true })
 	status: ExecutionStatus;
 
 	@Column(datetimeColumnType)
@@ -49,9 +48,6 @@ export class ExecutionEntity {
 	@Index()
 	@Column({ type: datetimeColumnType, nullable: true })
 	stoppedAt: Date;
-
-	@DeleteDateColumn({ type: datetimeColumnType, nullable: true })
-	deletedAt: Date;
 
 	@Column({ nullable: true })
 	workflowId: string;

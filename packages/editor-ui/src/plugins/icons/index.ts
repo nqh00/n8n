@@ -1,4 +1,4 @@
-import type { Plugin } from 'vue';
+import type { PluginObject } from 'vue';
 import { library } from '@fortawesome/fontawesome-svg-core';
 import type { IconDefinition } from '@fortawesome/fontawesome-svg-core';
 import {
@@ -7,19 +7,16 @@ import {
 	faAngleLeft,
 	faAngleRight,
 	faAngleUp,
-	faArchive,
 	faArrowLeft,
 	faArrowRight,
 	faArrowUp,
 	faArrowDown,
 	faAt,
 	faBan,
-	faBars,
 	faBolt,
 	faBook,
 	faBoxOpen,
 	faBug,
-	faBrain,
 	faCalculator,
 	faCalendar,
 	faChartBar,
@@ -34,8 +31,6 @@ import {
 	faCodeBranch,
 	faCog,
 	faCogs,
-	faComment,
-	faComments,
 	faClipboardList,
 	faClock,
 	faClone,
@@ -44,7 +39,6 @@ import {
 	faCopy,
 	faCube,
 	faCut,
-	faDatabase,
 	faDotCircle,
 	faEdit,
 	faEllipsisH,
@@ -73,15 +67,10 @@ import {
 	faGift,
 	faGlobe,
 	faGraduationCap,
-	faGripLinesVertical,
 	faGripVertical,
-	faHandHoldingUsd,
-	faHandScissors,
 	faHandPointLeft,
-	faHandshake,
 	faHashtag,
 	faHdd,
-	faHistory,
 	faHome,
 	faHourglass,
 	faImage,
@@ -89,7 +78,6 @@ import {
 	faInfo,
 	faInfoCircle,
 	faKey,
-	faLanguage,
 	faLink,
 	faList,
 	faLightbulb,
@@ -97,7 +85,6 @@ import {
 	faMapSigns,
 	faMousePointer,
 	faNetworkWired,
-	faPalette,
 	faPause,
 	faPauseCircle,
 	faPen,
@@ -111,7 +98,6 @@ import {
 	faQuestion,
 	faQuestionCircle,
 	faRedo,
-	faRobot,
 	faRss,
 	faSave,
 	faSatelliteDish,
@@ -119,7 +105,6 @@ import {
 	faSearchMinus,
 	faSearchPlus,
 	faServer,
-	faScrewdriver,
 	faSignInAlt,
 	faSignOutAlt,
 	faSlidersH,
@@ -133,8 +118,6 @@ import {
 	faTerminal,
 	faThLarge,
 	faThumbtack,
-	faThumbsDown,
-	faThumbsUp,
 	faTimes,
 	faTimesCircle,
 	faToolbox,
@@ -145,20 +128,13 @@ import {
 	faUserCircle,
 	faUserFriends,
 	faUsers,
-	faVectorSquare,
 	faVideo,
 	faTree,
 	faStickyNote as faSolidStickyNote,
 	faUserLock,
 	faGem,
-	faDownload,
-	faRemoveFormat,
-	faTools,
-	faProjectDiagram,
-	faStream,
-	faPowerOff,
 } from '@fortawesome/free-solid-svg-icons';
-import { faVariable, faXmark, faVault } from './custom';
+import { faVariable } from './custom';
 import { faStickyNote } from '@fortawesome/free-regular-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome';
 
@@ -166,26 +142,23 @@ function addIcon(icon: IconDefinition) {
 	library.add(icon);
 }
 
-export const FontAwesomePlugin: Plugin = {
+export const FontAwesomePlugin: PluginObject<{}> = {
 	install: (app) => {
 		addIcon(faAngleDoubleLeft);
 		addIcon(faAngleDown);
 		addIcon(faAngleLeft);
 		addIcon(faAngleRight);
 		addIcon(faAngleUp);
-		addIcon(faArchive);
 		addIcon(faArrowLeft);
 		addIcon(faArrowRight);
 		addIcon(faArrowUp);
 		addIcon(faArrowDown);
 		addIcon(faAt);
 		addIcon(faBan);
-		addIcon(faBars);
 		addIcon(faBolt);
 		addIcon(faBook);
 		addIcon(faBoxOpen);
 		addIcon(faBug);
-		addIcon(faBrain);
 		addIcon(faCalculator);
 		addIcon(faCalendar);
 		addIcon(faChartBar);
@@ -200,8 +173,6 @@ export const FontAwesomePlugin: Plugin = {
 		addIcon(faCodeBranch);
 		addIcon(faCog);
 		addIcon(faCogs);
-		addIcon(faComment);
-		addIcon(faComments);
 		addIcon(faClipboardList);
 		addIcon(faClock);
 		addIcon(faClone);
@@ -210,9 +181,7 @@ export const FontAwesomePlugin: Plugin = {
 		addIcon(faCopy);
 		addIcon(faCube);
 		addIcon(faCut);
-		addIcon(faDatabase);
 		addIcon(faDotCircle);
-		addIcon(faGripLinesVertical);
 		addIcon(faGripVertical);
 		addIcon(faEdit);
 		addIcon(faEllipsisH);
@@ -241,13 +210,9 @@ export const FontAwesomePlugin: Plugin = {
 		addIcon(faGlobe);
 		addIcon(faGlobeAmericas);
 		addIcon(faGraduationCap);
-		addIcon(faHandHoldingUsd);
-		addIcon(faHandScissors);
-		addIcon(faHandshake);
 		addIcon(faHandPointLeft);
 		addIcon(faHashtag);
 		addIcon(faHdd);
-		addIcon(faHistory);
 		addIcon(faHome);
 		addIcon(faHourglass);
 		addIcon(faImage);
@@ -255,7 +220,6 @@ export const FontAwesomePlugin: Plugin = {
 		addIcon(faInfo);
 		addIcon(faInfoCircle);
 		addIcon(faKey);
-		addIcon(faLanguage);
 		addIcon(faLink);
 		addIcon(faList);
 		addIcon(faLightbulb);
@@ -263,7 +227,6 @@ export const FontAwesomePlugin: Plugin = {
 		addIcon(faMapSigns);
 		addIcon(faMousePointer);
 		addIcon(faNetworkWired);
-		addIcon(faPalette);
 		addIcon(faPause);
 		addIcon(faPauseCircle);
 		addIcon(faPen);
@@ -274,12 +237,9 @@ export const FontAwesomePlugin: Plugin = {
 		addIcon(faPlus);
 		addIcon(faPlusCircle);
 		addIcon(faPlusSquare);
-		addIcon(faProjectDiagram);
 		addIcon(faQuestion);
 		addIcon(faQuestionCircle);
 		addIcon(faRedo);
-		addIcon(faRemoveFormat);
-		addIcon(faRobot);
 		addIcon(faRss);
 		addIcon(faSave);
 		addIcon(faSatelliteDish);
@@ -287,7 +247,6 @@ export const FontAwesomePlugin: Plugin = {
 		addIcon(faSearchMinus);
 		addIcon(faSearchPlus);
 		addIcon(faServer);
-		addIcon(faScrewdriver);
 		addIcon(faSignInAlt);
 		addIcon(faSignOutAlt);
 		addIcon(faSlidersH);
@@ -295,7 +254,6 @@ export const FontAwesomePlugin: Plugin = {
 		addIcon(faSolidStickyNote);
 		addIcon(faStickyNote as IconDefinition);
 		addIcon(faStop);
-		addIcon(faStream);
 		addIcon(faSun);
 		addIcon(faSync);
 		addIcon(faSyncAlt);
@@ -304,12 +262,9 @@ export const FontAwesomePlugin: Plugin = {
 		addIcon(faTerminal);
 		addIcon(faThLarge);
 		addIcon(faThumbtack);
-		addIcon(faThumbsDown);
-		addIcon(faThumbsUp);
 		addIcon(faTimes);
 		addIcon(faTimesCircle);
 		addIcon(faToolbox);
-		addIcon(faTools);
 		addIcon(faTrash);
 		addIcon(faUndo);
 		addIcon(faUnlink);
@@ -318,16 +273,11 @@ export const FontAwesomePlugin: Plugin = {
 		addIcon(faUserFriends);
 		addIcon(faUsers);
 		addIcon(faVariable);
-		addIcon(faVault);
-		addIcon(faVectorSquare);
 		addIcon(faVideo);
 		addIcon(faTree);
 		addIcon(faUserLock);
 		addIcon(faGem);
-		addIcon(faXmark);
-		addIcon(faDownload);
-		addIcon(faPowerOff);
 
-		app.component('FontAwesomeIcon', FontAwesomeIcon);
+		app.component('font-awesome-icon', FontAwesomeIcon);
 	},
 };

@@ -1,19 +1,20 @@
+import type { OptionsWithUri } from 'request';
+
 import type {
 	ICredentialDataDecryptedObject,
 	ICredentialTestFunctions,
 	IDataObject,
 	IExecuteFunctions,
+	IExecuteSingleFunctions,
 	IHookFunctions,
-	IHttpRequestMethods,
 	ILoadOptionsFunctions,
-	IRequestOptions,
 	JsonObject,
 } from 'n8n-workflow';
 import { NodeApiError } from 'n8n-workflow';
 
 export async function dhlApiRequest(
-	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions,
-	method: IHttpRequestMethods,
+	this: IHookFunctions | IExecuteFunctions | IExecuteSingleFunctions | ILoadOptionsFunctions,
+	method: string,
 	path: string,
 
 	body: any = {},
@@ -23,7 +24,7 @@ export async function dhlApiRequest(
 ): Promise<any> {
 	const credentials = (await this.getCredentials('dhlApi')) as { apiKey: string };
 
-	let options: IRequestOptions = {
+	let options: OptionsWithUri = {
 		headers: {
 			'DHL-API-Key': credentials.apiKey,
 		},
@@ -55,7 +56,7 @@ export async function validateCredentials(
 		apiKey: string;
 	};
 
-	const options: IRequestOptions = {
+	const options: OptionsWithUri = {
 		headers: {
 			'DHL-API-Key': apiKey,
 		},
@@ -67,5 +68,5 @@ export async function validateCredentials(
 		json: true,
 	};
 
-	return await this.helpers.request(options);
+	return this.helpers.request(options);
 }

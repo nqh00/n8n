@@ -1,6 +1,7 @@
-import type { ComponentInstance } from 'vue';
-import type { StoryFn } from '@storybook/vue3';
+/* eslint-disable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment */
+import type { StoryFn } from '@storybook/vue';
 import N8nRecycleScroller from './RecycleScroller.vue';
+import type { ComponentInstance } from 'vue';
 
 export default {
 	title: 'Atoms/RecycleScroller',
@@ -8,8 +9,7 @@ export default {
 	argTypes: {},
 };
 
-const Template: StoryFn = (args) => ({
-	setup: () => ({ args }),
+const Template: StoryFn = () => ({
 	components: {
 		N8nRecycleScroller,
 	},
@@ -23,9 +23,7 @@ const Template: StoryFn = (args) => ({
 	},
 	methods: {
 		resizeItem(item: { id: string; height: string }, fn: (item: { id: string }) => void) {
-			const itemRef = (this as ComponentInstance<typeof N8nRecycleScroller>).$refs[
-				`item-${item.id}`
-			] as HTMLElement;
+			const itemRef = (this as ComponentInstance).$refs[`item-${item.id}`] as HTMLElement;
 
 			item.height = '200px';
 			itemRef.style.height = '200px';
@@ -44,7 +42,7 @@ const Template: StoryFn = (args) => ({
 		},
 	},
 	template: `<div style="height: calc(100vh - 30px); width: 100%; overflow: auto">
-		<N8nRecycleScroller :items="items" :item-size="100" item-key="id" v-bind="args">
+		<N8nRecycleScroller :items="items" :item-size="100" item-key="id" v-bind="$props">
 			<template	#default="{ item, updateItemSize }">
 				<div
 					:ref="'item-' + item.id"

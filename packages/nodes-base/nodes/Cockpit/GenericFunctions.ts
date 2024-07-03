@@ -1,16 +1,16 @@
 import type {
 	IDataObject,
 	IExecuteFunctions,
-	IHttpRequestMethods,
+	IExecuteSingleFunctions,
 	ILoadOptionsFunctions,
-	IRequestOptions,
 	JsonObject,
 } from 'n8n-workflow';
 import { jsonParse, NodeApiError } from 'n8n-workflow';
+import type { OptionsWithUri } from 'request';
 
 export async function cockpitApiRequest(
-	this: IExecuteFunctions | ILoadOptionsFunctions,
-	method: IHttpRequestMethods,
+	this: IExecuteFunctions | IExecuteSingleFunctions | ILoadOptionsFunctions,
+	method: string,
 	resource: string,
 
 	body: any = {},
@@ -18,7 +18,7 @@ export async function cockpitApiRequest(
 	option: IDataObject = {},
 ): Promise<any> {
 	const credentials = await this.getCredentials('cockpitApi');
-	let options: IRequestOptions = {
+	let options: OptionsWithUri = {
 		headers: {
 			Accept: 'application/json',
 			'Content-Type': 'application/json',
@@ -46,7 +46,7 @@ export async function cockpitApiRequest(
 }
 
 export function createDataFromParameters(
-	this: IExecuteFunctions | ILoadOptionsFunctions,
+	this: IExecuteFunctions | IExecuteSingleFunctions | ILoadOptionsFunctions,
 	itemIndex: number,
 ): IDataObject {
 	const dataFieldsAreJson = this.getNodeParameter('jsonDataFields', itemIndex) as boolean;

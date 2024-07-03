@@ -8,9 +8,10 @@ import type {
 	INodeExecutionData,
 	INodeType,
 	INodeTypeDescription,
-	IRequestOptions,
 } from 'n8n-workflow';
 import { NodeOperationError } from 'n8n-workflow';
+
+import type { OptionsWithUri } from 'request';
 
 import {
 	groupDescription,
@@ -255,7 +256,7 @@ export class Zammad implements INodeType {
 
 				const baseUrl = tolerateTrailingSlash(credentials.baseUrl);
 
-				const options: IRequestOptions = {
+				const options: OptionsWithUri = {
 					method: 'GET',
 					uri: `${baseUrl}/api/v1/users/me`,
 					json: true,
@@ -288,7 +289,7 @@ export class Zammad implements INodeType {
 
 				const baseUrl = tolerateTrailingSlash(credentials.baseUrl);
 
-				const options: IRequestOptions = {
+				const options: OptionsWithUri = {
 					method: 'GET',
 					uri: `${baseUrl}/api/v1/users/me`,
 					json: true,
@@ -749,13 +750,13 @@ export class Zammad implements INodeType {
 				);
 				returnData.push(...executionData);
 			} catch (error) {
-				if (this.continueOnFail(error)) {
+				if (this.continueOnFail()) {
 					returnData.push({ json: { error: error.message } });
 					continue;
 				}
 				throw error;
 			}
 		}
-		return [returnData];
+		return this.prepareOutputData(returnData);
 	}
 }

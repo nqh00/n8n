@@ -1,10 +1,8 @@
 <script lang="ts" setup>
 import { computed } from 'vue';
 import type { INodeUi, Schema } from '@/Interface';
-import { checkExhaustive } from '@/utils/typeGuards';
-import { shorten } from '@/utils/typesUtils';
+import { checkExhaustive, shorten } from '@/utils';
 import { getMappedExpression } from '@/utils/mappingUtils';
-import TextWithHighlights from './TextWithHighlights.vue';
 
 type Props = {
 	schema: Schema;
@@ -14,38 +12,38 @@ type Props = {
 	paneType: 'input' | 'output';
 	mappingEnabled: boolean;
 	draggingPath: string;
-	distanceFromActive?: number;
+	distanceFromActive: number;
 	node: INodeUi | null;
-	search: string;
 };
 
 const props = defineProps<Props>();
 
 const isSchemaValueArray = computed(() => Array.isArray(props.schema.value));
-const schemaArray = computed(
-	() => (isSchemaValueArray.value ? props.schema.value : []) as Schema[],
-);
 const isSchemaParentTypeArray = computed(() => props.parent?.type === 'array');
-
-const key = computed((): string | undefined => {
-	return isSchemaParentTypeArray.value ? `[${props.schema.key}]` : props.schema.key;
-});
+const isFlat = computed(
+	() =>
+		props.level === 0 &&
+		Array.isArray(props.schema.value) &&
+		props.schema.value.every((v) => !Array.isArray(v.value)),
+);
+const key = computed((): string | undefined =>
+	isSchemaParentTypeArray.value ? `[${props.schema.key}]` : props.schema.key,
+);
 const schemaName = computed(() =>
 	isSchemaParentTypeArray.value ? `${props.schema.type}[${props.schema.key}]` : props.schema.key,
 );
-
 const text = computed(() =>
 	Array.isArray(props.schema.value) ? '' : shorten(props.schema.value, 600, 0),
 );
 
-const dragged = computed(() => props.draggingPath === props.schema.path);
-
 const getJsonParameterPath = (path: string): string =>
 	getMappedExpression({
 		nodeName: props.node!.name,
-		distanceFromActive: props.distanceFromActive ?? 1,
+		distanceFromActive: props.distanceFromActive,
 		path,
 	});
+
+const transitionDelay = (i: number) => `${i * 0.033}s`;
 
 const getIconBySchemaType = (type: Schema['type']): string => {
 	switch (type) {
@@ -68,176 +66,132 @@ const getIconBySchemaType = (type: Schema['type']): string => {
 			return 'sun';
 		case 'undefined':
 			return 'ban';
-		default:
-			checkExhaustive(type);
-			return '';
 	}
+
+	checkExhaustive(type);
 };
 </script>
 
 <template>
 	<div :class="$style.item" data-test-id="run-data-schema-item">
-		<div :class="$style.itemContent">
-			<div
-				v-if="level > 0 || (level === 0 && !isSchemaValueArray)"
-				:title="schema.type"
-				:class="{
-					[$style.pill]: true,
-					[$style.mappable]: mappingEnabled,
-					[$style.highlight]: dragged,
-				}"
+		<div
+			v-if="level > 0 || (level === 0 && !isSchemaValueArray)"
+			:title="schema.type"
+			:class="{
+				[$style.pill]: true,
+				[$style.mappable]: mappingEnabled,
+				[$style.dragged]: draggingPath === schema.path,
+			}"
+		>
+			<span
+				:class="$style.label"
+				:data-value="getJsonParameterPath(schema.path)"
+				:data-name="schemaName"
+				:data-path="schema.path"
+				:data-depth="level"
+				data-target="mappable"
 			>
-				<span
-					:class="$style.label"
-					:data-value="getJsonParameterPath(schema.path)"
-					:data-name="schemaName"
-					:data-path="schema.path"
-					:data-depth="level"
-					data-target="mappable"
-				>
-					<font-awesome-icon :icon="getIconBySchemaType(schema.type)" size="sm" />
-					<TextWithHighlights
-						v-if="isSchemaParentTypeArray"
-						:content="props.parent?.key"
-						:search="props.search"
-					/>
-					<TextWithHighlights
-						v-if="key"
-						:class="{ [$style.arrayIndex]: isSchemaParentTypeArray }"
-						:content="key"
-						:search="props.search"
-					/>
-				</span>
-			</div>
-
-			<span v-if="text" :class="$style.text" data-test-id="run-data-schema-item-value">
-				<template v-for="(line, index) in text.split('\n')" :key="`line-${index}`">
-					<span v-if="index > 0" :class="$style.newLine">\n</span>
-					<TextWithHighlights :content="line" :search="props.search" />
-				</template>
+				<font-awesome-icon :icon="getIconBySchemaType(schema.type)" size="sm" />
+				<span v-if="isSchemaParentTypeArray">{{ parent.key }}</span>
+				<span v-if="key" :class="{ [$style.arrayIndex]: isSchemaParentTypeArray }">{{ key }}</span>
 			</span>
 		</div>
-
-		<input v-if="level > 0 && isSchemaValueArray" :id="subKey" type="checkbox" inert checked />
+		<span v-if="text" :class="$style.text" class="ph-no-capture">{{ text }}</span>
+		<input v-if="level > 0 && isSchemaValueArray" :id="subKey" type="checkbox" checked />
 		<label v-if="level > 0 && isSchemaValueArray" :class="$style.toggle" :for="subKey">
-			<font-awesome-icon icon="angle-right" />
+			<font-awesome-icon icon="angle-up" />
 		</label>
-
-		<div v-if="isSchemaValueArray" :class="$style.sub">
-			<div :class="$style.innerSub">
-				<run-data-schema-item
-					v-for="s in schemaArray"
-					:key="s.key ?? s.type"
-					:schema="s"
-					:level="level + 1"
-					:parent="schema"
-					:pane-type="paneType"
-					:sub-key="`${subKey}-${s.key ?? s.type}`"
-					:mapping-enabled="mappingEnabled"
-					:dragging-path="draggingPath"
-					:distance-from-active="distanceFromActive"
-					:node="node"
-					:search="search"
-				/>
-			</div>
+		<div v-if="isSchemaValueArray" :class="{ [$style.sub]: true, [$style.flat]: isFlat }">
+			<run-data-schema-item
+				v-for="(s, i) in schema.value"
+				:key="`${s.type}-${level}-${i}`"
+				:schema="s"
+				:level="level + 1"
+				:parent="schema"
+				:paneType="paneType"
+				:subKey="`${paneType}_${s.type}-${level}-${i}`"
+				:mappingEnabled="mappingEnabled"
+				:draggingPath="draggingPath"
+				:distanceFromActive="distanceFromActive"
+				:node="node"
+				:style="{ transitionDelay: transitionDelay(i) }"
+			/>
 		</div>
 	</div>
 </template>
 
 <style lang="scss" module>
-@import '@/styles/variables';
+@import '@/styles/css-animation-helpers.scss';
 
 .item {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
-	line-height: var(--font-line-height-loose);
+	display: block;
 	position: relative;
-	column-gap: var(--spacing-2xs);
-
-	+ .item {
-		margin-top: var(--spacing-2xs);
-	}
+	transition: all 0.3s $ease-out-expo;
 
 	.item {
+		padding-top: var(--spacing-2xs);
 		padding-left: var(--spacing-l);
 	}
 
 	input {
-		display: none;
+		position: absolute;
+		left: -100%;
 
 		~ .sub {
-			transition:
-				grid-template-rows 0.2s $ease-out-expo,
-				opacity 0.2s $ease-out-expo,
-				transform 0.2s $ease-out-expo;
-			transform: translateX(-8px);
-			opacity: 0;
-			margin-bottom: 0;
+			height: 0;
 
-			.innerSub {
-				min-height: 0;
+			> .item {
+				transform: translateX(-100%);
 			}
 		}
 
 		&:checked {
 			~ .toggle svg {
-				transform: rotate(90deg);
+				transform: rotate(180deg);
 			}
 
 			~ .sub {
-				transform: translateX(0);
-				opacity: 1;
-				grid-template-rows: 1fr;
+				height: auto;
+
+				> .item {
+					transform: translateX(0);
+				}
 			}
 		}
 	}
-}
 
-.itemContent {
-	display: flex;
-	gap: var(--spacing-2xs);
-	align-items: baseline;
-}
-
-.sub {
-	display: grid;
-	grid-template-rows: 0fr;
-	overflow: hidden;
-	flex-basis: 100%;
-	scroll-margin: 64px;
-}
-
-.innerSub {
-	display: inline-flex;
-	flex-direction: column;
-	order: -1;
-
-	.innerSub > div:first-child {
-		margin-top: var(--spacing-2xs);
+	&::after {
+		content: '';
+		display: block;
+		clear: both;
 	}
 }
 
-:global(.highlightSchema) {
-	.pill.mappable {
-		&,
-		&:hover,
-		span,
-		&:hover span span {
-			color: var(--color-primary);
-			border-color: var(--color-primary-tint-1);
-			background-color: var(--color-primary-tint-3);
+.sub {
+	display: block;
+	overflow: hidden;
+	transition: all 0.2s $ease-out-expo;
+	clear: both;
 
-			svg {
-				path {
-					fill: var(--color-primary);
-				}
+	&.flat {
+		> .item {
+			padding-left: 0;
+		}
+	}
+
+	&:nth-of-type(1) {
+		> .item:nth-of-type(1) {
+			padding-top: 0;
+
+			.toggle {
+				top: -2px;
 			}
 		}
 	}
 }
 
 .pill {
+	float: left;
 	display: inline-flex;
 	height: 24px;
 	padding: 0 var(--spacing-3xs);
@@ -270,6 +224,22 @@ const getIconBySchemaType = (type: Schema['type']): string => {
 			}
 		}
 	}
+
+	&.dragged {
+		&,
+		&:hover,
+		span {
+			color: var(--color-primary);
+			border-color: var(--color-primary-tint-1);
+			background-color: var(--color-primary-tint-3);
+
+			svg {
+				path {
+					fill: var(--color-primary);
+				}
+			}
+		}
+	}
 }
 
 .label {
@@ -288,24 +258,20 @@ const getIconBySchemaType = (type: Schema['type']): string => {
 
 .text {
 	display: block;
+	padding-top: var(--spacing-4xs);
+	padding-left: var(--spacing-2xs);
 	font-weight: var(--font-weight-normal);
 	font-size: var(--font-size-2xs);
 	overflow: hidden;
 	word-break: break-word;
-
-	.newLine {
-		font-family: var(--font-family-monospace);
-		color: var(--color-line-break);
-		padding-right: 2px;
-	}
 }
 
 .toggle {
 	display: flex;
 	position: absolute;
-	padding: var(--spacing-4xs) var(--spacing-2xs);
+	padding: var(--spacing-2xs);
 	left: 0;
-	top: 0;
+	top: 5px;
 	justify-content: center;
 	align-items: center;
 	cursor: pointer;
@@ -315,7 +281,7 @@ const getIconBySchemaType = (type: Schema['type']): string => {
 	overflow: hidden;
 
 	svg {
-		transition: transform 0.2s $ease-out-expo;
+		transition: all 0.3s $ease-out-expo;
 	}
 }
 </style>

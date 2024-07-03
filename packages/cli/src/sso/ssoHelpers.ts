@@ -1,7 +1,6 @@
 import config from '@/config';
-import { SettingsRepository } from '@db/repositories/settings.repository';
+import * as Db from '@/Db';
 import type { AuthProviderType } from '@db/entities/AuthIdentity';
-import Container from 'typedi';
 
 /**
  * Only one authentication method can be active at a time. This function sets the current authentication method
@@ -13,14 +12,11 @@ export async function setCurrentAuthenticationMethod(
 	authenticationMethod: AuthProviderType,
 ): Promise<void> {
 	config.set('userManagement.authenticationMethod', authenticationMethod);
-	await Container.get(SettingsRepository).save(
-		{
-			key: 'userManagement.authenticationMethod',
-			value: authenticationMethod,
-			loadOnStartup: true,
-		},
-		{ transaction: false },
-	);
+	await Db.collections.Settings.save({
+		key: 'userManagement.authenticationMethod',
+		value: authenticationMethod,
+		loadOnStartup: true,
+	});
 }
 
 export function getCurrentAuthenticationMethod(): AuthProviderType {

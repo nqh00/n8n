@@ -299,7 +299,7 @@ export const reportFields: INodeProperties[] = [
 		},
 	},
 	{
-		displayName: 'Put Output File in Field',
+		displayName: 'Binary Property',
 		name: 'binaryPropertyName',
 		type: 'string',
 		required: true,
@@ -310,6 +310,6 @@ export const reportFields: INodeProperties[] = [
 				operation: ['download'],
 			},
 		},
-		hint: 'The name of the output binary field to put the file in',
+		description: 'Name of the binary property to which to write the data of the read file',
 	},
 ];

@@ -1,20 +1,16 @@
-import type {
-	IExecuteFunctions,
-	ILoadOptionsFunctions,
-	JsonObject,
-	IRequestOptions,
-	IHttpRequestMethods,
-} from 'n8n-workflow';
+import type { OptionsWithUri } from 'request';
+
+import type { IExecuteFunctions, ILoadOptionsFunctions, JsonObject } from 'n8n-workflow';
 import { NodeApiError } from 'n8n-workflow';
 
 export async function apiTemplateIoApiRequest(
 	this: IExecuteFunctions | ILoadOptionsFunctions,
-	method: IHttpRequestMethods,
+	method: string,
 	endpoint: string,
 	qs = {},
 	body = {},
 ) {
-	const options: IRequestOptions = {
+	const options: OptionsWithUri = {
 		headers: {
 			'user-agent': 'n8n',
 			Accept: 'application/json',
@@ -78,7 +74,7 @@ export function validateJSON(json: string | object | undefined): any {
 }
 
 export async function downloadImage(this: IExecuteFunctions, url: string) {
-	return await this.helpers.request({
+	return this.helpers.request({
 		uri: url,
 		method: 'GET',
 		json: false,

@@ -161,7 +161,7 @@ export const fileFields: INodeProperties[] = [
 		default: '',
 	},
 	{
-		displayName: 'Put Output File in Field',
+		displayName: 'Binary Property',
 		name: 'binaryPropertyName',
 		type: 'string',
 		required: true,
@@ -172,7 +172,7 @@ export const fileFields: INodeProperties[] = [
 				resource: ['file'],
 			},
 		},
-		hint: 'The name of the output binary field to put the file in',
+		description: 'Name of the binary property to which to write the data of the read file',
 	},
 
 	/* -------------------------------------------------------------------------- */
@@ -671,7 +671,7 @@ export const fileFields: INodeProperties[] = [
 		description: 'The name the file should be saved as',
 	},
 	{
-		displayName: 'Binary File',
+		displayName: 'Binary Data',
 		name: 'binaryData',
 		type: 'boolean',
 		default: false,
@@ -700,7 +700,7 @@ export const fileFields: INodeProperties[] = [
 		description: 'The text content of the file',
 	},
 	{
-		displayName: 'Input Binary Field',
+		displayName: 'Binary Property',
 		name: 'binaryPropertyName',
 		type: 'string',
 		default: 'data',
@@ -712,7 +712,7 @@ export const fileFields: INodeProperties[] = [
 				resource: ['file'],
 			},
 		},
-		hint: 'The name of the input binary field containing the file to be uploaded',
+		description: 'Name of the binary property which contains the data for the file',
 	},
 	{
 		displayName: 'Parent ID',

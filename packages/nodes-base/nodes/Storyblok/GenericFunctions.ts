@@ -1,17 +1,18 @@
+import type { OptionsWithUri } from 'request';
+
 import type {
 	IDataObject,
 	IExecuteFunctions,
+	IExecuteSingleFunctions,
 	IHookFunctions,
 	ILoadOptionsFunctions,
 	JsonObject,
-	IRequestOptions,
-	IHttpRequestMethods,
 } from 'n8n-workflow';
 import { NodeApiError } from 'n8n-workflow';
 
 export async function storyblokApiRequest(
-	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions,
-	method: IHttpRequestMethods,
+	this: IHookFunctions | IExecuteFunctions | IExecuteSingleFunctions | ILoadOptionsFunctions,
+	method: string,
 	resource: string,
 	body: IDataObject = {},
 	qs: IDataObject = {},
@@ -19,7 +20,7 @@ export async function storyblokApiRequest(
 ) {
 	const authenticationMethod = this.getNodeParameter('source', 0) as string;
 
-	let options: IRequestOptions = {
+	let options: OptionsWithUri = {
 		headers: {
 			'Content-Type': 'application/json',
 		},
@@ -32,7 +33,7 @@ export async function storyblokApiRequest(
 
 	options = Object.assign({}, options, option);
 
-	if (Object.keys(options.body).length === 0) {
+	if (Object.keys(options.body as IDataObject).length === 0) {
 		delete options.body;
 	}
 
@@ -41,7 +42,7 @@ export async function storyblokApiRequest(
 
 		options.uri = `https://api.storyblok.com${resource}`;
 
-		Object.assign(options.qs ?? {}, { token: credentials.apiKey });
+		Object.assign(options.qs, { token: credentials.apiKey });
 	} else {
 		const credentials = await this.getCredentials('storyblokManagementApi');
 
@@ -62,7 +63,7 @@ export async function storyblokApiRequest(
 export async function storyblokApiRequestAllItems(
 	this: IHookFunctions | ILoadOptionsFunctions | IExecuteFunctions,
 	propertyName: string,
-	method: IHttpRequestMethods,
+	method: string,
 	resource: string,
 	body: IDataObject = {},
 	query: IDataObject = {},

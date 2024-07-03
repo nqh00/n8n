@@ -341,12 +341,12 @@ export class GoogleSlides implements INodeType {
 				description: 'Name of the binary property to which to write the data of the read page',
 			},
 			{
-				displayName: 'Put Output File in Field',
+				displayName: 'Binary Property',
 				name: 'binaryProperty',
 				type: 'string',
 				required: true,
 				default: 'data',
-				hint: 'The name of the output binary field to put the file in',
+				description: 'Name of the binary property to which to write to',
 				displayOptions: {
 					show: {
 						resource: ['page'],
@@ -579,7 +579,7 @@ export class GoogleSlides implements INodeType {
 					}
 				}
 			} catch (error) {
-				if (this.continueOnFail(error)) {
+				if (this.continueOnFail()) {
 					const executionErrorData = this.helpers.constructExecutionMetaData(
 						this.helpers.returnJsonArray({ error: error.message }),
 						{ itemData: { item: i } },
@@ -591,6 +591,6 @@ export class GoogleSlides implements INodeType {
 			}
 		}
 
-		return [returnData];
+		return this.prepareOutputData(returnData);
 	}
 }

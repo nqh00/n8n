@@ -1,6 +1,7 @@
 import type { INode } from 'n8n-workflow';
-import { DateTime } from 'luxon';
 import { prepareTimestamp } from '../../GenericFunctions';
+
+import { DateTime } from 'luxon';
 
 const node: INode = {
 	id: '1',

@@ -1,11 +1,11 @@
+import type { OptionsWithUrl } from 'request';
+
 import type {
 	IDataObject,
 	IExecuteFunctions,
 	IHookFunctions,
 	ILoadOptionsFunctions,
 	JsonObject,
-	IRequestOptions,
-	IHttpRequestMethods,
 } from 'n8n-workflow';
 import { NodeApiError } from 'n8n-workflow';
 function resolveHeaderData(fullResponse: any) {
@@ -18,33 +18,24 @@ function resolveHeaderData(fullResponse: any) {
 
 export async function linkedInApiRequest(
 	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions,
-	method: IHttpRequestMethods,
+	method: string,
 	endpoint: string,
 
 	body: any = {},
 	binary?: boolean,
 	_headers?: object,
 ): Promise<any> {
-	const authenticationMethod = this.getNodeParameter('authentication', 0);
-	const credentialType =
-		authenticationMethod === 'standard'
-			? 'linkedInOAuth2Api'
-			: 'linkedInCommunityManagementOAuth2Api';
-
-	const baseUrl = 'https://api.linkedin.com';
-
-	let options: IRequestOptions = {
+	let options: OptionsWithUrl = {
 		headers: {
 			Accept: 'application/json',
 			'X-Restli-Protocol-Version': '2.0.0',
-			'LinkedIn-Version': '202404',
+			'LinkedIn-Version': '202304',
 		},
 		method,
 		body,
-		url: binary ? endpoint : `${baseUrl}${endpoint.includes('v2') ? '' : '/rest'}${endpoint}`,
+		url: binary ? endpoint : `https://api.linkedin.com/rest${endpoint}`,
 		json: true,
 	};
-
 	options = Object.assign({}, options, {
 		resolveWithFullResponse: true,
 	});
@@ -52,9 +43,6 @@ export async function linkedInApiRequest(
 	if (binary) {
 		delete options.json;
 		options.encoding = null;
-		if (Object.keys(_headers as object).length > 0) {
-			Object.assign(options.headers as object, _headers);
-		}
 	}
 
 	if (Object.keys(body as IDataObject).length === 0) {
@@ -63,7 +51,7 @@ export async function linkedInApiRequest(
 
 	try {
 		return resolveHeaderData(
-			await this.helpers.requestOAuth2.call(this, credentialType, options, {
+			await this.helpers.requestOAuth2.call(this, 'linkedInOAuth2Api', options, {
 				tokenType: 'Bearer',
 			}),
 		);

@@ -1,20 +1,17 @@
 import { Container } from 'typedi';
+import { Not } from 'typeorm';
+import * as Db from '@/Db';
 import type { CredentialsEntity } from '@db/entities/CredentialsEntity';
 import { User } from '@db/entities/User';
-import { CredentialsRepository } from '@db/repositories/credentials.repository';
-import { SettingsRepository } from '@db/repositories/settings.repository';
-import { SharedCredentialsRepository } from '@db/repositories/sharedCredentials.repository';
-import { SharedWorkflowRepository } from '@db/repositories/sharedWorkflow.repository';
-import { UserRepository } from '@db/repositories/user.repository';
+import { RoleRepository } from '@db/repositories';
 import { BaseCommand } from '../BaseCommand';
-import { ProjectRepository } from '@/databases/repositories/project.repository';
 
 const defaultUserProps = {
 	firstName: null,
 	lastName: null,
 	email: null,
 	password: null,
-	role: 'global:owner',
+	resetPasswordToken: null,
 };
 
 export class Reset extends BaseCommand {
@@ -24,32 +21,43 @@ export class Reset extends BaseCommand {
 
 	async run(): Promise<void> {
 		const owner = await this.getInstanceOwner();
-		const personalProject = await Container.get(ProjectRepository).getPersonalProjectForUserOrFail(
-			owner.id,
+
+		const ownerWorkflowRole = await Container.get(RoleRepository).findWorkflowOwnerRoleOrFail();
+		const ownerCredentialRole = await Container.get(RoleRepository).findCredentialOwnerRoleOrFail();
+
+		await Db.collections.SharedWorkflow.update(
+			{ userId: Not(owner.id), roleId: ownerWorkflowRole.id },
+			{ user: owner },
 		);
 
-		await Container.get(SharedWorkflowRepository).makeOwnerOfAllWorkflows(personalProject);
-		await Container.get(SharedCredentialsRepository).makeOwnerOfAllCredentials(personalProject);
+		await Db.collections.SharedCredentials.update(
+			{ userId: Not(owner.id), roleId: ownerCredentialRole.id },
+			{ user: owner },
+		);
 
-		await Container.get(UserRepository).deleteAllExcept(owner);
-		await Container.get(UserRepository).save(Object.assign(owner, defaultUserProps));
+		await Db.collections.User.delete({ id: Not(owner.id) });
+		await Db.collections.User.save(Object.assign(owner, defaultUserProps));
 
-		const danglingCredentials: CredentialsEntity[] = await Container.get(CredentialsRepository)
-			.createQueryBuilder('credentials')
-			.leftJoinAndSelect('credentials.shared', 'shared')
-			.where('shared.credentialsId is null')
-			.getMany();
+		const danglingCredentials: CredentialsEntity[] =
+			await Db.collections.Credentials.createQueryBuilder('credentials')
+				.leftJoinAndSelect('credentials.shared', 'shared')
+				.where('shared.credentialsId is null')
+				.getMany();
 		const newSharedCredentials = danglingCredentials.map((credentials) =>
-			Container.get(SharedCredentialsRepository).create({
+			Db.collections.SharedCredentials.create({
 				credentials,
-				projectId: personalProject.id,
-				role: 'credential:owner',
+				user: owner,
+				role: ownerCredentialRole,
 			}),
 		);
-		await Container.get(SharedCredentialsRepository).save(newSharedCredentials);
+		await Db.collections.SharedCredentials.save(newSharedCredentials);
 
-		await Container.get(SettingsRepository).update(
+		await Db.collections.Settings.update(
 			{ key: 'userManagement.isInstanceOwnerSetUp' },
+			{ value: 'false' },
+		);
+		await Db.collections.Settings.update(
+			{ key: 'userManagement.skipInstanceOwnerSetup' },
 			{ value: 'false' },
 		);
 
@@ -57,17 +65,19 @@ export class Reset extends BaseCommand {
 	}
 
 	async getInstanceOwner(): Promise<User> {
-		const owner = await Container.get(UserRepository).findOneBy({ role: 'global:owner' });
+		const globalRole = await Container.get(RoleRepository).findGlobalOwnerRoleOrFail();
+
+		const owner = await Db.collections.User.findOneBy({ globalRoleId: globalRole.id });
 
 		if (owner) return owner;
 
 		const user = new User();
 
-		Object.assign(user, defaultUserProps);
+		Object.assign(user, { ...defaultUserProps, globalRole });
 
-		await Container.get(UserRepository).save(user);
+		await Db.collections.User.save(user);
 
-		return await Container.get(UserRepository).findOneByOrFail({ role: 'global:owner' });
+		return Db.collections.User.findOneByOrFail({ globalRoleId: globalRole.id });
 	}
 
 	async catch(error: Error): Promise<void> {

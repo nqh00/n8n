@@ -11,5 +11,8 @@
 		],
 		"generic": []
 	},
-	"alias": ["Time", "Scheduler", "Polling", "Cron", "Interval"]
+	"alias": ["Time", "Scheduler", "Polling", "Cron", "Interval"],
+	"subcategories": {
+		"Core Nodes": ["Flow"]
+	}
 }

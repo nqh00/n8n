@@ -1,8 +1,8 @@
 import { vi, describe, it, expect } from 'vitest';
-import { useDebounce } from '../useDebounce';
+import { useDebounceHelper } from '../useDebounce';
 import { render, screen } from '@testing-library/vue';
 
-describe('useDebounce()', () => {
+describe('useDebounceHelper', () => {
 	const debounceTime = 500;
 
 	const TestComponent = {
@@ -24,7 +24,7 @@ describe('useDebounce()', () => {
 		},
 		setup() {
 			vitest.useFakeTimers();
-			const { callDebounced } = useDebounce();
+			const { callDebounced } = useDebounceHelper();
 			return {
 				callDebounced,
 				debounceTime,

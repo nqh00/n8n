@@ -6,14 +6,15 @@ import type {
 } from 'n8n-workflow';
 import { NodeOperationError } from 'n8n-workflow';
 
+import { pgInsert, pgQuery, pgUpdate } from '../Postgres/v1/genericFunctions';
+
 import pgPromise from 'pg-promise';
-import { pgInsert, pgQueryV2, pgUpdate } from '../Postgres/v1/genericFunctions';
 
 export class TimescaleDb implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'TimescaleDB',
 		name: 'timescaleDb',
-		icon: { light: 'file:timescaleDb.svg', dark: 'file:timescaleDb.dark.svg' },
+		icon: 'file:timescale.svg',
 		group: ['input'],
 		version: 1,
 		description: 'Add and update data in TimescaleDB',
@@ -22,7 +23,6 @@ export class TimescaleDb implements INodeType {
 		},
 		inputs: ['main'],
 		outputs: ['main'],
-		parameterPane: 'wide',
 		credentials: [
 			{
 				name: 'timescaleDb',
@@ -65,10 +65,9 @@ export class TimescaleDb implements INodeType {
 				displayName: 'Query',
 				name: 'query',
 				type: 'string',
-				noDataExpression: true,
 				typeOptions: {
 					editor: 'sqlEditor',
-					sqlDialect: 'PostgreSQL',
+					sqlDialect: 'postgres',
 				},
 				displayOptions: {
 					show: {
@@ -280,9 +279,13 @@ export class TimescaleDb implements INodeType {
 			//         executeQuery
 			// ----------------------------------
 
-			const queryResult = await pgQueryV2.call(this, pgp, db, items, this.continueOnFail(), {
-				resolveExpression: true,
-			});
+			const queryResult = await pgQuery(
+				this.getNodeParameter,
+				pgp,
+				db,
+				items,
+				this.continueOnFail(),
+			);
 
 			returnItems = this.helpers.returnJsonArray(queryResult);
 		} else if (operation === 'insert') {
@@ -319,16 +322,16 @@ export class TimescaleDb implements INodeType {
 
 			returnItems = this.helpers.returnJsonArray(updateItems);
 		} else {
-			await db.$pool.end();
+			pgp.end();
 			throw new NodeOperationError(
 				this.getNode(),
 				`The operation "${operation}" is not supported!`,
 			);
 		}
 
-		// shuts down the connection pool associated with the db object to allow the process to finish
-		await db.$pool.end();
+		// Close the connection
+		pgp.end();
 
-		return [returnItems];
+		return this.prepareOutputData(returnItems);
 	}
 }

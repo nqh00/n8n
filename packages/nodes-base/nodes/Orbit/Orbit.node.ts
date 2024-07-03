@@ -8,7 +8,6 @@ import type {
 	INodeTypeDescription,
 } from 'n8n-workflow';
 
-import moment from 'moment-timezone';
 import { orbitApiRequest, orbitApiRequestAllItems, resolveIdentities } from './GenericFunctions';
 
 import { activityFields, activityOperations } from './ActivityDescription';
@@ -19,13 +18,14 @@ import { noteFields, noteOperations } from './NoteDescription';
 
 import { postFields, postOperations } from './PostDescription';
 
+import moment from 'moment';
 import type { IRelation } from './Interfaces';
 
 export class Orbit implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Orbit',
 		name: 'orbit',
-		icon: { light: 'file:orbit.svg', dark: 'file:orbit.dark.svg' },
+		icon: 'file:orbit.svg',
 		group: ['output'],
 		version: 1,
 		subtitle: '={{$parameter["operation"] + ": " + $parameter["resource"]}}',
@@ -531,7 +531,7 @@ export class Orbit implements INodeType {
 
 				returnData.push(...executionData);
 			} catch (error) {
-				if (this.continueOnFail(error)) {
+				if (this.continueOnFail()) {
 					const executionErrorData = this.helpers.constructExecutionMetaData(
 						this.helpers.returnJsonArray({ error: error.message }),
 						{ itemData: { item: i } },
@@ -542,6 +542,6 @@ export class Orbit implements INodeType {
 				throw error;
 			}
 		}
-		return [returnData];
+		return this.prepareOutputData(returnData);
 	}
 }

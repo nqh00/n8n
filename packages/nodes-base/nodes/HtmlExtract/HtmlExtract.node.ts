@@ -78,7 +78,7 @@ export class HtmlExtract implements INodeType {
 				description: 'If HTML should be read from binary or JSON data',
 			},
 			{
-				displayName: 'Input Binary Field',
+				displayName: 'Binary Property',
 				name: 'dataPropertyName',
 				type: 'string',
 				displayOptions: {
@@ -88,7 +88,8 @@ export class HtmlExtract implements INodeType {
 				},
 				default: 'data',
 				required: true,
-				hint: 'The name of the input binary field containing the file to be extracted',
+				description:
+					'Name of the binary property in which the HTML to extract the data from can be found',
 			},
 			{
 				displayName: 'JSON Property',
@@ -270,7 +271,7 @@ export class HtmlExtract implements INodeType {
 							// An array should be returned so iterate over one
 							// value at a time
 							newItem.json[valueData.key] = [];
-							htmlElement.each((_, el) => {
+							htmlElement.each((i, el) => {
 								(newItem.json[valueData.key] as Array<string | undefined>).push(
 									getValue($(el), valueData, options),
 								);
@@ -283,7 +284,7 @@ export class HtmlExtract implements INodeType {
 					returnData.push(newItem);
 				}
 			} catch (error) {
-				if (this.continueOnFail(error)) {
+				if (this.continueOnFail()) {
 					returnData.push({
 						json: {
 							error: error.message,
@@ -298,6 +299,6 @@ export class HtmlExtract implements INodeType {
 			}
 		}
 
-		return [returnData];
+		return this.prepareOutputData(returnData);
 	}
 }

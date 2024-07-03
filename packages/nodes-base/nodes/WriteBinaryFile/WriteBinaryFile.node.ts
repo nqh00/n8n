@@ -1,16 +1,16 @@
-import type { Readable } from 'stream';
-
-import { BINARY_ENCODING } from 'n8n-workflow';
 import type {
 	IExecuteFunctions,
 	INodeExecutionData,
 	INodeType,
 	INodeTypeDescription,
 } from 'n8n-workflow';
+import { BINARY_ENCODING } from 'n8n-workflow';
+
+import { writeFile as fsWriteFile } from 'fs/promises';
+import type { Readable } from 'stream';
 
 export class WriteBinaryFile implements INodeType {
 	description: INodeTypeDescription = {
-		hidden: true,
 		displayName: 'Write Binary File',
 		name: 'writeBinaryFile',
 		icon: 'fa:file-export',
@@ -73,10 +73,9 @@ export class WriteBinaryFile implements INodeType {
 				const dataPropertyName = this.getNodeParameter('dataPropertyName', itemIndex);
 
 				const fileName = this.getNodeParameter('fileName', itemIndex) as string;
-
 				const options = this.getNodeParameter('options', 0, {});
 
-				const flag: string = options.append ? 'a' : 'w';
+				const flag = options.append ? 'a' : 'w';
 
 				item = items[itemIndex];
 
@@ -92,14 +91,13 @@ export class WriteBinaryFile implements INodeType {
 
 				let fileContent: Buffer | Readable;
 				if (binaryData.id) {
-					fileContent = await this.helpers.getBinaryStream(binaryData.id);
+					fileContent = this.helpers.getBinaryStream(binaryData.id);
 				} else {
 					fileContent = Buffer.from(binaryData.data, BINARY_ENCODING);
 				}
 
 				// Write the file to disk
-
-				await this.helpers.writeContentToFile(fileName, fileContent, flag);
+				await fsWriteFile(fileName, fileContent, { encoding: 'binary', flag });
 
 				if (item.binary !== undefined) {
 					// Create a shallow copy of the binary data so that the old
@@ -115,10 +113,10 @@ export class WriteBinaryFile implements INodeType {
 
 				returnData.push(newItem);
 			} catch (error) {
-				if (this.continueOnFail(error)) {
+				if (this.continueOnFail()) {
 					returnData.push({
 						json: {
-							error: (error as Error).message,
+							error: error.message,
 						},
 						pairedItem: {
 							item: itemIndex,
@@ -129,6 +127,6 @@ export class WriteBinaryFile implements INodeType {
 				throw error;
 			}
 		}
-		return [returnData];
+		return this.prepareOutputData(returnData);
 	}
 }

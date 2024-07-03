@@ -1,15 +1,15 @@
-import {
-	NodeOperationError,
-	type IExecuteFunctions,
-	type INodeExecutionData,
-	type INodeType,
-	type INodeTypeDescription,
+import type {
+	IExecuteFunctions,
+	IDataObject,
+	INodeExecutionData,
+	INodeType,
+	INodeTypeDescription,
 } from 'n8n-workflow';
-import { extractDataFromPDF } from '@utils/binary';
+
+import pdf from 'pdf-parse';
 
 export class ReadPDF implements INodeType {
 	description: INodeTypeDescription = {
-		hidden: true,
 		displayName: 'Read PDF',
 		// eslint-disable-next-line n8n-nodes-base/node-class-description-name-miscased
 		name: 'readPDF',
@@ -25,32 +25,12 @@ export class ReadPDF implements INodeType {
 		outputs: ['main'],
 		properties: [
 			{
-				displayName: 'Input Binary Field',
+				displayName: 'Binary Property',
 				name: 'binaryPropertyName',
 				type: 'string',
 				default: 'data',
 				required: true,
 				description: 'Name of the binary property from which to read the PDF file',
-			},
-			{
-				displayName: 'Encrypted',
-				name: 'encrypted',
-				type: 'boolean',
-				default: false,
-				required: true,
-			},
-			{
-				displayName: 'Password',
-				name: 'password',
-				type: 'string',
-				typeOptions: { password: true },
-				default: '',
-				description: 'Password to decrypt the PDF file with',
-				displayOptions: {
-					show: {
-						encrypted: [true],
-					},
-				},
 			},
 		],
 	};
@@ -60,31 +40,28 @@ export class ReadPDF implements INodeType {
 
 		const returnData: INodeExecutionData[] = [];
 		const length = items.length;
+		let item: INodeExecutionData;
 
 		for (let itemIndex = 0; itemIndex < length; itemIndex++) {
 			try {
+				item = items[itemIndex];
 				const binaryPropertyName = this.getNodeParameter('binaryPropertyName', itemIndex);
 
-				let password;
-				if (this.getNodeParameter('encrypted', itemIndex) === true) {
-					password = this.getNodeParameter('password', itemIndex) as string;
+				if (item.binary === undefined) {
+					item.binary = {};
 				}
 
-				const json = await extractDataFromPDF.call(
-					this,
-					binaryPropertyName,
-					password,
-					undefined,
-					undefined,
+				const binaryDataBuffer = await this.helpers.getBinaryDataBuffer(
 					itemIndex,
+					binaryPropertyName,
 				);
-
 				returnData.push({
-					binary: items[itemIndex].binary,
-					json,
+					binary: item.binary,
+
+					json: (await pdf(binaryDataBuffer)) as unknown as IDataObject,
 				});
 			} catch (error) {
-				if (this.continueOnFail(error)) {
+				if (this.continueOnFail()) {
 					returnData.push({
 						json: {
 							error: error.message,
@@ -95,9 +72,9 @@ export class ReadPDF implements INodeType {
 					});
 					continue;
 				}
-				throw new NodeOperationError(this.getNode(), error, { itemIndex });
+				throw error;
 			}
 		}
-		return [returnData];
+		return this.prepareOutputData(returnData);
 	}
 }

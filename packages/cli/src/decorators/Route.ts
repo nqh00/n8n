@@ -1,27 +1,26 @@
 import type { RequestHandler } from 'express';
-import type { Controller, Method, RateLimit } from './types';
-import { getRouteMetadata } from './controller.registry';
+import { CONTROLLER_ROUTES } from './constants';
+import type { Method, RouteMetadata } from './types';
 
 interface RouteOptions {
 	middlewares?: RequestHandler[];
-	usesTemplates?: boolean;
-	/** When this flag is set to true, auth cookie isn't validated, and req.user will not be set */
-	skipAuth?: boolean;
-	/** When these options are set, calls to this endpoint are rate limited using the options */
-	rateLimit?: boolean | RateLimit;
 }
 
+/* eslint-disable @typescript-eslint/naming-convention */
 const RouteFactory =
 	(method: Method) =>
 	(path: `/${string}`, options: RouteOptions = {}): MethodDecorator =>
 	(target, handlerName) => {
-		const routeMetadata = getRouteMetadata(target.constructor as Controller, String(handlerName));
-		routeMetadata.method = method;
-		routeMetadata.path = path;
-		routeMetadata.middlewares = options.middlewares ?? [];
-		routeMetadata.usesTemplates = options.usesTemplates ?? false;
-		routeMetadata.skipAuth = options.skipAuth ?? false;
-		routeMetadata.rateLimit = options.rateLimit;
+		const controllerClass = target.constructor;
+		const routes = (Reflect.getMetadata(CONTROLLER_ROUTES, controllerClass) ??
+			[]) as RouteMetadata[];
+		routes.push({
+			method,
+			path,
+			middlewares: options.middlewares ?? [],
+			handlerName: String(handlerName),
+		});
+		Reflect.defineMetadata(CONTROLLER_ROUTES, routes, controllerClass);
 	};
 
 export const Get = RouteFactory('get');

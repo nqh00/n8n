@@ -229,13 +229,6 @@ export const leadFields: INodeProperties[] = [
 				description: 'Email address for the lead',
 			},
 			{
-				displayName: 'Fax',
-				name: 'fax',
-				type: 'number',
-				default: '',
-				description: 'Fax number of the lead',
-			},
-			{
 				displayName: 'First Name',
 				name: 'firstname',
 				type: 'string',
@@ -249,14 +242,6 @@ export const leadFields: INodeProperties[] = [
 				default: false,
 				description:
 					'Whether the lead doesn’t want to receive email from Salesforce (true) or does (false). Label is Email Opt Out.',
-			},
-			{
-				displayName: 'Has Opted Out of Fax',
-				name: 'hasOptedOutOfFax',
-				type: 'boolean',
-				default: false,
-				description:
-					'Whether the lead doesn’t want to receive fax from Salesforce (true) or does (false). Label is Email Opt Out.',
 			},
 			{
 				displayName: 'Industry',
@@ -513,13 +498,6 @@ export const leadFields: INodeProperties[] = [
 				description: 'Email address for the lead',
 			},
 			{
-				displayName: 'Fax',
-				name: 'fax',
-				type: 'number',
-				default: '',
-				description: 'Fax Number of the lead',
-			},
-			{
 				displayName: 'First Name',
 				name: 'firstname',
 				type: 'string',
@@ -533,14 +511,6 @@ export const leadFields: INodeProperties[] = [
 				default: false,
 				description:
 					'Whether the lead doesn’t want to receive email from Salesforce (true) or does (false). Label is Email Opt Out.',
-			},
-			{
-				displayName: 'Has Opted Out of Fax',
-				name: 'HasOptedOutOfFax',
-				type: 'boolean',
-				default: false,
-				description:
-					'Whether the lead doesn’t want to receive fax from Salesforce (true) or does (false). Label is Fax Opt Out.',
 			},
 			{
 				displayName: 'Industry',

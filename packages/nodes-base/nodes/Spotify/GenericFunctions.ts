@@ -1,11 +1,6 @@
-import type {
-	IDataObject,
-	IExecuteFunctions,
-	IHookFunctions,
-	JsonObject,
-	IHttpRequestMethods,
-	IRequestOptions,
-} from 'n8n-workflow';
+import type { OptionsWithUri } from 'request';
+
+import type { IExecuteFunctions, IHookFunctions, IDataObject, JsonObject } from 'n8n-workflow';
 import { NodeApiError } from 'n8n-workflow';
 
 import get from 'lodash/get';
@@ -16,13 +11,13 @@ import get from 'lodash/get';
  */
 export async function spotifyApiRequest(
 	this: IHookFunctions | IExecuteFunctions,
-	method: IHttpRequestMethods,
+	method: string,
 	endpoint: string,
 	body: object,
-	query?: IDataObject,
+	query?: object,
 	uri?: string,
 ): Promise<any> {
-	const options: IRequestOptions = {
+	const options: OptionsWithUri = {
 		method,
 		headers: {
 			'User-Agent': 'n8n',
@@ -47,10 +42,10 @@ export async function spotifyApiRequest(
 export async function spotifyApiRequestAllItems(
 	this: IHookFunctions | IExecuteFunctions,
 	propertyName: string,
-	method: IHttpRequestMethods,
+	method: string,
 	endpoint: string,
 	body: object,
-	query?: IDataObject,
+	query?: object,
 ): Promise<any> {
 	const returnData: IDataObject[] = [];
 
@@ -60,7 +55,7 @@ export async function spotifyApiRequestAllItems(
 
 	do {
 		responseData = await spotifyApiRequest.call(this, method, endpoint, body, query, uri);
-
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-argument
 		returnData.push.apply(returnData, get(responseData, propertyName));
 		uri = responseData.next || responseData[propertyName.split('.')[0]].next;
 		//remove the query as the query parameters are already included in the next, else api throws error.

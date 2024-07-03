@@ -17,7 +17,6 @@ export class HubspotAppToken implements ICredentialType {
 			displayName: 'APP Token',
 			name: 'appToken',
 			type: 'string',
-			typeOptions: { password: true },
 			default: '',
 		},
 	];

@@ -1,4 +1,4 @@
-// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+// Vitest Snapshot v1
 
 exports[`components > N8nCheckbox > should render with both child and label 1`] = `
 <div>
@@ -9,28 +9,24 @@ exports[`components > N8nCheckbox > should render with both child and label 1`] 
     <span
       class="el-checkbox__input"
     >
+      <span
+        class="el-checkbox__inner"
+      />
       <input
         aria-hidden="false"
         class="el-checkbox__original"
         type="checkbox"
         value="Checkbox"
       />
-      <span
-        class="el-checkbox__inner"
-      />
     </span>
     <span
       class="el-checkbox__label"
     >
-      
-      
       <strong>
         Bold text
       </strong>
-      
       <div
         class="container"
-        data-test-id="input-label"
       >
         <label
           class="n8n-input-label inputLabel heading medium"
@@ -41,21 +37,16 @@ exports[`components > N8nCheckbox > should render with both child and label 1`] 
             <span
               class="n8n-text size-medium regular"
             >
-              
-              Checkbox 
-              <!--v-if-->
-              
+               Checkbox 
+              <!---->
             </span>
           </div>
-          <!--v-if-->
-          <!--v-if-->
-          <!--v-if-->
+          <!---->
+          <!---->
+          <!---->
         </label>
-        
-        
       </div>
-      
-      <!--v-if-->
+      <!---->
     </span>
   </label>
 </div>
@@ -70,27 +61,24 @@ exports[`components > N8nCheckbox > should render with child 1`] = `
     <span
       class="el-checkbox__input"
     >
+      <span
+        class="el-checkbox__inner"
+      />
       <input
         aria-hidden="false"
         class="el-checkbox__original"
         type="checkbox"
-      />
-      <span
-        class="el-checkbox__inner"
+        value=""
       />
     </span>
     <span
       class="el-checkbox__label"
     >
-      
-      
       <strong>
         Bold text
       </strong>
-      
-      <!--v-if-->
-      
-      <!--v-if-->
+      <!---->
+      <!---->
     </span>
   </label>
 </div>
@@ -105,25 +93,21 @@ exports[`components > N8nCheckbox > should render with label 1`] = `
     <span
       class="el-checkbox__input"
     >
+      <span
+        class="el-checkbox__inner"
+      />
       <input
         aria-hidden="false"
         class="el-checkbox__original"
         type="checkbox"
         value="Checkbox"
       />
-      <span
-        class="el-checkbox__inner"
-      />
     </span>
     <span
       class="el-checkbox__label"
     >
-      
-      
-      
       <div
         class="container"
-        data-test-id="input-label"
       >
         <label
           class="n8n-input-label inputLabel heading medium"
@@ -134,21 +118,16 @@ exports[`components > N8nCheckbox > should render with label 1`] = `
             <span
               class="n8n-text size-medium regular"
             >
-              
-              Checkbox 
-              <!--v-if-->
-              
+               Checkbox 
+              <!---->
             </span>
           </div>
-          <!--v-if-->
-          <!--v-if-->
-          <!--v-if-->
+          <!---->
+          <!---->
+          <!---->
         </label>
-        
-        
       </div>
-      
-      <!--v-if-->
+      <!---->
     </span>
   </label>
 </div>
@@ -163,22 +142,17 @@ exports[`components > N8nCheckbox > should render without label and child conten
     <span
       class="el-checkbox__input"
     >
+      <span
+        class="el-checkbox__inner"
+      />
       <input
         aria-hidden="false"
         class="el-checkbox__original"
         type="checkbox"
-      />
-      <span
-        class="el-checkbox__inner"
+        value=""
       />
     </span>
-    <span
-      class="el-checkbox__label"
-    >
-      
-      
-      <!--v-if-->
-    </span>
+    <!---->
   </label>
 </div>
 `;

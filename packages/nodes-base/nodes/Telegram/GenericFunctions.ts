@@ -1,10 +1,10 @@
+import type { OptionsWithUri } from 'request';
+
 import type {
 	IDataObject,
 	IExecuteFunctions,
 	IHookFunctions,
-	IHttpRequestMethods,
 	ILoadOptionsFunctions,
-	IRequestOptions,
 	IWebhookFunctions,
 	JsonObject,
 } from 'n8n-workflow';
@@ -64,59 +64,12 @@ export interface IMarkupReplyKeyboardRemove {
  * @param {IDataObject} body The body object to add fields to
  * @param {number} index The index of the item
  */
-export function addAdditionalFields(
-	this: IExecuteFunctions,
-	body: IDataObject,
-	index: number,
-	nodeVersion?: number,
-	instanceId?: string,
-) {
-	const operation = this.getNodeParameter('operation', index);
-
+export function addAdditionalFields(this: IExecuteFunctions, body: IDataObject, index: number) {
 	// Add the additional fields
 	const additionalFields = this.getNodeParameter('additionalFields', index);
-
-	if (operation === 'sendMessage') {
-		const attributionText = 'This message was sent automatically with ';
-		const link = `https://n8n.io/?utm_source=n8n-internal&utm_medium=powered_by&utm_campaign=${encodeURIComponent(
-			'n8n-nodes-base.telegram',
-		)}${instanceId ? '_' + instanceId : ''}`;
-
-		if (nodeVersion && nodeVersion >= 1.1 && additionalFields.appendAttribution === undefined) {
-			additionalFields.appendAttribution = true;
-		}
-
-		if (!additionalFields.parse_mode) {
-			additionalFields.parse_mode = 'Markdown';
-		}
-
-		const regex = /(https?|ftp|file):\/\/\S+|www\.\S+|\S+\.\S+/;
-		const containsUrl = regex.test(body.text as string);
-
-		if (!containsUrl) {
-			body.disable_web_page_preview = true;
-		}
-
-		if (additionalFields.appendAttribution) {
-			if (additionalFields.parse_mode === 'Markdown') {
-				body.text = `${body.text}\n\n_${attributionText}_[n8n](${link})`;
-			} else if (additionalFields.parse_mode === 'HTML') {
-				body.text = `${body.text}\n\n<em>${attributionText}</em><a href="${link}" target="_blank">n8n</a>`;
-			}
-		}
-
-		if (
-			nodeVersion &&
-			nodeVersion >= 1.2 &&
-			additionalFields.disable_web_page_preview === undefined
-		) {
-			body.disable_web_page_preview = true;
-		}
-
-		delete additionalFields.appendAttribution;
-	}
-
 	Object.assign(body, additionalFields);
+
+	const operation = this.getNodeParameter('operation', index);
 
 	// Add the reply markup
 	let replyMarkupOption = '';
@@ -147,7 +100,7 @@ export function addAdditionalFields(
 		if (keyboardData.rows !== undefined) {
 			for (const row of keyboardData.rows) {
 				const sendRows: ITelegramKeyboardButton[] = [];
-				if (row.row?.buttons === undefined) {
+				if (row.row === undefined || row.row.buttons === undefined) {
 					continue;
 				}
 				for (const button of row.row.buttons) {
@@ -189,7 +142,7 @@ export function addAdditionalFields(
  */
 export async function apiRequest(
 	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions | IWebhookFunctions,
-	method: IHttpRequestMethods,
+	method: string,
 	endpoint: string,
 	body: IDataObject,
 	query?: IDataObject,
@@ -199,10 +152,10 @@ export async function apiRequest(
 
 	query = query || {};
 
-	const options: IRequestOptions = {
+	const options: OptionsWithUri = {
 		headers: {},
 		method,
-		uri: `${credentials.baseUrl}/bot${credentials.accessToken}/${endpoint}`,
+		uri: `https://api.telegram.org/bot${credentials.accessToken}/${endpoint}`,
 		body,
 		qs: query,
 		json: true,
@@ -242,10 +195,4 @@ export function getImageBySize(photos: IDataObject[], size: string): IDataObject
 
 export function getPropertyName(operation: string) {
 	return operation.replace('send', '').toLowerCase();
-}
-
-export function getSecretToken(this: IHookFunctions | IWebhookFunctions) {
-	// Only characters A-Z, a-z, 0-9, _ and - are allowed.
-	const secret_token = `${this.getWorkflow().id}_${this.getNode().id}`;
-	return secret_token.replace(/[^a-zA-Z0-9\_\-]+/g, '');
 }

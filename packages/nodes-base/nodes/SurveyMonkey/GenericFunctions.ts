@@ -1,3 +1,5 @@
+import type { OptionsWithUri } from 'request';
+
 import type {
 	IExecuteFunctions,
 	ILoadOptionsFunctions,
@@ -5,14 +7,12 @@ import type {
 	IHookFunctions,
 	IWebhookFunctions,
 	JsonObject,
-	IHttpRequestMethods,
-	IRequestOptions,
 } from 'n8n-workflow';
 import { NodeApiError } from 'n8n-workflow';
 
 export async function surveyMonkeyApiRequest(
 	this: IExecuteFunctions | IWebhookFunctions | IHookFunctions | ILoadOptionsFunctions,
-	method: IHttpRequestMethods,
+	method: string,
 	resource: string,
 
 	body: IDataObject = {},
@@ -24,7 +24,7 @@ export async function surveyMonkeyApiRequest(
 
 	const endpoint = 'https://api.surveymonkey.com/v3';
 
-	let options: IRequestOptions = {
+	let options: OptionsWithUri = {
 		headers: {
 			'Content-Type': 'application/json',
 		},
@@ -61,7 +61,7 @@ export async function surveyMonkeyApiRequest(
 export async function surveyMonkeyRequestAllItems(
 	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions | IWebhookFunctions,
 	propertyName: string,
-	method: IHttpRequestMethods,
+	method: string,
 	endpoint: string,
 
 	body: IDataObject = {},

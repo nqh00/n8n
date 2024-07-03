@@ -14,7 +14,8 @@ export class AffinityTrigger implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Affinity Trigger',
 		name: 'affinityTrigger',
-		icon: { light: 'file:affinity.svg', dark: 'file:affinity.dark.svg' },
+		// eslint-disable-next-line n8n-nodes-base/node-class-description-icon-not-svg
+		icon: 'file:affinity.png',
 		group: ['trigger'],
 		version: 1,
 		description: 'Handle Affinity events via webhooks',

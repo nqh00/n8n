@@ -1,39 +1,31 @@
-import { Credentials } from 'n8n-core';
-import type {
-	DisplayCondition,
-	IDataObject,
-	INodeProperties,
-	INodePropertyOptions,
-} from 'n8n-workflow';
+import { UserSettings, Credentials } from 'n8n-core';
+import type { IDataObject, INodeProperties, INodePropertyOptions } from 'n8n-workflow';
 import * as Db from '@/Db';
 import type { ICredentialsDb } from '@/Interfaces';
 import { CredentialsEntity } from '@db/entities/CredentialsEntity';
 import { SharedCredentials } from '@db/entities/SharedCredentials';
 import type { User } from '@db/entities/User';
+import { RoleRepository } from '@db/repositories';
 import { ExternalHooks } from '@/ExternalHooks';
 import type { IDependency, IJsonSchema } from '../../../types';
 import type { CredentialRequest } from '@/requests';
 import { Container } from 'typedi';
-import { CredentialsRepository } from '@db/repositories/credentials.repository';
-import { SharedCredentialsRepository } from '@db/repositories/sharedCredentials.repository';
-import { ProjectRepository } from '@/databases/repositories/project.repository';
-import { InternalHooks } from '@/InternalHooks';
-import { EventRelay } from '@/eventbus/event-relay.service';
 
 export async function getCredentials(credentialId: string): Promise<ICredentialsDb | null> {
-	return await Container.get(CredentialsRepository).findOneBy({ id: credentialId });
+	return Db.collections.Credentials.findOneBy({ id: credentialId });
 }
 
 export async function getSharedCredentials(
 	userId: string,
 	credentialId: string,
+	relations?: string[],
 ): Promise<SharedCredentials | null> {
-	return await Container.get(SharedCredentialsRepository).findOne({
+	return Db.collections.SharedCredentials.findOne({
 		where: {
-			project: { projectRelations: { userId } },
+			userId,
 			credentialsId: credentialId,
 		},
-		relations: ['credentials'],
+		relations,
 	});
 }
 
@@ -44,6 +36,21 @@ export async function createCredential(
 
 	Object.assign(newCredential, properties);
 
+	if (!newCredential.nodesAccess || newCredential.nodesAccess.length === 0) {
+		newCredential.nodesAccess = [
+			{
+				nodeType: `n8n-nodes-base.${properties.type?.toLowerCase() ?? 'unknown'}`,
+				date: new Date(),
+			},
+		];
+	} else {
+		// Add the added date for node access permissions
+		newCredential.nodesAccess.forEach((nodeAccess) => {
+			// eslint-disable-next-line no-param-reassign
+			nodeAccess.date = new Date();
+		});
+	}
+
 	return newCredential;
 }
 
@@ -52,37 +59,21 @@ export async function saveCredential(
 	user: User,
 	encryptedData: ICredentialsDb,
 ): Promise<CredentialsEntity> {
-	await Container.get(ExternalHooks).run('credentials.create', [encryptedData]);
-	void Container.get(InternalHooks).onUserCreatedCredentials({
-		user,
-		credential_name: credential.name,
-		credential_type: credential.type,
-		credential_id: credential.id,
-		public_api: true,
-	});
-	Container.get(EventRelay).emit('credentials-created', {
-		user,
-		credentialName: credential.name,
-		credentialType: credential.type,
-		credentialId: credential.id,
-	});
+	const role = await Container.get(RoleRepository).findCredentialOwnerRoleOrFail();
 
-	return await Db.transaction(async (transactionManager) => {
+	await Container.get(ExternalHooks).run('credentials.create', [encryptedData]);
+
+	return Db.transaction(async (transactionManager) => {
 		const savedCredential = await transactionManager.save<CredentialsEntity>(credential);
 
 		savedCredential.data = credential.data;
 
 		const newSharedCredential = new SharedCredentials();
 
-		const personalProject = await Container.get(ProjectRepository).getPersonalProjectForUserOrFail(
-			user.id,
-			transactionManager,
-		);
-
 		Object.assign(newSharedCredential, {
-			role: 'credential:owner',
+			role,
+			user,
 			credentials: savedCredential,
-			projectId: personalProject.id,
 		});
 
 		await transactionManager.save<SharedCredentials>(newSharedCredential);
@@ -91,32 +82,23 @@ export async function saveCredential(
 	});
 }
 
-export async function removeCredential(
-	user: User,
-	credentials: CredentialsEntity,
-): Promise<ICredentialsDb> {
+export async function removeCredential(credentials: CredentialsEntity): Promise<ICredentialsDb> {
 	await Container.get(ExternalHooks).run('credentials.delete', [credentials.id]);
-	void Container.get(InternalHooks).onUserDeletedCredentials({
-		user,
-		credential_name: credentials.name,
-		credential_type: credentials.type,
-		credential_id: credentials.id,
-	});
-	Container.get(EventRelay).emit('credentials-deleted', {
-		user,
-		credentialName: credentials.name,
-		credentialType: credentials.type,
-		credentialId: credentials.id,
-	});
-	return await Container.get(CredentialsRepository).remove(credentials);
+	return Db.collections.Credentials.remove(credentials);
 }
 
 export async function encryptCredential(credential: CredentialsEntity): Promise<ICredentialsDb> {
+	const encryptionKey = await UserSettings.getEncryptionKey();
+
 	// Encrypt the data
-	const coreCredential = new Credentials({ id: null, name: credential.name }, credential.type);
+	const coreCredential = new Credentials(
+		{ id: null, name: credential.name },
+		credential.type,
+		credential.nodesAccess,
+	);
 
 	// @ts-ignore
-	coreCredential.setData(credential.data);
+	coreCredential.setData(credential.data, encryptionKey);
 
 	return coreCredential.getDataToSave() as ICredentialsDb;
 }
@@ -133,7 +115,8 @@ export function sanitizeCredentials(
 	const credentialsList = argIsArray ? credentials : [credentials];
 
 	const sanitizedCredentials = credentialsList.map((credential) => {
-		const { data, shared, ...rest } = credential;
+		// eslint-disable-next-line @typescript-eslint/no-unused-vars
+		const { data, nodesAccess, shared, ...rest } = credential;
 		return rest;
 	});
 
@@ -177,7 +160,6 @@ export function toJsonSchema(properties: INodeProperties[]): IDataObject {
 	// object in the JSON Schema definition. This allows us
 	// to later validate that only this properties are set in
 	// the credentials sent in the API call.
-	// eslint-disable-next-line complexity
 	properties.forEach((property) => {
 		if (property.required) {
 			requiredFields.push(property.name);
@@ -206,9 +188,10 @@ export function toJsonSchema(properties: INodeProperties[]): IDataObject {
 		if (property.displayOptions?.show) {
 			const dependantName = Object.keys(property.displayOptions?.show)[0] || '';
 			const displayOptionsValues = property.displayOptions.show[dependantName];
-			let dependantValue: DisplayCondition | string | number | boolean = '';
+			let dependantValue: string | number | boolean = '';
 
 			if (displayOptionsValues && Array.isArray(displayOptionsValues) && displayOptionsValues[0]) {
+				// eslint-disable-next-line prefer-destructuring
 				dependantValue = displayOptionsValues[0];
 			}
 
@@ -217,75 +200,12 @@ export function toJsonSchema(properties: INodeProperties[]): IDataObject {
 			}
 
 			if (!resolveProperties.includes(dependantName)) {
-				let conditionalValue;
-				if (typeof dependantValue === 'object' && dependantValue._cnd) {
-					// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-					const [key, targetValue] = Object.entries(dependantValue._cnd)[0];
-
-					if (key === 'eq') {
-						conditionalValue = {
-							const: [targetValue],
-						};
-					} else if (key === 'not') {
-						conditionalValue = {
-							not: {
-								const: [targetValue],
-							},
-						};
-					} else if (key === 'gt') {
-						conditionalValue = {
-							type: 'number',
-							exclusiveMinimum: [targetValue],
-						};
-					} else if (key === 'gte') {
-						conditionalValue = {
-							type: 'number',
-							minimum: [targetValue],
-						};
-					} else if (key === 'lt') {
-						conditionalValue = {
-							type: 'number',
-							exclusiveMaximum: [targetValue],
-						};
-					} else if (key === 'lte') {
-						conditionalValue = {
-							type: 'number',
-							maximum: [targetValue],
-						};
-					} else if (key === 'startsWith') {
-						conditionalValue = {
-							type: 'string',
-							pattern: `^${targetValue}`,
-						};
-					} else if (key === 'endsWith') {
-						conditionalValue = {
-							type: 'string',
-							pattern: `${targetValue}$`,
-						};
-					} else if (key === 'includes') {
-						conditionalValue = {
-							type: 'string',
-							pattern: `${targetValue}`,
-						};
-					} else if (key === 'regex') {
-						conditionalValue = {
-							type: 'string',
-							pattern: `${targetValue}`,
-						};
-					} else {
-						conditionalValue = {
-							enum: [dependantValue],
-						};
-					}
-				} else {
-					conditionalValue = {
-						enum: [dependantValue],
-					};
-				}
 				propertyRequiredDependencies[dependantName] = {
 					if: {
 						properties: {
-							[dependantName]: conditionalValue,
+							[dependantName]: {
+								enum: [dependantValue],
+							},
 						},
 					},
 					then: {

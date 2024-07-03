@@ -9,12 +9,13 @@ import type {
 
 import * as send from './send.operation';
 
+// eslint-disable-next-line n8n-nodes-base/node-class-description-missing-subtitle
 const versionDescription: INodeTypeDescription = {
 	displayName: 'Send Email',
 	name: 'emailSend',
 	icon: 'fa:envelope',
 	group: ['output'],
-	version: [2, 2.1],
+	version: 2,
 	description: 'Sends an email using SMTP protocol',
 	defaults: {
 		name: 'Send Email',

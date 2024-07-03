@@ -1,12 +1,12 @@
+import type { OptionsWithUri } from 'request';
+
 import type {
 	IExecuteFunctions,
+	IExecuteSingleFunctions,
 	ILoadOptionsFunctions,
 	IDataObject,
 	INodePropertyOptions,
 	JsonObject,
-	IHttpRequestMethods,
-	IRequestOptions,
-	IPollFunctions,
 } from 'n8n-workflow';
 import { NodeApiError } from 'n8n-workflow';
 
@@ -15,22 +15,22 @@ import moment from 'moment-timezone';
 import jwt from 'jsonwebtoken';
 
 function getOptions(
-	this: IExecuteFunctions | ILoadOptionsFunctions | IPollFunctions,
-	method: IHttpRequestMethods,
+	this: IExecuteFunctions | IExecuteSingleFunctions | ILoadOptionsFunctions,
+	method: string,
 	endpoint: string,
 
 	body: any,
 	qs: IDataObject,
 	instanceUrl: string,
-): IRequestOptions {
-	const options: IRequestOptions = {
+): OptionsWithUri {
+	const options: OptionsWithUri = {
 		headers: {
 			'Content-Type': 'application/json',
 		},
 		method,
 		body,
 		qs,
-		uri: `${instanceUrl}/services/data/v59.0${endpoint}`,
+		uri: `${instanceUrl}/services/data/v39.0${endpoint}`,
 		json: true,
 	};
 
@@ -42,7 +42,7 @@ function getOptions(
 }
 
 async function getAccessToken(
-	this: IExecuteFunctions | ILoadOptionsFunctions | IPollFunctions,
+	this: IExecuteFunctions | IExecuteSingleFunctions | ILoadOptionsFunctions,
 	credentials: IDataObject,
 ): Promise<IDataObject> {
 	const now = moment().unix();
@@ -67,7 +67,7 @@ async function getAccessToken(
 		},
 	);
 
-	const options: IRequestOptions = {
+	const options: OptionsWithUri = {
 		headers: {
 			'Content-Type': 'application/x-www-form-urlencoded',
 		},
@@ -80,12 +80,12 @@ async function getAccessToken(
 		json: true,
 	};
 
-	return await this.helpers.request(options);
+	return this.helpers.request(options);
 }
 
 export async function salesforceApiRequest(
-	this: IExecuteFunctions | ILoadOptionsFunctions | IPollFunctions,
-	method: IHttpRequestMethods,
+	this: IExecuteFunctions | IExecuteSingleFunctions | ILoadOptionsFunctions,
+	method: string,
 	endpoint: string,
 
 	body: any = {},
@@ -143,9 +143,9 @@ export async function salesforceApiRequest(
 }
 
 export async function salesforceApiRequestAllItems(
-	this: IExecuteFunctions | ILoadOptionsFunctions | IPollFunctions,
+	this: IExecuteFunctions | ILoadOptionsFunctions,
 	propertyName: string,
-	method: IHttpRequestMethods,
+	method: string,
 	endpoint: string,
 
 	body: any = {},

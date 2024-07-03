@@ -1,12 +1,10 @@
 <template>
-	<div :class="$style.container">
+	<div class="container">
 		<el-col class="notags" :span="16">
 			<div class="icon">🗄️</div>
 			<div>
-				<div class="mb-s">
-					<n8n-heading size="large">
-						{{ $locale.baseText('noTagsView.readyToOrganizeYourWorkflows') }}
-					</n8n-heading>
+				<div class="headline">
+					{{ $locale.baseText('noTagsView.readyToOrganizeYourWorkflows') }}
 				</div>
 				<div class="description">
 					{{ $locale.baseText('noTagsView.withWorkflowTagsYouReFree') }}
@@ -25,7 +23,7 @@ export default defineComponent({
 });
 </script>
 
-<style lang="scss" module>
+<style lang="scss" scoped>
 $--footer-spacing: 45px;
 
 .container {
@@ -34,9 +32,7 @@ $--footer-spacing: 45px;
 	align-items: center;
 	margin-top: $--footer-spacing;
 }
-</style>
 
-<style lang="scss" scoped>
 .notags {
 	word-break: normal;
 	text-align: center;
@@ -49,6 +45,12 @@ $--footer-spacing: 45px;
 .icon {
 	font-size: 36px;
 	line-height: 14px;
+}
+
+.headline {
+	font-size: 17.6px;
+	color: black;
+	margin-bottom: 12px;
 }
 
 .description {

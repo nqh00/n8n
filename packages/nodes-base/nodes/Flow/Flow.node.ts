@@ -15,7 +15,8 @@ export class Flow implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Flow',
 		name: 'flow',
-		icon: 'file:flow.svg',
+		// eslint-disable-next-line n8n-nodes-base/node-class-description-icon-not-svg
+		icon: 'file:flow.png',
 		group: ['output'],
 		version: 1,
 		subtitle: '={{$parameter["operation"] + ": " + $parameter["resource"]}}',
@@ -268,6 +269,6 @@ export class Flow implements INodeType {
 			);
 			returnData.push(...executionData);
 		}
-		return [returnData];
+		return this.prepareOutputData(returnData);
 	}
 }

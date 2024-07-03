@@ -1,79 +1,106 @@
 <template>
 	<div :class="['n8n-form-box', $style.container]">
 		<div v-if="title" :class="$style.heading">
-			<N8nHeading size="xlarge">
+			<n8n-heading size="xlarge">
 				{{ title }}
-			</N8nHeading>
+			</n8n-heading>
 		</div>
 		<div :class="$style.inputsContainer">
-			<N8nFormInputs
+			<n8n-form-inputs
 				:inputs="inputs"
-				:event-bus="formBus"
-				:column-view="true"
-				@update="onUpdateModelValue"
+				:eventBus="formBus"
+				:columnView="true"
+				@input="onInput"
 				@submit="onSubmit"
 			/>
 		</div>
-		<div v-if="secondaryButtonText || buttonText" :class="$style.buttonsContainer">
+		<div :class="$style.buttonsContainer" v-if="secondaryButtonText || buttonText">
 			<span v-if="secondaryButtonText" :class="$style.secondaryButtonContainer">
-				<N8nLink size="medium" theme="text" @click="onSecondaryButtonClick">
+				<n8n-link size="medium" theme="text" @click="onSecondaryButtonClick">
 					{{ secondaryButtonText }}
-				</N8nLink>
+				</n8n-link>
 			</span>
-			<N8nButton
+			<n8n-button
 				v-if="buttonText"
 				:label="buttonText"
 				:loading="buttonLoading"
-				data-test-id="form-submit-button"
 				size="large"
 				@click="onButtonClick"
 			/>
 		</div>
 		<div :class="$style.actionContainer">
-			<N8nLink v-if="redirectText && redirectLink" :to="redirectLink">
+			<n8n-link v-if="redirectText && redirectLink" :to="redirectLink">
 				{{ redirectText }}
-			</N8nLink>
+			</n8n-link>
 		</div>
 		<slot></slot>
 	</div>
 </template>
 
-<script lang="ts" setup>
+<script lang="ts">
+import { defineComponent } from 'vue';
 import N8nFormInputs from '../N8nFormInputs';
 import N8nHeading from '../N8nHeading';
 import N8nLink from '../N8nLink';
 import N8nButton from '../N8nButton';
-import type { IFormInput } from 'n8n-design-system/types';
 import { createEventBus } from '../../utils';
 
-interface FormBoxProps {
-	title?: string;
-	inputs?: IFormInput[];
-	buttonText?: string;
-	buttonLoading?: boolean;
-	secondaryButtonText?: string;
-	redirectText?: string;
-	redirectLink?: string;
-}
-
-type Value = string | number | boolean | null | undefined;
-
-defineOptions({ name: 'N8nFormBox' });
-withDefaults(defineProps<FormBoxProps>(), {
-	title: '',
-	inputs: () => [],
-	buttonLoading: false,
-	redirectText: '',
-	redirectLink: '',
+export default defineComponent({
+	name: 'n8n-form-box',
+	components: {
+		N8nHeading,
+		N8nFormInputs,
+		N8nLink,
+		N8nButton,
+	},
+	props: {
+		title: {
+			type: String,
+			default: '',
+		},
+		inputs: {
+			type: Array,
+			default: () => [],
+		},
+		buttonText: {
+			type: String,
+		},
+		buttonLoading: {
+			type: Boolean,
+			default: false,
+		},
+		secondaryButtonText: {
+			type: String,
+		},
+		redirectText: {
+			type: String,
+			default: '',
+		},
+		redirectLink: {
+			type: String,
+			default: '',
+		},
+	},
+	data() {
+		return {
+			formBus: createEventBus(),
+		};
+	},
+	methods: {
+		onInput(e: { name: string; value: string }) {
+			this.$emit('input', e);
+		},
+		onSubmit(e: { [key: string]: string }) {
+			this.$emit('submit', e);
+		},
+		onButtonClick() {
+			this.formBus.emit('submit');
+		},
+		onSecondaryButtonClick(event: Event) {
+			this.$emit('secondaryClick', event);
+		},
+	},
 });
-
-const formBus = createEventBus();
-const $emit = defineEmits(['submit', 'update', 'secondaryClick']);
-
-const onUpdateModelValue = (e: { name: string; value: Value }) => $emit('update', e);
-const onSubmit = (e: { [key: string]: Value }) => $emit('submit', e);
-const onButtonClick = () => formBus.emit('submit');
-const onSecondaryButtonClick = (event: Event) => $emit('secondaryClick', event);
 </script>
 
 <style lang="scss" module>

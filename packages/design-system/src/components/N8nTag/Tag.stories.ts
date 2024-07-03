@@ -1,4 +1,4 @@
-import type { StoryFn } from '@storybook/vue3';
+import type { StoryFn } from '@storybook/vue';
 import N8nTag from './Tag.vue';
 
 export default {
@@ -14,12 +14,11 @@ export default {
 };
 
 const Template: StoryFn = (args, { argTypes }) => ({
-	setup: () => ({ args }),
 	props: Object.keys(argTypes),
 	components: {
 		N8nTag,
 	},
-	template: '<n8n-tag v-bind="args"></n8n-tag>',
+	template: '<n8n-tag v-bind="$props"></n8n-tag>',
 });
 
 export const Tag = Template.bind({});

@@ -1,17 +1,17 @@
 <template>
 	<div :class="['accordion', $style.container]">
 		<div :class="{ [$style.header]: true, [$style.expanded]: expanded }" @click="toggle">
-			<N8nIcon
+			<n8n-icon
 				v-if="headerIcon"
 				:icon="headerIcon.icon"
 				:color="headerIcon.color"
 				size="small"
 				class="mr-2xs"
 			/>
-			<N8nText :class="$style.headerText" color="text-base" size="small" align="left" bold>{{
+			<n8n-text :class="$style.headerText" color="text-base" size="small" align="left" bold>{{
 				title
-			}}</N8nText>
-			<N8nIcon :icon="expanded ? 'chevron-up' : 'chevron-down'" bold />
+			}}</n8n-text>
+			<n8n-icon :icon="expanded ? 'chevron-up' : 'chevron-down'" bold />
 		</div>
 		<div
 			v-if="expanded"
@@ -23,68 +23,84 @@
 				<div v-for="item in items" :key="item.id" :class="$style.accordionItem">
 					<n8n-tooltip :disabled="!item.tooltip">
 						<template #content>
-							<div @click="onTooltipClick(item.id, $event)" v-html="item.tooltip"></div>
+							<div v-html="item.tooltip" @click="onTooltipClick(item.id, $event)"></div>
 						</template>
-						<N8nIcon :icon="item.icon" :color="item.iconColor" size="small" class="mr-2xs" />
+						<n8n-icon :icon="item.icon" :color="item.iconColor" size="small" class="mr-2xs" />
 					</n8n-tooltip>
-					<N8nText size="small" color="text-base">{{ item.label }}</N8nText>
+					<n8n-text size="small" color="text-base">{{ item.label }}</n8n-text>
 				</div>
 			</div>
-			<N8nText color="text-base" size="small" align="left">
+			<n8n-text color="text-base" size="small" align="left">
 				<span v-html="description"></span>
-			</N8nText>
+			</n8n-text>
 			<slot name="customContent"></slot>
 		</div>
 	</div>
 </template>
 
-<script lang="ts" setup>
-import { onMounted, ref } from 'vue';
+<script lang="ts">
 import N8nText from '../N8nText';
 import N8nIcon from '../N8nIcon';
-import type { IconColor } from 'n8n-design-system/types/icon';
-import { createEventBus, type EventBus } from '../../utils';
+import type { PropType } from 'vue';
+import { defineComponent } from 'vue';
 
-interface IAccordionItem {
+export interface IAccordionItem {
 	id: string;
 	label: string;
 	icon: string;
-	iconColor?: IconColor;
+	iconColor?: string;
 	tooltip?: string;
 }
 
-interface InfoAccordionProps {
-	title?: string;
-	description?: string;
-	items?: IAccordionItem[];
-	initiallyExpanded?: boolean;
-	headerIcon?: { icon: string; color: IconColor };
-	eventBus?: EventBus;
-}
-
-defineOptions({ name: 'N8nInfoAccordion' });
-const props = withDefaults(defineProps<InfoAccordionProps>(), {
-	items: () => [],
-	initiallyExpanded: false,
-	eventBus: () => createEventBus(),
+export default defineComponent({
+	name: 'n8n-info-accordion',
+	components: {
+		N8nText,
+		N8nIcon,
+	},
+	props: {
+		title: {
+			type: String,
+		},
+		description: {
+			type: String,
+		},
+		items: {
+			type: Array as PropType<IAccordionItem[]>,
+			default: () => [],
+		},
+		initiallyExpanded: {
+			type: Boolean,
+			default: false,
+		},
+		headerIcon: {
+			type: Object as PropType<{ icon: string; color: string }>,
+			required: false,
+		},
+	},
+	mounted() {
+		this.$on('expand', () => {
+			this.expanded = true;
+		});
+		this.expanded = this.initiallyExpanded;
+	},
+	data() {
+		return {
+			expanded: false,
+		};
+	},
+	methods: {
+		toggle() {
+			this.expanded = !this.expanded;
+		},
+		onClick(e: MouseEvent) {
+			this.$emit('click', e);
+		},
+		onTooltipClick(item: string, event: MouseEvent) {
+			this.$emit('tooltipClick', item, event);
+		},
+	},
 });
-const $emit = defineEmits(['click:body', 'tooltipClick']);
-
-const expanded = ref(false);
-onMounted(() => {
-	props.eventBus.on('expand', () => {
-		expanded.value = true;
-	});
-	expanded.value = props.initiallyExpanded;
-});
-
-const toggle = () => {
-	expanded.value = !expanded.value;
-};
-
-const onClick = (e: MouseEvent) => $emit('click:body', e);
-
-const onTooltipClick = (item: string, event: MouseEvent) => $emit('tooltipClick', item, event);
 </script>
 
 <style lang="scss" module>

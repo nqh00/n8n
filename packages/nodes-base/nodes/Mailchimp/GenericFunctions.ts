@@ -1,20 +1,21 @@
+import type { OptionsWithUrl } from 'request';
+
 import type {
 	IDataObject,
 	IExecuteFunctions,
+	IExecuteSingleFunctions,
 	IHookFunctions,
 	ILoadOptionsFunctions,
 	JsonObject,
-	IRequestOptions,
-	IHttpRequestMethods,
 } from 'n8n-workflow';
 import { NodeApiError, NodeOperationError } from 'n8n-workflow';
 
 async function getMetadata(
-	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions,
+	this: IHookFunctions | IExecuteFunctions | IExecuteSingleFunctions | ILoadOptionsFunctions,
 	oauthTokenData: IDataObject,
 ) {
 	const credentials = await this.getCredentials('mailchimpOAuth2Api');
-	const options: IRequestOptions = {
+	const options: OptionsWithUrl = {
 		headers: {
 			Accept: 'application/json',
 			Authorization: `OAuth ${oauthTokenData.access_token}`,
@@ -23,13 +24,13 @@ async function getMetadata(
 		url: credentials.metadataUrl as string,
 		json: true,
 	};
-	return await this.helpers.request(options);
+	return this.helpers.request(options);
 }
 
 export async function mailchimpApiRequest(
-	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions,
+	this: IHookFunctions | IExecuteFunctions | IExecuteSingleFunctions | ILoadOptionsFunctions,
 	endpoint: string,
-	method: IHttpRequestMethods,
+	method: string,
 
 	body: any = {},
 	qs: IDataObject = {},
@@ -39,7 +40,7 @@ export async function mailchimpApiRequest(
 
 	const host = 'api.mailchimp.com/3.0';
 
-	const options: IRequestOptions = {
+	const options: OptionsWithUrl = {
 		headers: {
 			Accept: 'application/json',
 		},
@@ -84,7 +85,7 @@ export async function mailchimpApiRequest(
 export async function mailchimpApiRequestAllItems(
 	this: IExecuteFunctions | ILoadOptionsFunctions,
 	endpoint: string,
-	method: IHttpRequestMethods,
+	method: string,
 	propertyName: string,
 
 	body: any = {},

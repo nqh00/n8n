@@ -1,62 +1,101 @@
 <template>
-	<div :class="classes">
+	<div class="ph-no-capture" :class="classes">
 		<div :class="$style.avatarContainer">
-			<N8nAvatar :first-name="firstName" :last-name="lastName" />
+			<n8n-avatar :firstName="firstName" :lastName="lastName" />
 		</div>
 
 		<div v-if="isPendingUser" :class="$style.pendingUser">
-			<N8nText :bold="true">{{ email }}</N8nText>
-			<span :class="$style.pendingBadge"><N8nBadge :bold="true">Pending</N8nBadge></span>
+			<n8n-text :bold="true">{{ email }}</n8n-text>
+			<span :class="$style.pendingBadge"><n8n-badge :bold="true">Pending</n8n-badge></span>
 		</div>
 		<div v-else :class="$style.infoContainer">
 			<div>
-				<N8nText :bold="true" color="text-dark">
+				<n8n-text :bold="true" color="text-dark">
 					{{ firstName }} {{ lastName }}
 					{{ isCurrentUser ? t('nds.userInfo.you') : '' }}
-				</N8nText>
+				</n8n-text>
 				<span v-if="disabled" :class="$style.pendingBadge">
-					<N8nBadge :bold="true">Disabled</N8nBadge>
+					<n8n-badge :bold="true">Disabled</n8n-badge>
 				</span>
 			</div>
 			<div>
-				<N8nText data-test-id="user-email" size="small" color="text-light">{{ email }}</N8nText>
+				<n8n-text size="small" color="text-light">{{ email }}</n8n-text>
+			</div>
+			<div v-if="!isOwner">
+				<n8n-text v-if="signInType" size="small" color="text-light">
+					Sign-in type:
+					{{
+						isSamlLoginEnabled
+							? settings?.allowSSOManualLogin
+								? $locale.baseText('settings.sso') + ' + ' + signInType
+								: $locale.baseText('settings.sso')
+							: signInType
+					}}
+				</n8n-text>
 			</div>
 		</div>
 	</div>
 </template>
 
-<script lang="ts" setup>
-import { computed, useCssModule } from 'vue';
+<script lang="ts">
 import N8nText from '../N8nText';
 import N8nAvatar from '../N8nAvatar';
 import N8nBadge from '../N8nBadge';
-import { useI18n } from '../../composables/useI18n';
+import Locale from '../../mixins/locale';
+import { defineComponent } from 'vue';
 
-interface UsersInfoProps {
-	firstName?: string;
-	lastName?: string;
-	email?: string;
-	isOwner?: boolean;
-	isPendingUser?: boolean;
-	isCurrentUser?: boolean;
-	disabled?: boolean;
-	settings?: object;
-	isSamlLoginEnabled?: boolean;
-}
-
-const props = withDefaults(defineProps<UsersInfoProps>(), {
-	disabled: false,
+export default defineComponent({
+	name: 'n8n-users-info',
+	mixins: [Locale],
+	components: {
+		N8nAvatar,
+		N8nText,
+		N8nBadge,
+	},
+	props: {
+		firstName: {
+			type: String,
+		},
+		lastName: {
+			type: String,
+		},
+		email: {
+			type: String,
+		},
+		isOwner: {
+			type: Boolean,
+		},
+		isPendingUser: {
+			type: Boolean,
+		},
+		isCurrentUser: {
+			type: Boolean,
+		},
+		disabled: {
+			type: Boolean,
+		},
+		signInType: {
+			type: String,
+			required: false,
+		},
+		settings: {
+			type: Object,
+			required: false,
+		},
+		isSamlLoginEnabled: {
+			type: Boolean,
+			required: false,
+		},
+	},
+	computed: {
+		classes(): Record<string, boolean> {
+			return {
+				[this.$style.container]: true,
+				[this.$style.disabled]: this.disabled,
+			};
+		},
+	},
 });
-
-const { t } = useI18n();
-
-const $style = useCssModule();
-const classes = computed(
-	(): Record<string, boolean> => ({
-		[$style.container]: true,
-		[$style.disabled]: props.disabled,
-	}),
-);
 </script>
 
 <style lang="scss" module>

@@ -52,10 +52,7 @@ export class N8nTrainingCustomerDatastore implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Customer Datastore (n8n training)',
 		name: 'n8nTrainingCustomerDatastore',
-		icon: {
-			light: 'file:n8nTrainingCustomerDatastore.svg',
-			dark: 'file:n8nTrainingCustomerDatastore.dark.svg',
-		},
+		icon: 'file:n8nTrainingCustomerDatastore.svg',
 		group: ['transform'],
 		version: 1,
 		subtitle: '={{$parameter["operation"]}}',
@@ -148,6 +145,6 @@ export class N8nTrainingCustomerDatastore implements INodeType {
 				returnData.push({ json: responseData });
 			}
 		}
-		return [returnData];
+		return this.prepareOutputData(returnData);
 	}
 }

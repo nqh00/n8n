@@ -1,4 +1,4 @@
-import type { ICredentialType, INodeProperties } from 'n8n-workflow';
+import type { ICredentialType, NodePropertyTypes } from 'n8n-workflow';
 
 export class OnfleetApi implements ICredentialType {
 	name = 'onfleetApi';
@@ -7,12 +7,11 @@ export class OnfleetApi implements ICredentialType {
 
 	documentationUrl = 'onfleet';
 
-	properties: INodeProperties[] = [
+	properties = [
 		{
 			displayName: 'API Key',
 			name: 'apiKey',
-			type: 'string',
-			typeOptions: { password: true },
+			type: 'string' as NodePropertyTypes,
 			default: '',
 		},
 	];

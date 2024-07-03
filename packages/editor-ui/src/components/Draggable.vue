@@ -1,15 +1,15 @@
 <template>
 	<component
 		:is="tag"
-		ref="wrapper"
 		:class="{ [$style.dragging]: isDragging }"
 		@mousedown="onDragStart"
+		ref="wrapper"
 	>
-		<slot :is-dragging="isDragging"></slot>
+		<slot :isDragging="isDragging"></slot>
 
 		<Teleport to="body">
-			<div v-show="isDragging" ref="draggable" :class="$style.draggable" :style="draggableStyle">
-				<slot name="preview" :can-drop="canDrop" :el="draggingEl"></slot>
+			<div ref="draggable" :class="$style.draggable" :style="draggableStyle" v-show="isDragging">
+				<slot name="preview" :canDrop="canDrop" :el="draggingEl"></slot>
 			</div>
 		</Teleport>
 	</component>
@@ -21,15 +21,20 @@ import { useNDVStore } from '@/stores/ndv.store';
 import { mapStores } from 'pinia';
 import { defineComponent } from 'vue';
 
+// @ts-ignore
+import Teleport from 'vue2-teleport';
+
 export default defineComponent({
-	name: 'Draggable',
+	name: 'draggable',
+	components: {
+		Teleport,
+	},
 	props: {
 		disabled: {
 			type: Boolean,
 		},
 		type: {
 			type: String,
-			required: true,
 		},
 		data: {
 			type: String,
@@ -118,11 +123,7 @@ export default defineComponent({
 
 				const data =
 					this.targetDataKey && this.draggingEl ? this.draggingEl.dataset.value : this.data || '';
-				this.ndvStore.draggableStartDragging({
-					type: this.type,
-					data: data || '',
-					dimensions: this.draggingEl?.getBoundingClientRect() ?? null,
-				});
+				this.ndvStore.draggableStartDragging({ type: this.type, data: data || '' });
 
 				this.$emit('dragstart', this.draggingEl);
 				document.body.style.cursor = 'grabbing';

@@ -1,19 +1,8 @@
 <template>
-	<el-tag
-		v-if="type === 'danger'"
-		type="danger"
-		size="small"
-		:class="$style['danger']"
-		:disable-transitions="true"
-	>
+	<el-tag v-if="type === 'danger'" type="danger" size="small" :class="$style['danger']">
 		{{ text }}
 	</el-tag>
-	<el-tag
-		v-else-if="type === 'warning'"
-		size="small"
-		:class="$style['warning']"
-		:disable-transitions="true"
-	>
+	<el-tag v-else-if="type === 'warning'" size="small" :class="$style['warning']">
 		{{ text }}
 	</el-tag>
 </template>

@@ -212,6 +212,6 @@ export class GoogleTranslate implements INodeType {
 			}
 		}
 
-		return [responseData];
+		return this.prepareOutputData(responseData);
 	}
 }

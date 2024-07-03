@@ -1,16 +1,17 @@
+import type { OptionsWithUri } from 'request';
+
 import type {
-	IDataObject,
 	IExecuteFunctions,
-	IHttpRequestMethods,
+	IExecuteSingleFunctions,
 	ILoadOptionsFunctions,
-	IRequestOptions,
+	IDataObject,
 	JsonObject,
 } from 'n8n-workflow';
 import { NodeApiError } from 'n8n-workflow';
 
 export async function iterableApiRequest(
-	this: IExecuteFunctions | ILoadOptionsFunctions,
-	method: IHttpRequestMethods,
+	this: IExecuteFunctions | IExecuteSingleFunctions | ILoadOptionsFunctions,
+	method: string,
 	resource: string,
 
 	body: any = {},
@@ -20,7 +21,7 @@ export async function iterableApiRequest(
 ): Promise<any> {
 	const credentials = await this.getCredentials('iterableApi');
 
-	const options: IRequestOptions = {
+	const options: OptionsWithUri = {
 		headers: {
 			'Content-Type': 'application/json',
 			Api_Key: credentials.apiKey,
@@ -48,7 +49,7 @@ export async function iterableApiRequest(
 export async function iterableApiRequestAllItems(
 	this: IExecuteFunctions | ILoadOptionsFunctions,
 	propertyName: string,
-	method: IHttpRequestMethods,
+	method: string,
 	endpoint: string,
 
 	body: any = {},

@@ -1,9 +1,9 @@
 /* eslint-disable n8n-nodes-base/node-filename-against-convention */
+import type { IExecuteFunctions } from 'n8n-core';
 import type {
 	ICredentialsDecrypted,
 	ICredentialTestFunctions,
 	IDataObject,
-	IExecuteFunctions,
 	INodeCredentialTestResult,
 	INodeExecutionData,
 	INodeType,
@@ -16,7 +16,7 @@ import pgPromise from 'pg-promise';
 
 import { pgInsertV2, pgQueryV2, pgUpdate, wrapData } from './genericFunctions';
 
-import { oldVersionNotice } from '@utils/descriptions';
+import { oldVersionNotice } from '../../../utils/descriptions';
 
 const versionDescription: INodeTypeDescription = {
 	displayName: 'Postgres',
@@ -74,10 +74,9 @@ const versionDescription: INodeTypeDescription = {
 			displayName: 'Query',
 			name: 'query',
 			type: 'string',
-			noDataExpression: true,
 			typeOptions: {
 				editor: 'sqlEditor',
-				sqlDialect: 'PostgreSQL',
+				sqlDialect: 'postgres',
 			},
 			displayOptions: {
 				show: {
@@ -322,7 +321,7 @@ export class PostgresV1 implements INodeType {
 
 					const db = pgp(config);
 					await db.connect();
-					await db.$pool.end();
+					pgp.end();
 				} catch (error) {
 					return {
 						status: 'Error',
@@ -411,16 +410,16 @@ export class PostgresV1 implements INodeType {
 
 			returnItems = wrapData(updateItems);
 		} else {
-			await db.$pool.end();
+			pgp.end();
 			throw new NodeOperationError(
 				this.getNode(),
 				`The operation "${operation}" is not supported!`,
 			);
 		}
 
-		// shuts down the connection pool associated with the db object to allow the process to finish
-		await db.$pool.end();
+		// Close the connection
+		pgp.end();
 
-		return [returnItems];
+		return this.prepareOutputData(returnItems);
 	}
 }

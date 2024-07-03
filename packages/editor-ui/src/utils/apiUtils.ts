@@ -1,19 +1,17 @@
-import type { AxiosRequestConfig, Method, RawAxiosRequestHeaders } from 'axios';
+import type { AxiosRequestConfig, Method } from 'axios';
 import axios from 'axios';
-import type { GenericValue, IDataObject } from 'n8n-workflow';
-import type { IExecutionFlattedResponse, IExecutionResponse, IRestApiContext } from '@/Interface';
+import type { IDataObject } from 'n8n-workflow';
+import type {
+	IExecutionFlattedResponse,
+	IExecutionResponse,
+	IRestApiContext,
+	IWorkflowDb,
+} from '@/Interface';
 import { parse } from 'flatted';
-
-const BROWSER_ID_STORAGE_KEY = 'n8n-browserId';
-let browserId = localStorage.getItem(BROWSER_ID_STORAGE_KEY);
-if (!browserId && 'randomUUID' in crypto) {
-	browserId = crypto.randomUUID();
-	localStorage.setItem(BROWSER_ID_STORAGE_KEY, browserId);
-}
 
 export const NO_NETWORK_ERROR_CODE = 999;
 
-export class ResponseError extends Error {
+class ResponseError extends Error {
 	// The HTTP status code of response
 	httpStatusCode?: number;
 
@@ -50,51 +48,31 @@ export class ResponseError extends Error {
 	}
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const legacyParamSerializer = (params: Record<string, any>) =>
-	Object.keys(params)
-		.filter((key) => params[key] !== undefined)
-		.map((key) => {
-			if (Array.isArray(params[key])) {
-				return params[key].map((v: string) => `${key}[]=${encodeURIComponent(v)}`).join('&');
-			}
-			if (typeof params[key] === 'object') {
-				params[key] = JSON.stringify(params[key]);
-			}
-			return `${key}=${encodeURIComponent(params[key])}`;
-		})
-		.join('&');
-
-export async function request(config: {
+async function request(config: {
 	method: Method;
 	baseURL: string;
 	endpoint: string;
-	headers?: RawAxiosRequestHeaders;
-	data?: GenericValue | GenericValue[];
-	withCredentials?: boolean;
+	headers?: IDataObject;
+	data?: IDataObject;
 }) {
 	const { method, baseURL, endpoint, headers, data } = config;
 	const options: AxiosRequestConfig = {
 		method,
 		url: endpoint,
 		baseURL,
-		headers: headers ?? {},
+		headers,
 	};
-	if (baseURL.startsWith('/') && browserId) {
-		options.headers!['browser-id'] = browserId;
-	}
 	if (
 		import.meta.env.NODE_ENV !== 'production' &&
 		!baseURL.includes('api.n8n.io') &&
 		!baseURL.includes('n8n.cloud')
 	) {
-		options.withCredentials = options.withCredentials ?? true;
+		options.withCredentials = true;
 	}
 	if (['POST', 'PATCH', 'PUT'].includes(method)) {
 		options.data = data;
-	} else if (data) {
+	} else {
 		options.params = data;
-		options.paramsSerializer = legacyParamSerializer;
 	}
 
 	try {
@@ -102,7 +80,7 @@ export async function request(config: {
 		return response.data;
 	} catch (error) {
 		if (error.message === 'Network Error') {
-			throw new ResponseError("Can't connect to n8n.", {
+			throw new ResponseError('API-Server can not be reached. It is probably down.', {
 				errorCode: NO_NETWORK_ERROR_CODE,
 			});
 		}
@@ -125,49 +103,40 @@ export async function request(config: {
 	}
 }
 
-export async function makeRestApiRequest<T>(
+export async function makeRestApiRequest(
 	context: IRestApiContext,
 	method: Method,
 	endpoint: string,
-	data?: GenericValue | GenericValue[],
+	data?: IDataObject,
 ) {
 	const response = await request({
 		method,
 		baseURL: context.baseUrl,
 		endpoint,
-		headers: { 'push-ref': context.pushRef },
+		headers: { sessionid: context.sessionId },
 		data,
 	});
 
 	// @ts-ignore all cli rest api endpoints return data wrapped in `data` key
-	return response.data as T;
+	return response.data;
 }
 
 export async function get(
 	baseURL: string,
 	endpoint: string,
 	params?: IDataObject,
-	headers?: RawAxiosRequestHeaders,
+	headers?: IDataObject,
 ) {
-	return await request({ method: 'GET', baseURL, endpoint, headers, data: params });
+	return request({ method: 'GET', baseURL, endpoint, headers, data: params });
 }
 
 export async function post(
 	baseURL: string,
 	endpoint: string,
 	params?: IDataObject,
-	headers?: RawAxiosRequestHeaders,
+	headers?: IDataObject,
 ) {
-	return await request({ method: 'POST', baseURL, endpoint, headers, data: params });
-}
-
-export async function patch(
-	baseURL: string,
-	endpoint: string,
-	params?: IDataObject,
-	headers?: RawAxiosRequestHeaders,
-) {
-	return await request({ method: 'PATCH', baseURL, endpoint, headers, data: params });
+	return request({ method: 'POST', baseURL, endpoint, headers, data: params });
 }
 
 /**
@@ -175,11 +144,13 @@ export async function patch(
  *
  * @param {IExecutionFlattedResponse} fullExecutionData The data to unflatten
  */
-export function unflattenExecutionData(fullExecutionData: IExecutionFlattedResponse) {
+export function unflattenExecutionData(
+	fullExecutionData: IExecutionFlattedResponse,
+): IExecutionResponse {
 	// Unflatten the data
 	const returnData: IExecutionResponse = {
 		...fullExecutionData,
-		workflowData: fullExecutionData.workflowData,
+		workflowData: fullExecutionData.workflowData as IWorkflowDb,
 		data: parse(fullExecutionData.data),
 	};
 

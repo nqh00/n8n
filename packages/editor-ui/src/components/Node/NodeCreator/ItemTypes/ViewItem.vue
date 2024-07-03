@@ -2,13 +2,12 @@
 	<n8n-node-creator-node
 		:class="$style.view"
 		:title="view.title"
-		:tag="view.tag"
-		:is-trigger="false"
+		:isTrigger="false"
 		:description="view.description"
-		:show-action-arrow="true"
+		:showActionArrow="true"
 	>
 		<template #icon>
-			<n8n-node-icon type="icon" :name="view.icon" :circle="false" :show-tooltip="false" />
+			<n8n-node-icon type="icon" :name="view.icon" :circle="false" :showTooltip="false" />
 		</template>
 	</n8n-node-creator-node>
 </template>

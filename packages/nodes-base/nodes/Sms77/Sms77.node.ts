@@ -1,6 +1,6 @@
 import type {
-	IDataObject,
 	IExecuteFunctions,
+	IDataObject,
 	INodeExecutionData,
 	INodeType,
 	INodeTypeDescription,
@@ -10,15 +10,16 @@ import { sms77ApiRequest } from './GenericFunctions';
 
 export class Sms77 implements INodeType {
 	description: INodeTypeDescription = {
-		displayName: 'seven',
+		displayName: 'sms77',
 		name: 'sms77',
-		icon: 'file:seven.svg',
+		// eslint-disable-next-line n8n-nodes-base/node-class-description-icon-not-svg
+		icon: 'file:sms77.png',
 		group: ['transform'],
 		version: 1,
 		subtitle: '={{$parameter["operation"] + ": " + $parameter["resource"]}}',
 		description: 'Send SMS and make text-to-speech calls',
 		defaults: {
-			name: 'seven',
+			name: 'sms77',
 		},
 		inputs: ['main'],
 		outputs: ['main'],
@@ -117,7 +118,7 @@ export class Sms77 implements INodeType {
 					},
 				},
 				description:
-					'The number of your recipient(s) separated by comma. Can be regular numbers or contact/groups from seven.',
+					'The number of your recipient(s) separated by comma. Can be regular numbers or contact/groups from Sms77.',
 			},
 			{
 				displayName: 'Message',
@@ -297,7 +298,7 @@ export class Sms77 implements INodeType {
 					returnData.push(responseData as IDataObject);
 				}
 			} catch (error) {
-				if (this.continueOnFail(error)) {
+				if (this.continueOnFail()) {
 					returnData.push({ error: error.message });
 					continue;
 				}

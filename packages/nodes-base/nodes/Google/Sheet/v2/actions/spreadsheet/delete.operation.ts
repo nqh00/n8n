@@ -1,10 +1,20 @@
-import type { IExecuteFunctions, INodeExecutionData } from 'n8n-workflow';
+import type { IExecuteFunctions, IDataObject, INodeExecutionData } from 'n8n-workflow';
 import type { SpreadSheetProperties } from '../../helpers/GoogleSheets.types';
 import { apiRequest } from '../../transport';
-import { GOOGLE_DRIVE_FILE_URL_REGEX } from '../../../../constants';
-import { wrapData } from '../../../../../../utils/utilities';
 
 export const description: SpreadSheetProperties = [
+	// {
+	// 	displayName: 'Spreadsheet ID',
+	// 	name: 'spreadsheetId',
+	// 	type: 'string',
+	// 	default: '',
+	// 	displayOptions: {
+	// 		show: {
+	// 			resource: ['spreadsheet'],
+	// 			operation: ['deleteSpreadsheet'],
+	// 		},
+	// 	},
+	// },
 	{
 		displayName: 'Document',
 		name: 'documentId',
@@ -27,13 +37,15 @@ export const description: SpreadSheetProperties = [
 				type: 'string',
 				extractValue: {
 					type: 'regex',
-					regex: GOOGLE_DRIVE_FILE_URL_REGEX,
+					regex:
+						'https:\\/\\/(?:drive|docs)\\.google\\.com\\/\\w+\\/d\\/([0-9a-zA-Z\\-_]+)(?:\\/.*|)',
 				},
 				validation: [
 					{
 						type: 'regex',
 						properties: {
-							regex: GOOGLE_DRIVE_FILE_URL_REGEX,
+							regex:
+								'https:\\/\\/(?:drive|docs)\\.google.com\\/\\w+\\/d\\/([0-9a-zA-Z\\-_]+)(?:\\/.*|)',
 							errorMessage: 'Not a valid Google Drive File URL',
 						},
 					},
@@ -66,9 +78,10 @@ export const description: SpreadSheetProperties = [
 
 export async function execute(this: IExecuteFunctions): Promise<INodeExecutionData[]> {
 	const items = this.getInputData();
-	const returnData: INodeExecutionData[] = [];
+	const returnData: IDataObject[] = [];
 
 	for (let i = 0; i < items.length; i++) {
+		// const spreadsheetId = this.getNodeParameter('spreadsheetId', i) as string;
 		const documentId = this.getNodeParameter('documentId', i, undefined, {
 			extractValue: true,
 		}) as string;
@@ -82,12 +95,8 @@ export async function execute(this: IExecuteFunctions): Promise<INodeExecutionDa
 			`https://www.googleapis.com/drive/v3/files/${documentId}`,
 		);
 
-		const executionData = this.helpers.constructExecutionMetaData(wrapData({ success: true }), {
-			itemData: { item: i },
-		});
-
-		returnData.push(...executionData);
+		returnData.push({ success: true });
 	}
 
-	return returnData;
+	return this.helpers.returnJsonArray(returnData);
 }

@@ -1,52 +1,53 @@
 <script lang="ts" setup>
-import type { ComponentPublicInstance } from 'vue';
+import type { ComponentPublicInstance, PropType } from 'vue';
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
-import type { Rule, RuleGroup } from '@/Interface';
-import { useI18n } from '@/composables/useI18n';
-import { useToast } from '@/composables/useToast';
-import { useClipboard } from '@/composables/useClipboard';
+import type { EnvironmentVariable, Rule, RuleGroup } from '@/Interface';
+import { useI18n, useToast, useCopyToClipboard } from '@/composables';
 import { EnterpriseEditionFeature } from '@/constants';
-import { useSettingsStore } from '@/stores/settings.store';
-import { useUsersStore } from '@/stores/users.store';
+import { useSettingsStore, useUsersStore } from '@/stores';
 import { getVariablesPermissions } from '@/permissions';
-import type { IResource } from './layouts/ResourcesListLayout.vue';
 
-const i18n = useI18n();
-const clipboard = useClipboard();
+const { i18n } = useI18n();
+const copyToClipboard = useCopyToClipboard();
 const { showMessage } = useToast();
 const settingsStore = useSettingsStore();
 const usersStore = useUsersStore();
 
 const emit = defineEmits(['save', 'cancel', 'edit', 'delete']);
 
-const props = withDefaults(
-	defineProps<{
-		data: IResource;
-		editing: boolean;
-	}>(),
-	{
-		editing: false,
+const props = defineProps({
+	data: {
+		type: Object as PropType<EnvironmentVariable>,
+		default: () => ({}),
 	},
-);
+	editing: {
+		type: Boolean,
+		default: false,
+	},
+});
 
-const permissions = computed(() => getVariablesPermissions(usersStore.currentUser));
-const modelValue = ref<IResource>({ ...props.data });
+const permissions = getVariablesPermissions(usersStore.currentUser);
+const modelValue = ref<EnvironmentVariable>({ ...props.data });
 
 const formValidationStatus = ref<Record<string, boolean>>({
 	key: false,
 	value: false,
 });
 const formValid = computed(() => {
-	return formValidationStatus.value.name && formValidationStatus.value.value;
+	return formValidationStatus.value.key && formValidationStatus.value.value;
 });
 
 const keyInputRef = ref<ComponentPublicInstance & { inputRef?: HTMLElement }>();
 const valueInputRef = ref<HTMLElement>();
 
-const usage = ref(`$vars.${props.data.name}`);
+const usage = ref(`$vars.${props.data.key}`);
 
 const isFeatureEnabled = computed(() =>
 	settingsStore.isEnterpriseFeatureEnabled(EnterpriseEditionFeature.Variables),
+);
+
+const showActions = computed(
+	() => isFeatureEnabled.value && (permissions.edit || permissions.delete),
 );
 
 onMounted(() => {
@@ -77,17 +78,18 @@ const valueValidationRules: Array<Rule | RuleGroup> = [
 ];
 
 watch(
-	() => modelValue.value.name,
-	async () => {
-		await nextTick();
-		if (formValidationStatus.value.name) {
-			updateUsageSyntax();
-		}
+	() => modelValue.value.key,
+	() => {
+		nextTick(() => {
+			if (formValidationStatus.value.key) {
+				updateUsageSyntax();
+			}
+		});
 	},
 );
 
 function updateUsageSyntax() {
-	usage.value = `$vars.${modelValue.value.name || props.data.name}`;
+	usage.value = `$vars.${modelValue.value.key || props.data.key}`;
 }
 
 async function onCancel() {
@@ -111,12 +113,12 @@ async function onDelete() {
 	emit('delete', modelValue.value);
 }
 
-function onValidate(name: string, value: boolean) {
-	formValidationStatus.value[name] = value;
+function onValidate(key: string, value: boolean) {
+	formValidationStatus.value[key] = value;
 }
 
 function onUsageClick() {
-	void clipboard.copy(usage.value);
+	copyToClipboard(usage.value);
 	showMessage({
 		title: i18n.baseText('variables.row.usage.copiedToClipboard'),
 		type: 'success',
@@ -132,19 +134,19 @@ function focusFirstInput() {
 	<tr :class="$style.variablesRow" data-test-id="variables-row">
 		<td class="variables-key-column">
 			<div>
-				<span v-if="!editing">{{ data.name }}</span>
+				<span v-if="!editing">{{ data.key }}</span>
 				<n8n-form-input
 					v-else
-					ref="keyInputRef"
-					v-model="modelValue.name"
 					label
-					name="name"
+					name="key"
 					data-test-id="variable-row-key-input"
 					:placeholder="i18n.baseText('variables.editing.key.placeholder')"
 					required
-					validate-on-blur
-					:validation-rules="keyValidationRules"
-					@validate="(value: boolean) => onValidate('name', value)"
+					validateOnBlur
+					:validationRules="keyValidationRules"
+					v-model="modelValue.key"
+					ref="keyInputRef"
+					@validate="(value) => onValidate('key', value)"
 				/>
 			</div>
 		</td>
@@ -153,22 +155,22 @@ function focusFirstInput() {
 				<span v-if="!editing">{{ data.value }}</span>
 				<n8n-form-input
 					v-else
-					ref="valueInputRef"
-					v-model="modelValue.value"
 					label
 					name="value"
 					data-test-id="variable-row-value-input"
 					:placeholder="i18n.baseText('variables.editing.value.placeholder')"
-					validate-on-blur
-					:validation-rules="valueValidationRules"
-					@validate="(value: boolean) => onValidate('value', value)"
+					validateOnBlur
+					:validationRules="valueValidationRules"
+					v-model="modelValue.value"
+					ref="valueInputRef"
+					@validate="(value) => onValidate('value', value)"
 				/>
 			</div>
 		</td>
 		<td class="variables-usage-column">
 			<div>
 				<n8n-tooltip placement="top">
-					<span v-if="modelValue.name && usage" :class="$style.usageSyntax" @click="onUsageClick">{{
+					<span v-if="modelValue.key && usage" :class="$style.usageSyntax" @click="onUsageClick">{{
 						usage
 					}}</span>
 					<template #content>
@@ -197,20 +199,20 @@ function focusFirstInput() {
 				</n8n-button>
 			</div>
 			<div v-else :class="[$style.buttons, $style.hoverButtons]">
-				<n8n-tooltip :disabled="permissions.update" placement="top">
+				<n8n-tooltip :disabled="permissions.edit" placement="top">
 					<div>
 						<n8n-button
 							data-test-id="variable-row-edit-button"
 							type="tertiary"
 							class="mr-xs"
-							:disabled="!permissions.update"
+							:disabled="!permissions.edit"
 							@click="onEdit"
 						>
 							{{ i18n.baseText('variables.row.button.edit') }}
 						</n8n-button>
 					</div>
 					<template #content>
-						{{ i18n.baseText('variables.row.button.edit.onlyRoleCanEdit') }}
+						{{ i18n.baseText('variables.row.button.edit.onlyOwnerCanSave') }}
 					</template>
 				</n8n-tooltip>
 				<n8n-tooltip :disabled="permissions.delete" placement="top">
@@ -225,7 +227,7 @@ function focusFirstInput() {
 						</n8n-button>
 					</div>
 					<template #content>
-						{{ i18n.baseText('variables.row.button.delete.onlyRoleCanDelete') }}
+						{{ i18n.baseText('variables.row.button.delete.onlyOwnerCanDelete') }}
 					</template>
 				</n8n-tooltip>
 			</div>
@@ -263,8 +265,8 @@ function focusFirstInput() {
 
 .usageSyntax {
 	cursor: pointer;
-	background: var(--color-variables-usage-syntax-bg);
-	color: var(--color-variables-usage-font);
+	background: var(--color-success-tint-2);
+	color: var(--color-success);
 	font-family: var(--font-family-monospace);
 	font-size: var(--font-size-s);
 }

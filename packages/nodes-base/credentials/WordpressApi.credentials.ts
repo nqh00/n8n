@@ -35,13 +35,6 @@ export class WordpressApi implements ICredentialType {
 			default: '',
 			placeholder: 'https://example.com',
 		},
-		{
-			displayName: 'Ignore SSL Issues',
-			name: 'allowUnauthorizedCerts',
-			type: 'boolean',
-			description: 'Whether to connect even if SSL certificate validation is not possible',
-			default: false,
-		},
 	];
 
 	authenticate: IAuthenticateGeneric = {
@@ -59,7 +52,6 @@ export class WordpressApi implements ICredentialType {
 			baseURL: '={{$credentials?.url}}/wp-json/wp/v2',
 			url: '/users',
 			method: 'GET',
-			skipSslCertificateValidation: '={{$credentials.allowUnauthorizedCerts}}',
 		},
 	};
 }

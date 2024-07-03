@@ -8,8 +8,9 @@ import type {
 	INodeExecutionData,
 	INodeType,
 	INodeTypeDescription,
-	IRequestOptions,
 } from 'n8n-workflow';
+
+import type { OptionsWithUri } from 'request';
 
 import {
 	gristApiRequest,
@@ -82,10 +83,10 @@ export class Grist implements INodeType {
 					planType === 'free'
 						? `https://docs.getgrist.com/api${endpoint}`
 						: planType === 'paid'
-							? `https://${customSubdomain}.getgrist.com/api${endpoint}`
-							: `${selfHostedUrl}/api${endpoint}`;
+						? `https://${customSubdomain}.getgrist.com/api${endpoint}`
+						: `${selfHostedUrl}/api${endpoint}`;
 
-				const options: IRequestOptions = {
+				const options: OptionsWithUri = {
 					headers: {
 						Authorization: `Bearer ${apiKey}`,
 					},
@@ -244,7 +245,7 @@ export class Grist implements INodeType {
 					});
 				}
 			} catch (error) {
-				if (this.continueOnFail(error)) {
+				if (this.continueOnFail()) {
 					const executionData = this.helpers.constructExecutionMetaData(
 						this.helpers.returnJsonArray({ error: error.message }),
 						{ itemData: { item: i } },
@@ -262,6 +263,6 @@ export class Grist implements INodeType {
 			returnData.push(...executionData);
 		}
 
-		return [returnData];
+		return this.prepareOutputData(returnData);
 	}
 }

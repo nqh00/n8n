@@ -1,9 +1,10 @@
+import type { OptionsWithUri } from 'request';
+
 import type {
 	IDataObject,
 	IExecuteFunctions,
-	IHttpRequestMethods,
+	IExecuteSingleFunctions,
 	ILoadOptionsFunctions,
-	IRequestOptions,
 	JsonObject,
 } from 'n8n-workflow';
 import { NodeApiError } from 'n8n-workflow';
@@ -17,8 +18,8 @@ export interface IGoogleAuthCredentials {
 }
 
 export async function googleApiRequest(
-	this: IExecuteFunctions | ILoadOptionsFunctions,
-	method: IHttpRequestMethods,
+	this: IExecuteFunctions | IExecuteSingleFunctions | ILoadOptionsFunctions,
+	method: string,
 	resource: string,
 
 	body: any = {},
@@ -31,7 +32,7 @@ export async function googleApiRequest(
 		0,
 		'serviceAccount',
 	) as string;
-	const options: IRequestOptions = {
+	const options: OptionsWithUri = {
 		headers: {
 			'Content-Type': 'application/json',
 		},
@@ -71,7 +72,7 @@ export async function googleApiRequest(
 export async function googleApiRequestAllItems(
 	this: IExecuteFunctions | ILoadOptionsFunctions,
 	propertyName: string,
-	method: IHttpRequestMethods,
+	method: string,
 	endpoint: string,
 
 	body: any = {},
@@ -95,7 +96,8 @@ export async function googleApiRequestAllItems(
 export function hexToRgb(hex: string) {
 	// Expand shorthand form (e.g. "03F") to full form (e.g. "0033FF")
 	const shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i;
-	hex = hex.replace(shorthandRegex, (_, r, g, b) => {
+	hex = hex.replace(shorthandRegex, (m, r, g, b) => {
+		// eslint-disable-next-line @typescript-eslint/restrict-plus-operands
 		return r + r + g + g + b + b;
 	});
 

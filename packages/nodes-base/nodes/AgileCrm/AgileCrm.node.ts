@@ -190,6 +190,7 @@ export class AgileCrm implements INodeType {
 					}
 
 					if (simple) {
+						// eslint-disable-next-line @typescript-eslint/no-unsafe-argument
 						responseData = simplifyResponse(responseData);
 					}
 				} else if (operation === 'create') {
@@ -298,16 +299,12 @@ export class AgileCrm implements INodeType {
 								} as IDataObject);
 							}
 
-							if (additionalFields.addressOptions) {
-								//@ts-ignore
-								additionalFields.addressOptions.addressProperties.map((property) => {
-									properties.push({
-										type: 'SYSTEM',
-										subtype: property.subtype as string,
-										name: 'address',
-										value: property.address as string,
-									} as IDataObject);
-								});
+							if (additionalFields.address) {
+								properties.push({
+									type: 'SYSTEM',
+									name: 'address',
+									value: additionalFields.address as string,
+								} as IDataObject);
 							}
 
 							if (additionalFields.phone) {
@@ -315,14 +312,6 @@ export class AgileCrm implements INodeType {
 									type: 'SYSTEM',
 									name: 'phone',
 									value: additionalFields.phone as string,
-								} as IDataObject);
-							}
-
-							if (additionalFields.name) {
-								properties.push({
-									type: 'SYSTEM',
-									name: 'name',
-									value: additionalFields.name as string,
 								} as IDataObject);
 							}
 						}
@@ -333,7 +322,7 @@ export class AgileCrm implements INodeType {
 								properties.push({
 									type: 'SYSTEM',
 									subtype: property.subtype as string,
-									name: 'website',
+									name: 'webiste',
 									value: property.url as string,
 								} as IDataObject);
 							});
@@ -462,16 +451,12 @@ export class AgileCrm implements INodeType {
 								} as IDataObject);
 							}
 
-							if (additionalFields.addressOptions) {
-								//@ts-ignore
-								additionalFields.addressOptions.addressProperties.map((property) => {
-									properties.push({
-										type: 'SYSTEM',
-										subtype: property.subtype as string,
-										name: 'address',
-										value: property.address as string,
-									} as IDataObject);
-								});
+							if (additionalFields.address) {
+								properties.push({
+									type: 'SYSTEM',
+									name: 'address',
+									value: additionalFields.address as string,
+								} as IDataObject);
 							}
 
 							if (additionalFields.phone) {
@@ -489,17 +474,10 @@ export class AgileCrm implements INodeType {
 								properties.push({
 									type: 'SYSTEM',
 									subtype: property.subtype as string,
-									name: 'website',
+									name: 'webiste',
 									value: property.url as string,
 								} as IDataObject);
 							});
-						}
-						if (additionalFields.name) {
-							properties.push({
-								type: 'SYSTEM',
-								name: 'name',
-								value: additionalFields.name as string,
-							} as IDataObject);
 						}
 						if (additionalFields.customProperties) {
 							//@ts-ignore

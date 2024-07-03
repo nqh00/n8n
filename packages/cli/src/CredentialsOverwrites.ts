@@ -1,21 +1,14 @@
-import { Service } from 'typedi';
-import type { ICredentialDataDecryptedObject } from 'n8n-workflow';
-import { deepCopy, jsonParse } from 'n8n-workflow';
 import config from '@/config';
+import type { ICredentialDataDecryptedObject, ICredentialTypes } from 'n8n-workflow';
+import { deepCopy, LoggerProxy as Logger, jsonParse } from 'n8n-workflow';
 import type { ICredentialsOverwrite } from '@/Interfaces';
-import { CredentialTypes } from '@/CredentialTypes';
-import { Logger } from '@/Logger';
 
-@Service()
-export class CredentialsOverwrites {
+class CredentialsOverwritesClass {
 	private overwriteData: ICredentialsOverwrite = {};
 
 	private resolvedTypes: string[] = [];
 
-	constructor(
-		private readonly credentialTypes: CredentialTypes,
-		private readonly logger: Logger,
-	) {
+	constructor(private credentialTypes: ICredentialTypes) {
 		const data = config.getEnv('credentials.overwrite.data');
 		const overwriteData = jsonParse<ICredentialsOverwrite>(data, {
 			errorMessage: 'The credentials-overwrite is not valid JSON.',
@@ -65,7 +58,7 @@ export class CredentialsOverwrites {
 		}
 
 		if (!this.credentialTypes.recognizes(type)) {
-			this.logger.warn(`Unknown credential type ${type} in Credential overwrites`);
+			Logger.warn(`Unknown credential type ${type} in Credential overwrites`);
 			return;
 		}
 
@@ -102,4 +95,21 @@ export class CredentialsOverwrites {
 	getAll(): ICredentialsOverwrite {
 		return this.overwriteData;
 	}
+}
+
+let credentialsOverwritesInstance: CredentialsOverwritesClass | undefined;
+
+// eslint-disable-next-line @typescript-eslint/naming-convention
+export function CredentialsOverwrites(
+	credentialTypes?: ICredentialTypes,
+): CredentialsOverwritesClass {
+	if (!credentialsOverwritesInstance) {
+		if (credentialTypes) {
+			credentialsOverwritesInstance = new CredentialsOverwritesClass(credentialTypes);
+		} else {
+			throw new Error('CredentialsOverwrites not initialized yet');
+		}
+	}
+
+	return credentialsOverwritesInstance;
 }

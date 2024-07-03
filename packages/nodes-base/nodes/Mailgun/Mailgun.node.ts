@@ -5,7 +5,6 @@ import type {
 	INodeType,
 	INodeTypeDescription,
 	JsonObject,
-	IRequestOptions,
 } from 'n8n-workflow';
 import { NodeApiError } from 'n8n-workflow';
 
@@ -173,7 +172,7 @@ export class Mailgun implements INodeType {
 					formData,
 					uri: `https://${credentials.apiDomain}/v3/${credentials.emailDomain}/messages`,
 					json: true,
-				} satisfies IRequestOptions;
+				};
 
 				let responseData;
 
@@ -194,7 +193,7 @@ export class Mailgun implements INodeType {
 
 				returnData.push(...executionData);
 			} catch (error) {
-				if (this.continueOnFail(error)) {
+				if (this.continueOnFail()) {
 					const executionErrorData = this.helpers.constructExecutionMetaData(
 						this.helpers.returnJsonArray({ error: error.message }),
 						{ itemData: { item: itemIndex } },
@@ -205,6 +204,6 @@ export class Mailgun implements INodeType {
 				throw error;
 			}
 		}
-		return [returnData];
+		return this.prepareOutputData(returnData);
 	}
 }

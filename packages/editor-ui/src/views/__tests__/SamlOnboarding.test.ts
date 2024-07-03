@@ -1,20 +1,21 @@
+import { PiniaVuePlugin } from 'pinia';
+import { render } from '@testing-library/vue';
 import userEvent from '@testing-library/user-event';
-import { useRouter } from 'vue-router';
+import { useRouter } from 'vue-router/composables';
 import { createTestingPinia } from '@pinia/testing';
 import { merge } from 'lodash-es';
 import SamlOnboarding from '@/views/SamlOnboarding.vue';
 import { useSSOStore } from '@/stores/sso.store';
 import { STORES } from '@/constants';
 import { SETTINGS_STORE_DEFAULT_STATE, waitAllPromises } from '@/__tests__/utils';
-import { createComponentRenderer } from '@/__tests__/render';
+import { i18nInstance } from '@/plugins/i18n';
 
-vi.mock('vue-router', () => {
+vi.mock('vue-router/composables', () => {
 	const push = vi.fn();
 	return {
 		useRouter: () => ({
 			push,
 		}),
-		RouterLink: vi.fn(),
 	};
 });
 
@@ -22,7 +23,20 @@ let pinia: ReturnType<typeof createTestingPinia>;
 let ssoStore: ReturnType<typeof useSSOStore>;
 let router: ReturnType<typeof useRouter>;
 
-const renderComponent = createComponentRenderer(SamlOnboarding);
+const renderComponent = (renderOptions: Parameters<typeof render>[1] = {}) =>
+	render(
+		SamlOnboarding,
+		merge(
+			{
+				pinia,
+				i18n: i18nInstance,
+			},
+			renderOptions,
+		),
+		(vue) => {
+			vue.use(PiniaVuePlugin);
+		},
+	);
 
 describe('SamlOnboarding', () => {
 	beforeEach(() => {
@@ -47,7 +61,7 @@ describe('SamlOnboarding', () => {
 			isPending: false,
 		});
 
-		const { getByRole, getAllByRole } = renderComponent({ pinia });
+		const { getByRole, getAllByRole } = renderComponent();
 
 		const inputs = getAllByRole('textbox');
 		const submit = getByRole('button');

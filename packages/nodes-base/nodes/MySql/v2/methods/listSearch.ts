@@ -1,6 +1,7 @@
 import type { IDataObject, ILoadOptionsFunctions, INodeListSearchResult } from 'n8n-workflow';
-import { Client } from 'ssh2';
 import { createPool } from '../transport';
+
+import { Client } from 'ssh2';
 
 export async function searchTables(this: ILoadOptionsFunctions): Promise<INodeListSearchResult> {
 	const credentials = await this.getCredentials('mySql');

@@ -1,23 +1,24 @@
+import type { OptionsWithUri } from 'request';
+
 import type {
 	JsonObject,
 	IDataObject,
 	IExecuteFunctions,
+	IExecuteSingleFunctions,
 	ILoadOptionsFunctions,
-	IHttpRequestMethods,
-	IRequestOptions,
 } from 'n8n-workflow';
 import { NodeApiError, NodeOperationError } from 'n8n-workflow';
 
 export async function phantombusterApiRequest(
-	this: IExecuteFunctions | ILoadOptionsFunctions,
-	method: IHttpRequestMethods,
+	this: IExecuteFunctions | IExecuteSingleFunctions | ILoadOptionsFunctions,
+	method: string,
 	path: string,
 
 	body: any = {},
 	qs: IDataObject = {},
 	_option = {},
 ): Promise<any> {
-	const options: IRequestOptions = {
+	const options: OptionsWithUri = {
 		headers: {},
 		method,
 		body,

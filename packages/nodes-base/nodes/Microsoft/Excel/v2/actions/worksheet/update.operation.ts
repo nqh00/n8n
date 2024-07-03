@@ -1,20 +1,11 @@
-import type {
-	IDataObject,
-	IExecuteFunctions,
-	INodeExecutionData,
-	INodeProperties,
-} from 'n8n-workflow';
+import type { IExecuteFunctions } from 'n8n-core';
+import type { IDataObject, INodeExecutionData, INodeProperties } from 'n8n-workflow';
 import { NodeOperationError } from 'n8n-workflow';
+import { processJsonInput, updateDisplayOptions } from '../../../../../../utils/utilities';
 import type { ExcelResponse, UpdateSummary } from '../../helpers/interfaces';
-import {
-	checkRange,
-	prepareOutput,
-	updateByAutoMaping,
-	updateByDefinedValues,
-} from '../../helpers/utils';
+import { prepareOutput, updateByAutoMaping, updateByDefinedValues } from '../../helpers/utils';
 import { microsoftApiRequest } from '../../transport';
 import { workbookRLC, worksheetRLC } from '../common.descriptions';
-import { generatePairedItemData, processJsonInput, updateDisplayOptions } from '@utils/utilities';
 
 const properties: INodeProperties[] = [
 	workbookRLC,
@@ -38,7 +29,7 @@ const properties: INodeProperties[] = [
 		placeholder: 'e.g. A1:B2',
 		default: '',
 		description:
-			'The sheet range to read the data from specified using a A1-style notation, has to be specific e.g A1:B5, generic ranges like A:B are not supported. Leave blank to use whole used range in the sheet.',
+			'The sheet range to read the data from specified using a A1-style notation. Leave blank to use whole used range in the sheet.',
 		hint: 'First row must contain column names',
 	},
 	{
@@ -259,8 +250,6 @@ export async function execute(
 		}) as string;
 
 		let range = this.getNodeParameter('range', 0, '') as string;
-		checkRange(this.getNode(), range);
-
 		const dataMode = this.getNodeParameter('dataMode', 0) as string;
 
 		let worksheetData: IDataObject = {};
@@ -306,7 +295,7 @@ export async function execute(
 			);
 
 			returnData.push(
-				...prepareOutput.call(this, this.getNode(), responseData as ExcelResponse, {
+				...prepareOutput(this.getNode(), responseData as ExcelResponse, {
 					rawData,
 					dataProperty,
 				}),
@@ -364,7 +353,7 @@ export async function execute(
 			const { updatedRows } = updateSummary;
 
 			returnData.push(
-				...prepareOutput.call(this, this.getNode(), responseData as ExcelResponse, {
+				...prepareOutput(this.getNode(), responseData as ExcelResponse, {
 					updatedRows,
 					rawData,
 					dataProperty,
@@ -372,11 +361,10 @@ export async function execute(
 			);
 		}
 	} catch (error) {
-		if (this.continueOnFail(error)) {
-			const itemData = generatePairedItemData(this.getInputData().length);
+		if (this.continueOnFail()) {
 			const executionErrorData = this.helpers.constructExecutionMetaData(
 				this.helpers.returnJsonArray({ error: error.message }),
-				{ itemData },
+				{ itemData: { item: 0 } },
 			);
 			returnData.push(...executionErrorData);
 		} else {

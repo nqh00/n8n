@@ -1,10 +1,11 @@
 <template>
+	<!-- eslint-disable vue/no-mutating-props -->
 	<a
 		v-if="version"
+		:set="(version = version)"
 		:href="version.documentationUrl"
 		target="_blank"
 		:class="$style.card"
-		data-test-id="version-card"
 	>
 		<div :class="$style.header">
 			<div>
@@ -12,7 +13,9 @@
 					{{ `${$locale.baseText('versionCard.version')} ${version.name}` }}
 				</div>
 				<WarningTooltip v-if="version.hasSecurityIssue">
-					<span v-html="$locale.baseText('versionCard.thisVersionHasASecurityIssue')"></span>
+					<template>
+						<span v-html="$locale.baseText('versionCard.thisVersionHasASecurityIssue')"></span>
+					</template>
 				</WarningTooltip>
 				<Badge
 					v-if="version.hasSecurityFix"
@@ -30,44 +33,44 @@
 			</div>
 		</div>
 		<div
-			v-if="version.description || (version.nodes && version.nodes.length)"
 			:class="$style.divider"
+			v-if="version.description || (version.nodes && version.nodes.length)"
 		></div>
 		<div>
 			<div
 				v-if="version.description"
-				:class="$style.description"
 				v-html="version.description"
+				:class="$style.description"
 			></div>
 			<div v-if="version.nodes && version.nodes.length > 0" :class="$style.nodes">
 				<NodeIcon
 					v-for="node in version.nodes"
 					:key="node.name"
-					:node-type="node"
-					:title="nodeName(node)"
+					:nodeType="node"
+					:title="$options.nodeName(node)"
 				/>
 			</div>
 		</div>
 	</a>
 </template>
 
-<script setup lang="ts">
+<script lang="ts">
+import { defineComponent } from 'vue';
 import NodeIcon from './NodeIcon.vue';
 import TimeAgo from './TimeAgo.vue';
 import Badge from './Badge.vue';
 import WarningTooltip from './WarningTooltip.vue';
-import type { IVersion, IVersionNode } from '@/Interface';
-import { useI18n } from '@/composables/useI18n';
+import type { IVersionNode } from '@/Interface';
 
-defineProps<{
-	version: IVersion;
-}>();
-
-const i18n = useI18n();
-
-const nodeName = (node: IVersionNode): string => {
-	return node !== null ? node.displayName : i18n.baseText('versionCard.unknown');
-};
+export default defineComponent({
+	name: 'VersionCard',
+	components: { NodeIcon, TimeAgo, Badge, WarningTooltip },
+	props: ['version'],
+	// @ts-ignore
+	nodeName(node: IVersionNode): string {
+		return node !== null ? node.displayName : this.$locale.baseText('versionCard.unknown');
+	},
+});
 </script>
 
 <style module lang="scss">

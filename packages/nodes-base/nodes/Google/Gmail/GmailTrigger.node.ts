@@ -8,7 +8,6 @@ import type {
 	INodeTypeDescription,
 } from 'n8n-workflow';
 
-import { DateTime } from 'luxon';
 import {
 	googleApiRequest,
 	googleApiRequestAllItems,
@@ -17,13 +16,15 @@ import {
 	simplifyOutput,
 } from './GenericFunctions';
 
+import { DateTime } from 'luxon';
+
 export class GmailTrigger implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Gmail Trigger',
 		name: 'gmailTrigger',
 		icon: 'file:gmail.svg',
 		group: ['trigger'],
-		version: [1, 1.1],
+		version: 1,
 		description:
 			'Fetches emails from Gmail and starts the workflow on specified polling intervals.',
 		subtitle: '={{"Gmail Trigger"}}',
@@ -184,7 +185,7 @@ export class GmailTrigger implements INodeType {
 						name: 'downloadAttachments',
 						type: 'boolean',
 						default: false,
-						description: "Whether the email's attachments will be downloaded",
+						description: "Whether the emaail's attachments will be downloaded",
 					},
 				],
 			},
@@ -226,24 +227,11 @@ export class GmailTrigger implements INodeType {
 	};
 
 	async poll(this: IPollFunctions): Promise<INodeExecutionData[][] | null> {
-		const workflowStaticData = this.getWorkflowStaticData('node');
-		const node = this.getNode();
-
-		let nodeStaticData = workflowStaticData;
-		if (node.typeVersion > 1) {
-			const nodeName = node.name;
-			if (workflowStaticData[nodeName] === undefined) {
-				workflowStaticData[nodeName] = {} as IDataObject;
-				nodeStaticData = workflowStaticData[nodeName] as IDataObject;
-			} else {
-				nodeStaticData = workflowStaticData[nodeName] as IDataObject;
-			}
-		}
-
+		const webhookData = this.getWorkflowStaticData('node');
 		let responseData;
 
 		const now = Math.floor(DateTime.now().toSeconds()).toString();
-		const startDate = (nodeStaticData.lastTimeChecked as string) || +now;
+		const startDate = (webhookData.lastTimeChecked as string) || +now;
 		const endDate = +now;
 
 		const options = this.getNodeParameter('options', {}) as IDataObject;
@@ -269,9 +257,8 @@ export class GmailTrigger implements INodeType {
 			);
 			responseData = responseData.messages;
 
-			if (!responseData?.length) {
-				nodeStaticData.lastTimeChecked = endDate;
-				return null;
+			if (responseData === undefined) {
+				responseData = [];
 			}
 
 			const simple = this.getNodeParameter('simple') as boolean;
@@ -310,10 +297,11 @@ export class GmailTrigger implements INodeType {
 				);
 			}
 		} catch (error) {
-			if (this.getMode() === 'manual' || !nodeStaticData.lastTimeChecked) {
+			if (this.getMode() === 'manual' || !webhookData.lastTimeChecked) {
 				throw error;
 			}
 			const workflow = this.getWorkflow();
+			const node = this.getNode();
 			this.logger.error(
 				`There was a problem in '${node.name}' node in workflow '${workflow.id}': '${error.description}'`,
 				{
@@ -324,32 +312,11 @@ export class GmailTrigger implements INodeType {
 			);
 		}
 
-		if (!responseData?.length) {
-			nodeStaticData.lastTimeChecked = endDate;
-			return null;
-		}
-
-		const emailsWithInvalidDate = new Set<string>();
-
-		const getEmailDateAsSeconds = (email: IDataObject): number => {
-			let date;
-
-			if (email.internalDate) {
-				date = +(email.internalDate as string) / 1000;
-			} else if (email.date) {
-				date = +DateTime.fromJSDate(new Date(email.date as string)).toSeconds();
-			} else {
-				date = +DateTime.fromJSDate(
-					new Date((email?.headers as IDataObject)?.date as string),
-				).toSeconds();
-			}
-
-			if (!date || isNaN(date)) {
-				emailsWithInvalidDate.add(email.id as string);
-				return +startDate;
-			}
-
-			return date;
+		const getEmailDateAsSeconds = (email: IDataObject) => {
+			const { internalDate, date } = email;
+			return internalDate
+				? +(internalDate as string) / 1000
+				: +DateTime.fromJSDate(new Date(date as string)).toSeconds();
 		};
 
 		const lastEmailDate = (responseData as IDataObject[]).reduce((lastDate, { json }) => {
@@ -364,10 +331,10 @@ export class GmailTrigger implements INodeType {
 					? duplicates.concat((json as IDataObject).id as string)
 					: duplicates;
 			},
-			Array.from(emailsWithInvalidDate),
+			[] as string[],
 		);
 
-		const possibleDuplicates = (nodeStaticData.possibleDuplicates as string[]) || [];
+		const possibleDuplicates = (webhookData.possibleDuplicates as string[]) || [];
 		if (possibleDuplicates.length) {
 			responseData = (responseData as IDataObject[]).filter(({ json }) => {
 				const { id } = json as IDataObject;
@@ -375,8 +342,8 @@ export class GmailTrigger implements INodeType {
 			});
 		}
 
-		nodeStaticData.possibleDuplicates = nextPollPossibleDuplicates;
-		nodeStaticData.lastTimeChecked = lastEmailDate || endDate;
+		webhookData.possibleDuplicates = nextPollPossibleDuplicates;
+		webhookData.lastTimeChecked = lastEmailDate || endDate;
 
 		if (Array.isArray(responseData) && responseData.length) {
 			return [responseData as INodeExecutionData[]];

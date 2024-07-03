@@ -6,13 +6,12 @@ import type {
 	ILoadOptionsFunctions,
 	IWebhookFunctions,
 	IHttpRequestOptions,
-	IHttpRequestMethods,
 } from 'n8n-workflow';
 
 export async function awsApiRequest(
 	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions | IWebhookFunctions,
 	service: string,
-	method: IHttpRequestMethods,
+	method: string,
 	path: string,
 	body?: string,
 	headers?: object,
@@ -30,13 +29,13 @@ export async function awsApiRequest(
 		headers,
 		region: credentials?.region as string,
 	} as IHttpRequestOptions;
-	return await this.helpers.requestWithAuthentication.call(this, 'aws', requestOptions);
+	return this.helpers.requestWithAuthentication.call(this, 'aws', requestOptions);
 }
 
 export async function awsApiRequestREST(
 	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions,
 	service: string,
-	method: IHttpRequestMethods,
+	method: string,
 	path: string,
 	body?: string,
 	headers?: object,
@@ -52,7 +51,7 @@ export async function awsApiRequestREST(
 export async function awsApiRequestSOAP(
 	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions | IWebhookFunctions,
 	service: string,
-	method: IHttpRequestMethods,
+	method: string,
 	path: string,
 	body?: string,
 	headers?: object,

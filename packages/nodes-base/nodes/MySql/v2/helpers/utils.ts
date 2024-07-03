@@ -7,9 +7,8 @@ import type {
 	NodeExecutionWithMetadata,
 } from 'n8n-workflow';
 
-import { NodeOperationError } from 'n8n-workflow';
+import { NodeOperationError, deepCopy } from 'n8n-workflow';
 
-import { generatePairedItemData } from '../../../../utils/utilities';
 import type {
 	Mysql2Pool,
 	QueryMode,
@@ -21,20 +20,20 @@ import type {
 
 import { BATCH_MODE } from './interfaces';
 
-export function escapeSqlIdentifier(identifier: string): string {
-	const parts = identifier.match(/(`[^`]*`|[^.`]+)/g) ?? [];
-
-	return parts
-		.map((part) => {
-			const trimmedPart = part.trim();
-
-			if (trimmedPart.startsWith('`') && trimmedPart.endsWith('`')) {
-				return trimmedPart;
+export function copyInputItems(items: INodeExecutionData[], properties: string[]): IDataObject[] {
+	// Prepare the data to insert and copy it to be returned
+	let newItem: IDataObject;
+	return items.map((item) => {
+		newItem = {};
+		for (const property of properties) {
+			if (item.json[property] === undefined) {
+				newItem[property] = null;
+			} else {
+				newItem[property] = deepCopy(item.json[property]);
 			}
-
-			return `\`${trimmedPart}\``;
-		})
-		.join('.');
+		}
+		return newItem;
+	});
 }
 
 export const prepareQueryAndReplacements = (rawQuery: string, replacements?: QueryValues) => {
@@ -51,7 +50,7 @@ export const prepareQueryAndReplacements = (rawQuery: string, replacements?: Que
 	for (const match of matches) {
 		if (match.includes(':name')) {
 			const matchIndex = Number(match.replace('$', '').replace(':name', '')) - 1;
-			query = query.replace(match, escapeSqlIdentifier(replacements[matchIndex].toString()));
+			query = query.replace(match, `\`${replacements[matchIndex]}\``);
 		} else {
 			const matchIndex = Number(match.replace('$', '')) - 1;
 			query = query.replace(match, '?');
@@ -139,7 +138,6 @@ export function prepareOutput(
 			itemData: IPairedItemData | IPairedItemData[];
 		},
 	) => NodeExecutionWithMetadata[],
-	itemData: IPairedItemData | IPairedItemData[],
 ) {
 	const returnData: INodeExecutionData[] = [];
 
@@ -151,7 +149,7 @@ export function prepareOutput(
 			};
 
 			const executionData = constructExecutionHelper(wrapData(item), {
-				itemData,
+				itemData: { item: index },
 			});
 
 			returnData.push(...executionData);
@@ -161,7 +159,7 @@ export function prepareOutput(
 			.filter((entry) => Array.isArray(entry))
 			.forEach((entry, index) => {
 				const executionData = constructExecutionHelper(wrapData(entry), {
-					itemData: Array.isArray(itemData) ? itemData[index] : itemData,
+					itemData: { item: index },
 				});
 
 				returnData.push(...executionData);
@@ -169,35 +167,11 @@ export function prepareOutput(
 	}
 
 	if (!returnData.length) {
-		if ((options?.nodeVersion as number) < 2.2) {
-			returnData.push({ json: { success: true }, pairedItem: itemData });
-		} else {
-			const isSelectQuery = statements
-				.filter((statement) => !statement.startsWith('--'))
-				.every((statement) =>
-					statement
-						.replace(/\/\*.*?\*\//g, '') // remove multiline comments
-						.replace(/\n/g, '')
-						.toLowerCase()
-						.startsWith('select'),
-				);
-
-			if (!isSelectQuery) {
-				returnData.push({ json: { success: true }, pairedItem: itemData });
-			}
-		}
+		returnData.push({ json: { success: true } });
 	}
 
 	return returnData;
 }
-const END_OF_STATEMENT = /;(?=(?:[^'\\]|'[^']*?'|\\[\s\S])*?$)/g;
-export const splitQueryToStatements = (query: string, filterOutEmpty = true) => {
-	const statements = query
-		.replace(/\n/g, '')
-		.split(END_OF_STATEMENT)
-		.map((statement) => statement.trim());
-	return filterOutEmpty ? statements.filter((statement) => statement !== '') : statements;
-};
 
 export function configureQueryRunner(
 	this: IExecuteFunctions,
@@ -233,15 +207,10 @@ export function configureQueryRunner(
 
 				if (!response) return [];
 
-				let statements;
-				if ((options?.nodeVersion as number) <= 2.3) {
-					statements = singleQuery
-						.replace(/\n/g, '')
-						.split(';')
-						.filter((statement) => statement !== '');
-				} else {
-					statements = splitQueryToStatements(singleQuery);
-				}
+				const statements = singleQuery
+					.replace(/\n/g, '')
+					.split(';')
+					.filter((statement) => statement !== '');
 
 				if (Array.isArray(response)) {
 					if (statements.length === 1) response = [response];
@@ -249,22 +218,13 @@ export function configureQueryRunner(
 					response = [response];
 				}
 
-				//because single query is used in this mode mapping itemIndex not posible, setting all items as paired
-				const pairedItem = generatePairedItemData(queries.length);
-
 				returnData.push(
-					...prepareOutput(
-						response,
-						options,
-						statements,
-						this.helpers.constructExecutionMetaData,
-						pairedItem,
-					),
+					...prepareOutput(response, options, statements, this.helpers.constructExecutionMetaData),
 				);
 			} catch (err) {
 				const error = parseMySqlError.call(this, err, 0, formatedQueries);
 
-				if (!this.continueOnFail(err)) throw error;
+				if (!this.continueOnFail()) throw error;
 				returnData.push({ json: { message: error.message, error: { ...error } } });
 			}
 		} else {
@@ -274,13 +234,7 @@ export function configureQueryRunner(
 					try {
 						const { query, values } = queryWithValues;
 						formatedQuery = connection.format(query, values);
-
-						let statements;
-						if ((options?.nodeVersion as number) <= 2.3) {
-							statements = formatedQuery.split(';').map((q) => q.trim());
-						} else {
-							statements = splitQueryToStatements(formatedQuery, false);
-						}
+						const statements = formatedQuery.split(';').map((q) => q.trim());
 
 						const responses: IDataObject[] = [];
 						for (const statement of statements) {
@@ -296,13 +250,12 @@ export function configureQueryRunner(
 								options,
 								statements,
 								this.helpers.constructExecutionMetaData,
-								{ item: index },
 							),
 						);
 					} catch (err) {
 						const error = parseMySqlError.call(this, err, index, [formatedQuery]);
 
-						if (!this.continueOnFail(err)) {
+						if (!this.continueOnFail()) {
 							connection.release();
 							throw error;
 						}
@@ -319,13 +272,7 @@ export function configureQueryRunner(
 					try {
 						const { query, values } = queryWithValues;
 						formatedQuery = connection.format(query, values);
-
-						let statements;
-						if ((options?.nodeVersion as number) <= 2.3) {
-							statements = formatedQuery.split(';').map((q) => q.trim());
-						} else {
-							statements = splitQueryToStatements(formatedQuery, false);
-						}
+						const statements = formatedQuery.split(';').map((q) => q.trim());
 
 						const responses: IDataObject[] = [];
 						for (const statement of statements) {
@@ -341,7 +288,6 @@ export function configureQueryRunner(
 								options,
 								statements,
 								this.helpers.constructExecutionMetaData,
-								{ item: index },
 							),
 						);
 					} catch (err) {
@@ -352,7 +298,7 @@ export function configureQueryRunner(
 							connection.release();
 						}
 
-						if (!this.continueOnFail(err)) throw error;
+						if (!this.continueOnFail()) throw error;
 						returnData.push(prepareErrorItem(queries[index], error as Error, index));
 
 						// Return here because we already rolled back the transaction
@@ -413,16 +359,14 @@ export function addWhereClauses(
 		}
 
 		let valueReplacement = ' ';
-		if (clause.condition !== 'IS NULL' && clause.condition !== 'IS NOT NULL') {
+		if (clause.condition !== 'IS NULL') {
 			valueReplacement = ' ?';
 			values.push(clause.value);
 		}
 
 		const operator = index === clauses.length - 1 ? '' : ` ${combineWith}`;
 
-		whereQuery += ` ${escapeSqlIdentifier(clause.column)} ${
-			clause.condition
-		}${valueReplacement}${operator}`;
+		whereQuery += ` \`${clause.column}\` ${clause.condition}${valueReplacement}${operator}`;
 	});
 
 	return [`${query}${whereQuery}`, replacements.concat(...values)];
@@ -441,7 +385,7 @@ export function addSortRules(
 	rules.forEach((rule, index) => {
 		const endWith = index === rules.length - 1 ? '' : ',';
 
-		orderByQuery += ` ${escapeSqlIdentifier(rule.column)} ${rule.direction}${endWith}`;
+		orderByQuery += ` \`${rule.column}\` ${rule.direction}${endWith}`;
 	});
 
 	return [`${query}${orderByQuery}`, replacements.concat(...values)];

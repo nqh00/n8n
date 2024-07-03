@@ -1,5 +1,4 @@
-import type { Readable } from 'stream';
-
+// eslint-disable-next-line n8n-nodes-base/node-filename-against-convention
 import type {
 	IExecuteFunctions,
 	IDataObject,
@@ -8,13 +7,13 @@ import type {
 	INodeTypeBaseDescription,
 	INodeTypeDescription,
 	JsonObject,
-	IHttpRequestMethods,
-	IRequestOptions,
 } from 'n8n-workflow';
-import { NodeApiError, NodeOperationError, sleep, removeCircularRefs } from 'n8n-workflow';
+import { NodeApiError, NodeOperationError, sleep } from 'n8n-workflow';
 
+import type { OptionsWithUri } from 'request';
 import type { IAuthDataSanitizeKeys } from '../GenericFunctions';
 import { replaceNullValues, sanitizeUiMessage } from '../GenericFunctions';
+
 interface OptionData {
 	name: string;
 	displayName: string;
@@ -24,7 +23,7 @@ interface OptionDataParameters {
 	[key: string]: OptionData;
 }
 
-type IRequestOptionsKeys = keyof IRequestOptions;
+type OptionsWithUriKeys = keyof OptionsWithUri;
 
 export class HttpRequestV1 implements INodeType {
 	description: INodeTypeDescription;
@@ -233,7 +232,7 @@ export class HttpRequestV1 implements INodeType {
 					description: 'Name of the property to which to write the response data',
 				},
 				{
-					displayName: 'Put Output File in Field',
+					displayName: 'Binary Property',
 					name: 'dataPropertyName',
 					type: 'string',
 					default: 'data',
@@ -243,7 +242,7 @@ export class HttpRequestV1 implements INodeType {
 							responseFormat: ['file'],
 						},
 					},
-					hint: 'The name of the output binary field to put the file in',
+					description: 'Name of the binary property to which to write the data of the read file',
 				},
 
 				{
@@ -325,14 +324,14 @@ export class HttpRequestV1 implements INodeType {
 							name: 'followAllRedirects',
 							type: 'boolean',
 							default: false,
-							description: 'Whether to follow All HTTP 3xx redirects',
+							description: 'Whether to follow non-GET HTTP 3xx redirects',
 						},
 						{
-							displayName: 'Follow GET/HEAD Redirect',
+							displayName: 'Follow GET Redirect',
 							name: 'followRedirect',
 							type: 'boolean',
 							default: true,
-							description: 'Whether to follow GET or HEAD HTTP 3xx redirects',
+							description: 'Whether to follow GET HTTP 3xx redirects',
 						},
 						{
 							displayName: 'Ignore Response Code',
@@ -398,7 +397,7 @@ export class HttpRequestV1 implements INodeType {
 
 				// Body Parameter
 				{
-					displayName: 'Send Binary File',
+					displayName: 'Send Binary Data',
 					name: 'sendBinaryData',
 					type: 'boolean',
 					displayOptions: {
@@ -415,7 +414,7 @@ export class HttpRequestV1 implements INodeType {
 					description: 'Whether binary data should be send as body',
 				},
 				{
-					displayName: 'Input Binary Field',
+					displayName: 'Binary Property',
 					name: 'binaryPropertyName',
 					type: 'string',
 					required: true,
@@ -429,9 +428,8 @@ export class HttpRequestV1 implements INodeType {
 							requestMethod: ['PATCH', 'POST', 'PUT'],
 						},
 					},
-					hint: 'The name of the input binary field containing the file to be uploaded',
 					description:
-						'For Form-Data Multipart, they can be provided in the format: <code>"sendKey1:binaryProperty1,sendKey2:binaryProperty2</code>',
+						'Name of the binary property which contains the data for the file to be uploaded. For Form-Data Multipart, they can be provided in the format: <code>"sendKey1:binaryProperty1,sendKey2:binaryProperty2</code>',
 				},
 				{
 					displayName: 'Body Parameters',
@@ -592,13 +590,6 @@ export class HttpRequestV1 implements INodeType {
 						},
 					],
 				},
-				{
-					displayName:
-						"You can view the raw requests this node makes in your browser's developer console",
-					name: 'infoMessage',
-					type: 'notice',
-					default: '',
-				},
 			],
 		};
 	}
@@ -636,7 +627,7 @@ export class HttpRequestV1 implements INodeType {
 			oAuth2Api = await this.getCredentials('oAuth2Api');
 		} catch {}
 
-		let requestOptions: IRequestOptions;
+		let requestOptions: OptionsWithUri;
 		let setUiParameter: IDataObject;
 
 		const uiParameters: IDataObject = {
@@ -662,10 +653,7 @@ export class HttpRequestV1 implements INodeType {
 		let returnItems: INodeExecutionData[] = [];
 		const requestPromises = [];
 		for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
-			const requestMethod = this.getNodeParameter(
-				'requestMethod',
-				itemIndex,
-			) as IHttpRequestMethods;
+			const requestMethod = this.getNodeParameter('requestMethod', itemIndex) as string;
 			const parametersAreJson = this.getNodeParameter('jsonParameters', itemIndex);
 
 			const options = this.getNodeParameter('options', itemIndex, {});
@@ -692,7 +680,7 @@ export class HttpRequestV1 implements INodeType {
 				uri: url,
 				gzip: true,
 				rejectUnauthorized: !this.getNodeParameter('allowUnauthorizedCerts', itemIndex, false),
-			} satisfies IRequestOptions;
+			};
 
 			if (fullResponse) {
 				// @ts-ignore
@@ -819,7 +807,7 @@ export class HttpRequestV1 implements INodeType {
 						try {
 							// @ts-ignore
 							requestOptions[optionData.name] = JSON.parse(
-								requestOptions[optionData.name as IRequestOptionsKeys] as string,
+								requestOptions[optionData.name as OptionsWithUriKeys] as string,
 							);
 						} catch (error) {
 							throw new NodeOperationError(
@@ -852,8 +840,8 @@ export class HttpRequestV1 implements INodeType {
 										return newValue;
 									}
 								};
-								requestOptions[optionName]![parameterDataName] = computeNewValue(
-									requestOptions[optionName]![parameterDataName],
+								requestOptions[optionName][parameterDataName] = computeNewValue(
+									requestOptions[optionName][parameterDataName],
 								);
 							} else if (optionName === 'headers') {
 								// @ts-ignore
@@ -880,7 +868,6 @@ export class HttpRequestV1 implements INodeType {
 
 			if (responseFormat === 'file') {
 				requestOptions.encoding = null;
-				requestOptions.useStream = true;
 
 				if (options.bodyContentType !== 'raw') {
 					requestOptions.body = JSON.stringify(requestOptions.body);
@@ -893,7 +880,6 @@ export class HttpRequestV1 implements INodeType {
 				}
 			} else if (options.bodyContentType === 'raw') {
 				requestOptions.json = false;
-				requestOptions.useStream = true;
 			} else {
 				requestOptions.json = true;
 			}
@@ -983,7 +969,6 @@ export class HttpRequestV1 implements INodeType {
 					// throw error;
 					throw new NodeApiError(this.getNode(), response as JsonObject, { itemIndex });
 				} else {
-					removeCircularRefs(response.reason as JsonObject);
 					// Return the actual reason as error
 					returnItems.push({
 						json: {
@@ -998,9 +983,9 @@ export class HttpRequestV1 implements INodeType {
 			}
 
 			response = response.value;
-			if (response?.request?.constructor.name === 'ClientRequest') delete response.request;
 
 			const options = this.getNodeParameter('options', itemIndex, {});
+			const url = this.getNodeParameter('url', itemIndex) as string;
 
 			const fullResponse = !!options.fullResponse;
 
@@ -1023,7 +1008,8 @@ export class HttpRequestV1 implements INodeType {
 					Object.assign(newItem.binary, items[itemIndex].binary);
 				}
 
-				let binaryData: Buffer | Readable;
+				const fileName = url.split('/').pop();
+
 				if (fullResponse) {
 					const returnItem: IDataObject = {};
 					for (const property of fullResponseProperties) {
@@ -1034,13 +1020,20 @@ export class HttpRequestV1 implements INodeType {
 					}
 
 					newItem.json = returnItem;
-					binaryData = response!.body;
+
+					newItem.binary![dataPropertyName] = await this.helpers.prepareBinaryData(
+						response!.body as Buffer,
+						fileName,
+					);
 				} else {
 					newItem.json = items[itemIndex].json;
-					binaryData = response;
+
+					newItem.binary![dataPropertyName] = await this.helpers.prepareBinaryData(
+						response! as Buffer,
+						fileName,
+					);
 				}
 
-				newItem.binary![dataPropertyName] = await this.helpers.prepareBinaryData(binaryData);
 				returnItems.push(newItem);
 			} else if (responseFormat === 'string') {
 				const dataPropertyName = this.getNodeParameter('dataPropertyName', 0);
@@ -1134,6 +1127,6 @@ export class HttpRequestV1 implements INodeType {
 
 		returnItems = returnItems.map(replaceNullValues);
 
-		return [returnItems];
+		return this.prepareOutputData(returnItems);
 	}
 }

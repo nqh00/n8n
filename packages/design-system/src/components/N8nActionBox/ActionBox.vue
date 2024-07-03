@@ -1,61 +1,84 @@
 <template>
 	<div :class="['n8n-action-box', $style.container]" data-test-id="action-box">
-		<div v-if="emoji" :class="$style.emoji">
+		<div :class="$style.emoji" v-if="emoji">
 			{{ emoji }}
 		</div>
-		<div v-if="heading || $slots.heading" :class="$style.heading">
-			<N8nHeading size="xlarge" align="center">
+		<div :class="$style.heading" v-if="heading || $slots.heading">
+			<n8n-heading size="xlarge" align="center">
 				<slot name="heading">{{ heading }}</slot>
-			</N8nHeading>
+			</n8n-heading>
 		</div>
 		<div :class="$style.description" @click="$emit('descriptionClick', $event)">
-			<N8nText color="text-base">
+			<n8n-text color="text-base">
 				<slot name="description">
 					<span v-html="description"></span>
 				</slot>
-			</N8nText>
+			</n8n-text>
 		</div>
-		<N8nButton
+		<n8n-button
 			v-if="buttonText"
 			:label="buttonText"
 			:type="buttonType"
 			size="large"
-			@click="$emit('click:button', $event)"
+			@click="$emit('click', $event)"
 		/>
-		<N8nCallout
+		<n8n-callout
 			v-if="calloutText"
 			:theme="calloutTheme"
 			:icon="calloutIcon"
 			:class="$style.callout"
 		>
-			<N8nText color="text-base">
-				<span size="small" v-html="calloutText"></span>
-			</N8nText>
-		</N8nCallout>
+			<template>
+				<n8n-text color="text-base">
+					<span size="small" v-html="calloutText"></span>
+				</n8n-text>
+			</template>
+		</n8n-callout>
 	</div>
 </template>
 
-<script lang="ts" setup>
+<script lang="ts">
 import N8nButton from '../N8nButton';
 import N8nHeading from '../N8nHeading';
 import N8nText from '../N8nText';
-import N8nCallout, { type CalloutTheme } from '../N8nCallout';
-import type { ButtonType } from 'n8n-design-system/types/button';
+import N8nCallout from '../N8nCallout';
+import { defineComponent } from 'vue';
 
-interface ActionBoxProps {
-	emoji: string;
-	heading: string;
-	buttonText: string;
-	buttonType: ButtonType;
-	description: string;
-	calloutText: string;
-	calloutTheme: CalloutTheme;
-	calloutIcon: string;
-}
-
-defineOptions({ name: 'N8nActionBox' });
-withDefaults(defineProps<ActionBoxProps>(), {
-	calloutTheme: 'info',
+export default defineComponent({
+	name: 'n8n-action-box',
+	components: {
+		N8nButton,
+		N8nHeading,
+		N8nText,
+		N8nCallout,
+	},
+	props: {
+		emoji: {
+			type: String,
+		},
+		heading: {
+			type: String,
+		},
+		buttonText: {
+			type: String,
+		},
+		buttonType: {
+			type: String,
+		},
+		description: {
+			type: String,
+		},
+		calloutText: {
+			type: String,
+		},
+		calloutTheme: {
+			type: String,
+			default: 'info',
+		},
+		calloutIcon: {
+			type: String,
+		},
+	},
 });
 </script>
 

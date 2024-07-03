@@ -1,4 +1,3 @@
-import qs from 'node:querystring';
 import type {
 	IExecuteFunctions,
 	IDataObject,
@@ -14,7 +13,7 @@ import { awsApiRequestSOAP, awsApiRequestSOAPAllItems } from './GenericFunctions
 
 function setParameter(params: string[], base: string, values: string[]) {
 	for (let i = 0; i < values.length; i++) {
-		params.push(`${base}.${i + 1}=${encodeURIComponent(values[i])}`);
+		params.push(`${base}.${i + 1}=${values[i]}`);
 	}
 }
 
@@ -844,20 +843,22 @@ export class AwsSes implements INodeType {
 
 						const templateSubject = this.getNodeParameter('templateSubject', i) as string;
 
+						const params = [
+							'Action=CreateCustomVerificationEmailTemplate',
+							`FailureRedirectionURL=${failureRedirectionURL}`,
+							`FromEmailAddress=${email}`,
+							`SuccessRedirectionURL=${successRedirectionURL}`,
+							`TemplateContent=${templateContent}`,
+							`TemplateName=${templateName}`,
+							`TemplateSubject=${templateSubject}`,
+						];
+
 						responseData = await awsApiRequestSOAP.call(
 							this,
 							'email',
 							'POST',
 							'',
-							qs.stringify({
-								Action: 'CreateCustomVerificationEmailTemplate',
-								FromEmailAddress: email,
-								SuccessRedirectionURL: successRedirectionURL,
-								FailureRedirectionURL: failureRedirectionURL,
-								TemplateName: templateName,
-								TemplateSubject: templateSubject,
-								TemplateContent: templateContent,
-							}),
+							params.join('&'),
 						);
 
 						responseData = responseData.CreateCustomVerificationEmailTemplateResponse;
@@ -1011,7 +1012,7 @@ export class AwsSes implements INodeType {
 
 						const params = [
 							`Message.Subject.Data=${encodeURIComponent(subject)}`,
-							`Source=${encodeURIComponent(fromEmail)}`,
+							`Source=${fromEmail}`,
 						];
 
 						if (isBodyHtml) {
@@ -1285,7 +1286,7 @@ export class AwsSes implements INodeType {
 				);
 				returnData.push(...executionData);
 			} catch (error) {
-				if (this.continueOnFail(error)) {
+				if (this.continueOnFail()) {
 					const executionData = this.helpers.constructExecutionMetaData(
 						this.helpers.returnJsonArray({ error: error.message }),
 						{ itemData: { item: i } },
@@ -1297,6 +1298,6 @@ export class AwsSes implements INodeType {
 			}
 		}
 
-		return [returnData];
+		return this.prepareOutputData(returnData);
 	}
 }

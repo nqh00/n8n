@@ -6,9 +6,9 @@ import * as database from './database/Database.resource';
 export const versionDescription: INodeTypeDescription = {
 	displayName: 'MySQL',
 	name: 'mySql',
-	icon: { light: 'file:mysql.svg', dark: 'file:mysql.dark.svg' },
+	icon: 'file:mysql.svg',
 	group: ['input'],
-	version: [2, 2.1, 2.2, 2.3, 2.4],
+	version: [2, 2.1],
 	subtitle: '={{ $parameter["operation"] }}',
 	description: 'Get, add and update data in MySQL',
 	defaults: {

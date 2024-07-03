@@ -7,16 +7,18 @@
 		</div>
 		<div v-if="featureInfo.infoText" class="mb-l">
 			<n8n-info-tip theme="info" type="note">
-				<span v-html="$locale.baseText(featureInfo.infoText)"></span>
+				<template>
+					<span v-html="$locale.baseText(featureInfo.infoText)"></span>
+				</template>
 			</n8n-info-tip>
 		</div>
 		<div :class="$style.actionBoxContainer">
 			<n8n-action-box
 				:description="$locale.baseText(featureInfo.actionBoxDescription)"
-				:button-text="
+				:buttonText="
 					$locale.baseText(featureInfo.actionBoxButtonLabel || 'fakeDoor.actionBox.button.label')
 				"
-				@click:button="openLinkPage"
+				@click="openLinkPage"
 			>
 				<template #heading>
 					<span v-html="$locale.baseText(featureInfo.actionBoxTitle)" />
@@ -30,7 +32,7 @@
 import { defineComponent } from 'vue';
 import { mapStores } from 'pinia';
 import type { IFakeDoor } from '@/Interface';
-import { useRootStore } from '@/stores/root.store';
+import { useRootStore } from '@/stores/n8nRoot.store';
 import { useSettingsStore } from '@/stores/settings.store';
 import { useUIStore } from '@/stores/ui.store';
 import { useUsersStore } from '@/stores/users.store';

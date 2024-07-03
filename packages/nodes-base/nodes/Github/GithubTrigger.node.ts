@@ -16,7 +16,7 @@ export class GithubTrigger implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Github Trigger',
 		name: 'githubTrigger',
-		icon: { light: 'file:github.svg', dark: 'file:github.dark.svg' },
+		icon: 'file:github.svg',
 		group: ['trigger'],
 		version: 1,
 		subtitle:
@@ -434,23 +434,6 @@ export class GithubTrigger implements INodeType {
 				default: [],
 				description: 'The events to listen to',
 			},
-			{
-				displayName: 'Options',
-				name: 'options',
-				type: 'collection',
-				placeholder: 'Add Option',
-				default: {},
-				options: [
-					{
-						displayName: 'Insecure SSL',
-						name: 'insecureSSL',
-						type: 'boolean',
-						default: false,
-						description:
-							'Whether the SSL certificate of the n8n host be verified by GitHub when delivering payloads',
-					},
-				],
-			},
 		],
 	};
 
@@ -482,7 +465,7 @@ export class GithubTrigger implements INodeType {
 						return false;
 					}
 
-					// Some error occurred
+					// Some error occured
 					throw error;
 				}
 				// If it did not error then the webhook exists
@@ -505,14 +488,14 @@ export class GithubTrigger implements INodeType {
 				const events = this.getNodeParameter('events', []);
 
 				const endpoint = `/repos/${owner}/${repository}/hooks`;
-				const options = this.getNodeParameter('options') as { insecureSSL: boolean };
 
 				const body = {
 					name: 'web',
 					config: {
 						url: webhookUrl,
 						content_type: 'json',
-						insecure_ssl: options.insecureSSL ? '1' : '0',
+						// secret: '...later...',
+						insecure_ssl: '1', // '0' -> not allow inscure ssl | '1' -> allow insercure SSL
 					},
 					events,
 					active: true,
@@ -546,7 +529,6 @@ export class GithubTrigger implements INodeType {
 						throw new NodeOperationError(
 							this.getNode(),
 							'A webhook with the identical URL probably exists already. Please delete it manually on Github!',
-							{ level: 'warning' },
 						);
 					}
 
@@ -554,7 +536,6 @@ export class GithubTrigger implements INodeType {
 						throw new NodeOperationError(
 							this.getNode(),
 							'Check that the repository exists and that you have permission to create the webhooks this node requires',
-							{ level: 'warning' },
 						);
 					}
 

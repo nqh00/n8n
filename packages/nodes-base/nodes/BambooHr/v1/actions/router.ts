@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 import type { IExecuteFunctions, INodeExecutionData } from 'n8n-workflow';
 
 import * as employee from './employee';
@@ -39,7 +40,7 @@ export async function router(this: IExecuteFunctions): Promise<INodeExecutionDat
 				operationResult.push(...(await companyReport[bamboohr.operation].execute.call(this, i)));
 			}
 		} catch (err) {
-			if (this.continueOnFail(err)) {
+			if (this.continueOnFail()) {
 				operationResult.push({ json: this.getInputData(i)[0].json, error: err });
 			} else {
 				throw err;

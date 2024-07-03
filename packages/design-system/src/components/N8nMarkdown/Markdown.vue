@@ -3,208 +3,185 @@
 		<div
 			v-if="!loading"
 			ref="editor"
+			class="ph-no-capture"
 			:class="$style[theme]"
-			@click="onClick"
-			@mousedown="onMouseDown"
-			@change="onChange"
 			v-html="htmlContent"
+			@click="onClick"
 		/>
 		<div v-else :class="$style.markdown">
-			<div v-for="(_, index) in loadingBlocks" :key="index">
-				<N8nLoading :loading="loading" :rows="loadingRows" animated variant="p" />
+			<div v-for="(block, index) in loadingBlocks" :key="index">
+				<n8n-loading :loading="loading" :rows="loadingRows" animated variant="p" />
 				<div :class="$style.spacer" />
 			</div>
 		</div>
 	</div>
 </template>
 
-<script lang="ts" setup>
-import { computed, ref } from 'vue';
-import type { Options as MarkdownOptions } from 'markdown-it';
+<script lang="ts">
+import N8nLoading from '../N8nLoading';
+import type { PluginSimple } from 'markdown-it';
 import Markdown from 'markdown-it';
+
 import markdownLink from 'markdown-it-link-attributes';
 import markdownEmoji from 'markdown-it-emoji';
-import markdownTaskLists from 'markdown-it-task-lists';
-import xss, { friendlyAttrValue, whiteList } from 'xss';
+import markdownTasklists from 'markdown-it-task-lists';
 
-import N8nLoading from '../N8nLoading';
-import { escapeMarkdown, toggleCheckbox } from '../../utils/markdown';
+import type { PropType } from 'vue';
+import { defineComponent } from 'vue';
 
-interface IImage {
+import xss, { friendlyAttrValue } from 'xss';
+import { escapeMarkdown } from '../../utils/markdown';
+
+const DEFAULT_OPTIONS_MARKDOWN = {
+	html: true,
+	linkify: true,
+	typographer: true,
+	breaks: true,
+} as const;
+
+const DEFAULT_OPTIONS_LINK_ATTRIBUTES = {
+	attrs: {
+		target: '_blank',
+		rel: 'noopener',
+	},
+} as const;
+
+const DEFAULT_OPTIONS_TASKLISTS = {
+	label: true,
+	labelAfter: true,
+} as const;
+
+export interface IImage {
 	id: string;
 	url: string;
 }
 
-interface Options {
-	markdown: MarkdownOptions;
-	linkAttributes: markdownLink.Config;
-	tasklists: markdownTaskLists.Config;
+export interface Options {
+	markdown: typeof DEFAULT_OPTIONS_MARKDOWN;
+	linkAttributes: typeof DEFAULT_OPTIONS_LINK_ATTRIBUTES;
+	tasklists: typeof DEFAULT_OPTIONS_TASKLISTS;
 }
 
-interface MarkdownProps {
-	content?: string;
-	withMultiBreaks?: boolean;
-	images?: IImage[];
-	loading?: boolean;
-	loadingBlocks?: number;
-	loadingRows?: number;
-	theme?: string;
-	options?: Options;
-}
-
-const props = withDefaults(defineProps<MarkdownProps>(), {
-	content: '',
-	withMultiBreaks: false,
-	images: () => [],
-	loading: false,
-	loadingBlocks: 2,
-	loadingRows: 3,
-	theme: 'markdown',
-	options: () => ({
-		markdown: {
-			html: true,
-			linkify: true,
-			typographer: true,
-			breaks: true,
+export default defineComponent({
+	components: {
+		N8nLoading,
+	},
+	name: 'n8n-markdown',
+	props: {
+		content: {
+			type: String,
+			default: '',
 		},
-		linkAttributes: {
-			attrs: {
-				target: '_blank',
-				rel: 'noopener',
-			},
+		withMultiBreaks: {
+			type: Boolean,
+			default: false,
 		},
-		tasklists: {
-			enabled: true,
-			label: true,
-			labelAfter: true,
+		images: {
+			type: Array as PropType<IImage[]>,
+			default: () => [],
 		},
-	}),
-});
-
-const editor = ref<HTMLDivElement | undefined>(undefined);
-
-const { options } = props;
-const md = new Markdown(options.markdown)
-	.use(markdownLink, options.linkAttributes)
-	.use(markdownEmoji)
-	.use(markdownTaskLists, options.tasklists);
-
-const xssWhiteList = {
-	...whiteList,
-	label: ['class', 'for'],
-};
-
-const htmlContent = computed(() => {
-	if (!props.content) {
-		return '';
-	}
-
-	const imageUrls: { [key: string]: string } = {};
-	if (props.images) {
-		props.images.forEach((image: IImage) => {
-			if (!image) {
-				// Happens if an image got deleted but the workflow
-				// still has a reference to it
-				return;
-			}
-			imageUrls[image.id] = image.url;
-		});
-	}
-
-	const fileIdRegex = new RegExp('fileId:([0-9]+)');
-	let contentToRender = props.content;
-	if (props.withMultiBreaks) {
-		contentToRender = contentToRender.replaceAll('\n\n', '\n&nbsp;\n');
-	}
-	const html = md.render(escapeMarkdown(contentToRender));
-	const safeHtml = xss(html, {
-		onTagAttr(tag, name, value) {
-			if (tag === 'img' && name === 'src') {
-				if (value.match(fileIdRegex)) {
-					const id = value.split('fileId:')[1];
-					const attributeValue = friendlyAttrValue(imageUrls[id]);
-					return attributeValue ? `src=${attributeValue}` : '';
-				}
-				// Only allow http requests to supported image files from the `static` directory
-				const isImageFile = value.split('#')[0].match(/\.(jpeg|jpg|gif|png|webp)$/) !== null;
-				const isStaticImageFile = isImageFile && value.startsWith('/static/');
-				if (!value.startsWith('https://') && !isStaticImageFile) {
-					return '';
-				}
-			}
-			// Return nothing, means keep the default handling measure
-			return;
+		loading: {
+			type: Boolean,
+			default: false,
 		},
-		onTag(tag, code) {
-			if (tag === 'img' && code.includes('alt="workflow-screenshot"')) {
+		loadingBlocks: {
+			type: Number,
+			default: 2,
+		},
+		loadingRows: {
+			type: Number,
+			default: 3,
+		},
+		theme: {
+			type: String,
+			default: 'markdown',
+		},
+		options: {
+			type: Object as PropType<Options>,
+			default: (): Options => ({
+				markdown: DEFAULT_OPTIONS_MARKDOWN,
+				linkAttributes: DEFAULT_OPTIONS_LINK_ATTRIBUTES,
+				tasklists: DEFAULT_OPTIONS_TASKLISTS,
+			}),
+		},
+	},
+	data(): { md: Markdown } {
+		return {
+			md: new Markdown(this.options.markdown)
+				.use(markdownLink, this.options.linkAttributes)
+				.use(markdownEmoji)
+				.use(markdownTasklists as PluginSimple, this.options.tasklists),
+		};
+	},
+	computed: {
+		htmlContent(): string {
+			if (!this.content) {
 				return '';
 			}
-			// return nothing, keep tag
-			return;
-		},
-		onIgnoreTag(tag, tagHTML) {
-			// Allow checkboxes
-			if (tag === 'input' && tagHTML.includes('type="checkbox"')) {
-				return tagHTML;
-			}
-			return;
-		},
-		whiteList: xssWhiteList,
-	});
 
-	return safeHtml;
+			const imageUrls: { [key: string]: string } = {};
+			if (this.images) {
+				this.images.forEach((image: IImage) => {
+					if (!image) {
+						// Happens if an image got deleted but the workflow
+						// still has a reference to it
+						return;
+					}
+					imageUrls[image.id] = image.url;
+				});
+			}
+
+			const fileIdRegex = new RegExp('fileId:([0-9]+)');
+			let contentToRender = this.content;
+			if (this.withMultiBreaks) {
+				contentToRender = contentToRender.replaceAll('\n\n', '\n&nbsp;\n');
+			}
+			const html = this.md.render(escapeMarkdown(contentToRender));
+			const safeHtml = xss(html, {
+				onTagAttr: (tag, name, value) => {
+					if (tag === 'img' && name === 'src') {
+						if (value.match(fileIdRegex)) {
+							const id = value.split('fileId:')[1];
+							return `src=${friendlyAttrValue(imageUrls[id])}` || '';
+						}
+						// Only allow http requests to supported image files from the `static` directory
+						const isImageFile = value.split('#')[0].match(/\.(jpeg|jpg|gif|png|webp)$/) !== null;
+						const isStaticImageFile = isImageFile && value.startsWith('/static/');
+						if (!value.startsWith('https://') && !isStaticImageFile) {
+							return '';
+						}
+					}
+					// Return nothing, means keep the default handling measure
+				},
+				onTag(tag, code) {
+					if (tag === 'img' && code.includes('alt="workflow-screenshot"')) {
+						return '';
+					}
+					// return nothing, keep tag
+				},
+			});
+
+			return safeHtml;
+		},
+	},
+	methods: {
+		onClick(event: MouseEvent) {
+			let clickedLink = null;
+
+			if (event.target instanceof HTMLAnchorElement) {
+				clickedLink = event.target;
+			}
+
+			if (event.target instanceof HTMLElement && event.target.matches('a *')) {
+				const parentLink = event.target.closest('a');
+				if (parentLink) {
+					clickedLink = parentLink;
+				}
+			}
+			this.$emit('markdown-click', clickedLink, event);
+		},
+	},
 });
-
-const $emit = defineEmits(['markdown-click', 'update-content']);
-const onClick = (event: MouseEvent) => {
-	let clickedLink: HTMLAnchorElement | null = null;
-
-	if (event.target instanceof HTMLAnchorElement) {
-		clickedLink = event.target;
-	}
-
-	if (event.target instanceof HTMLElement && event.target.matches('a *')) {
-		const parentLink = event.target.closest('a');
-		if (parentLink) {
-			clickedLink = parentLink;
-		}
-	}
-	$emit('markdown-click', clickedLink, event);
-};
-
-// Handle checkbox changes
-const onChange = async (event: Event) => {
-	if (event.target instanceof HTMLInputElement && event.target.type === 'checkbox') {
-		const checkboxes = editor.value?.querySelectorAll('input[type="checkbox"]');
-		if (checkboxes) {
-			// Get the index of the checkbox that was clicked
-			const index = Array.from(checkboxes).indexOf(event.target);
-			if (index !== -1) {
-				onCheckboxChange(index);
-			}
-		}
-	}
-};
-
-const onMouseDown = (event: MouseEvent) => {
-	// Mouse down on input fields is caught by node view handlers
-	// which prevents checking them, this will prevent that
-	if (event.target instanceof HTMLInputElement) {
-		event.stopPropagation();
-	}
-};
-
-// Update markdown when checkbox state changes
-const onCheckboxChange = (index: number) => {
-	const currentContent = props.content;
-	if (!currentContent) {
-		return;
-	}
-
-	// We are using index to connect the checkbox with the corresponding line in the markdown
-	const newContent = toggleCheckbox(currentContent, index);
-	$emit('update-content', newContent);
-};
 </script>
 
 <style lang="scss" module>
@@ -270,7 +247,10 @@ const onCheckboxChange = (index: number) => {
 	}
 
 	img {
-		max-width: 100%;
+		width: 100%;
+		max-height: 90vh;
+		object-fit: cover;
+		border: var(--border-width-base) var(--color-foreground-base) var(--border-style-base);
 		border-radius: var(--border-radius-large);
 	}
 
@@ -281,25 +261,8 @@ const onCheckboxChange = (index: number) => {
 	}
 }
 
-input[type='checkbox'] {
-	accent-color: var(--color-primary);
-}
-
-input[type='checkbox'] + label {
-	cursor: pointer;
-}
-
 .sticky {
-	color: var(--color-sticky-font);
-
-	h1,
-	h2,
-	h3,
-	h4,
-	h5,
-	h6 {
-		color: var(--color-sticky-font);
-	}
+	color: var(--color-text-dark);
 
 	h1,
 	h2,
@@ -343,23 +306,18 @@ input[type='checkbox'] + label {
 			font-weight: var(--font-weight-regular);
 			line-height: var(--font-line-height-regular);
 		}
-
-		&:has(input[type='checkbox']) {
-			list-style-type: none;
-			padding-left: var(--spacing-5xs);
-		}
 	}
 
 	code {
-		background-color: var(--color-sticky-code-background);
+		background-color: var(--color-background-base);
 		padding: 0 var(--spacing-4xs);
-		color: var(--color-sticky-code-font);
+		color: var(--color-secondary);
 	}
 
 	pre > code,
 	li > code,
 	p > code {
-		color: var(--color-sticky-code-font);
+		color: var(--color-secondary);
 	}
 
 	a {
@@ -370,8 +328,6 @@ input[type='checkbox'] + label {
 
 	img {
 		object-fit: contain;
-		margin-top: var(--spacing-xs);
-		margin-bottom: var(--spacing-2xs);
 
 		&[src*='#full-width'] {
 			width: 100%;

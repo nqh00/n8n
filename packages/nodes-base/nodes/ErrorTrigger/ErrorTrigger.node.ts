@@ -10,7 +10,6 @@ export class ErrorTrigger implements INodeType {
 		displayName: 'Error Trigger',
 		name: 'errorTrigger',
 		icon: 'fa:bug',
-		iconColor: 'blue',
 		group: ['trigger'],
 		version: 1,
 		description: 'Triggers the workflow when another workflow has an error',
@@ -75,6 +74,6 @@ export class ErrorTrigger implements INodeType {
 			};
 		}
 
-		return [items];
+		return this.prepareOutputData(items);
 	}
 }

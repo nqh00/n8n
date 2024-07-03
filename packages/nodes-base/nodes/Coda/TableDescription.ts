@@ -27,13 +27,12 @@ export const tableOperations: INodeProperties[] = [
 			{
 				name: 'Get All Columns',
 				value: 'getAllColumns',
-				description: 'Get all columns in a table',
 				action: 'Get all columns',
 			},
 			{
 				name: 'Get All Rows',
 				value: 'getAllRows',
-				description: 'Get all rows in a table',
+				description: 'Get all the rows',
 				action: 'Get all rows',
 			},
 			{

@@ -4,7 +4,6 @@ import type {
 	INodePropertyCollection,
 	INodeParameterResourceLocator,
 	ResourceMapperValue,
-	FilterValue,
 } from './Interfaces';
 
 export const isINodeProperties = (
@@ -53,11 +52,5 @@ export const isResourceMapperValue = (value: unknown): value is ResourceMapperVa
 		'mappingMode' in value &&
 		'schema' in value &&
 		'value' in value
-	);
-};
-
-export const isFilterValue = (value: unknown): value is FilterValue => {
-	return (
-		typeof value === 'object' && value !== null && 'conditions' in value && 'combinator' in value
 	);
 };

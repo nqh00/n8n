@@ -1,16 +1,17 @@
+import type { OptionsWithUri } from 'request';
+
 import type {
-	IDataObject,
 	IExecuteFunctions,
-	IHttpRequestMethods,
+	IExecuteSingleFunctions,
 	ILoadOptionsFunctions,
-	IRequestOptions,
+	IDataObject,
 	JsonObject,
 } from 'n8n-workflow';
 import { NodeApiError } from 'n8n-workflow';
 
 export async function googleApiRequest(
-	this: IExecuteFunctions | ILoadOptionsFunctions,
-	method: IHttpRequestMethods,
+	this: IExecuteFunctions | IExecuteSingleFunctions | ILoadOptionsFunctions,
+	method: string,
 	endpoint: string,
 
 	body: any = {},
@@ -18,7 +19,7 @@ export async function googleApiRequest(
 	uri?: string,
 	option: IDataObject = {},
 ): Promise<any> {
-	let options: IRequestOptions = {
+	let options: OptionsWithUri = {
 		headers: {
 			Accept: 'application/json',
 			'Content-Type': 'application/json',

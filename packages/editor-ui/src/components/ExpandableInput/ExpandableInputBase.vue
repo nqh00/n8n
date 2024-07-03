@@ -5,46 +5,46 @@
 	</div>
 </template>
 
-<script setup lang="ts">
-import { computed } from 'vue';
+<script lang="ts">
+import { defineComponent } from 'vue';
 
-type Props = {
-	modelValue: string;
-	placeholder?: string;
-	staticSize?: boolean;
-};
+export default defineComponent({
+	name: 'ExpandableInputBase',
+	props: ['value', 'placeholder', 'staticSize'],
+	computed: {
+		hiddenValue() {
+			let value = (this.value as string).replace(/\s/g, '.'); // force input to expand on space chars
+			if (!value) {
+				// @ts-ignore
+				value = this.placeholder;
+			}
 
-const props = withDefaults(defineProps<Props>(), { staticSize: false, placeholder: '' });
-
-const hiddenValue = computed(() => {
-	let value = props.modelValue.replace(/\s/g, '.'); // force input to expand on space chars
-	if (!value) {
-		value = props.placeholder;
-	}
-
-	return `${value}`; // adjust for padding
+			return `${value}`; // adjust for padding
+		},
+	},
 });
 </script>
 
 <style lang="scss" scoped>
 $--horiz-padding: 15px;
 
-.el-input {
+input {
+	border: 1px solid transparent;
+	padding: 0 $--horiz-padding - 2px; // -2px for borders
+}
+
+div.el-input {
 	display: inline-grid;
 	font: inherit;
 	padding: 10px 0;
 
-	:deep(input) {
-		border: 1px solid transparent;
-		padding: 0 $--horiz-padding - 2px; // -2px for borders
-		width: 100%;
+	&::after,
+	input {
 		grid-area: 1 / 2;
 		font: inherit;
 	}
 
 	&::after {
-		grid-area: 1 / 2;
-		font: inherit;
 		content: attr(data-value) ' ';
 		visibility: hidden;
 		white-space: nowrap;
@@ -56,13 +56,9 @@ $--horiz-padding: 15px;
 	}
 
 	&:hover {
-		:deep(input):not(:focus) {
+		input:not(:focus) {
 			border: 1px solid var(--color-text-lighter);
 		}
-	}
-
-	:deep(input):focus {
-		border: 1px solid var(--color-secondary);
 	}
 }
 </style>

@@ -1,7 +1,7 @@
 import N8nTabs from './Tabs.vue';
 
 import { action } from '@storybook/addon-actions';
-import type { StoryFn } from '@storybook/vue3';
+import type { StoryFn } from '@storybook/vue';
 
 export default {
 	title: 'Atoms/Tabs',
@@ -13,16 +13,15 @@ export default {
 };
 
 const methods = {
-	onUpdateModelValue: action('update:modelValue'),
+	onInput: action('input'),
 };
 
 const Template: StoryFn = (args, { argTypes }) => ({
-	setup: () => ({ args }),
 	props: Object.keys(argTypes),
 	components: {
 		N8nTabs,
 	},
-	template: `<n8n-tabs v-model="val" v-bind="args" @update:modelValue="onUpdateModelValue">
+	template: `<n8n-tabs v-model="val" v-bind="$props" @input="onInput">
 		</n8n-tabs>`,
 	methods,
 	data() {
@@ -36,12 +35,8 @@ export const Example = Template.bind({});
 Example.args = {
 	options: [
 		{
-			label: 'First',
-			value: 'first',
-		},
-		{
-			label: 'Second',
-			value: 'second',
+			label: 'Test',
+			value: 'test',
 		},
 		{
 			label: 'Github',

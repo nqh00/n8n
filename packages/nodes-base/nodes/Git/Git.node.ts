@@ -1,5 +1,3 @@
-import { access, mkdir } from 'fs/promises';
-import { URL } from 'url';
 import type {
 	IExecuteFunctions,
 	INodeExecutionData,
@@ -7,8 +5,6 @@ import type {
 	INodeTypeDescription,
 } from 'n8n-workflow';
 
-import type { LogOptions, SimpleGit, SimpleGitOptions } from 'simple-git';
-import simpleGit from 'simple-git';
 import {
 	addConfigFields,
 	addFields,
@@ -18,6 +14,13 @@ import {
 	pushFields,
 	tagFields,
 } from './descriptions';
+
+import type { LogOptions, SimpleGit, SimpleGitOptions } from 'simple-git';
+import simpleGit from 'simple-git';
+
+import { access, mkdir } from 'fs/promises';
+
+import { URL } from 'url';
 
 export class Git implements INodeType {
 	description: INodeTypeDescription = {
@@ -214,9 +217,12 @@ export class Git implements INodeType {
 		};
 
 		const operation = this.getNodeParameter('operation', 0);
+		let _item: INodeExecutionData;
 		const returnItems: INodeExecutionData[] = [];
 		for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
 			try {
+				_item = items[itemIndex];
+
 				const repositoryPath = this.getNodeParameter('repositoryPath', itemIndex, '') as string;
 				const options = this.getNodeParameter('options', itemIndex, {});
 
@@ -481,7 +487,7 @@ export class Git implements INodeType {
 					});
 				}
 			} catch (error) {
-				if (this.continueOnFail(error)) {
+				if (this.continueOnFail()) {
 					returnItems.push({
 						json: {
 							error: error.toString(),
@@ -497,6 +503,6 @@ export class Git implements INodeType {
 			}
 		}
 
-		return [returnItems];
+		return this.prepareOutputData(returnItems);
 	}
 }

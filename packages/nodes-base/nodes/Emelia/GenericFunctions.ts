@@ -7,9 +7,6 @@ import type {
 	INodeCredentialTestResult,
 	INodePropertyOptions,
 	JsonObject,
-	IRequestOptions,
-	IHttpRequestMethods,
-	IDataObject,
 } from 'n8n-workflow';
 import { NodeApiError } from 'n8n-workflow';
 
@@ -18,14 +15,14 @@ import { NodeApiError } from 'n8n-workflow';
  */
 export async function emeliaApiRequest(
 	this: IExecuteFunctions | ILoadOptionsFunctions | IHookFunctions,
-	method: IHttpRequestMethods,
+	method: string,
 	endpoint: string,
 	body: object = {},
-	qs: IDataObject = {},
+	qs: object = {},
 ) {
 	const { apiKey } = (await this.getCredentials('emeliaApi')) as { apiKey: string };
 
-	const options: IRequestOptions = {
+	const options = {
 		headers: {
 			Authorization: apiKey,
 		},

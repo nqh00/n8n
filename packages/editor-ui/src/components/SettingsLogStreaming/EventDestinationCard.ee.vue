@@ -2,7 +2,7 @@
 	<n8n-card :class="$style.cardLink" data-test-id="destination-card" @click="onClick">
 		<template #header>
 			<div>
-				<n8n-heading tag="h2" bold :class="$style.cardHeading">
+				<n8n-heading tag="h2" bold class="ph-no-capture" :class="$style.cardHeading">
 					{{ destination.label }}
 				</n8n-heading>
 				<div :class="$style.cardDescription">
@@ -13,7 +13,7 @@
 			</div>
 		</template>
 		<template #append>
-			<div ref="cardActions" :class="$style.cardActions">
+			<div :class="$style.cardActions">
 				<div :class="$style.activeStatusText" data-test-id="destination-activator-status">
 					<n8n-text v-if="nodeParameters.enabled" :color="'success'" size="small" bold>
 						{{ $locale.baseText('workflowActivator.active') }}
@@ -25,8 +25,9 @@
 
 				<el-switch
 					class="mr-s"
-					:disabled="readonly"
-					:model-value="nodeParameters.enabled"
+					:disabled="!isInstanceOwner"
+					:value="nodeParameters.enabled"
+					@change="onEnabledSwitched($event, destination.id)"
 					:title="
 						nodeParameters.enabled
 							? $locale.baseText('workflowActivator.deactivateWorkflow')
@@ -34,8 +35,8 @@
 					"
 					active-color="#13ce66"
 					inactive-color="#8899AA"
+					element-loading-spinner="el-icon-loading"
 					data-test-id="workflow-activate-switch"
-					@update:model-value="onEnabledSwitched($event)"
 				>
 				</el-switch>
 
@@ -48,7 +49,7 @@
 <script lang="ts">
 import { defineComponent } from 'vue';
 import { EnterpriseEditionFeature, MODAL_CONFIRM } from '@/constants';
-import { useMessage } from '@/composables/useMessage';
+import { useMessage } from '@/composables';
 import { useLogStreamingStore } from '@/stores/logStreaming.store';
 import type { PropType } from 'vue';
 import { mapStores } from 'pinia';
@@ -63,18 +64,18 @@ export const DESTINATION_LIST_ITEM_ACTIONS = {
 };
 
 export default defineComponent({
-	components: {},
-	setup() {
-		return {
-			...useMessage(),
-		};
-	},
 	data() {
 		return {
 			EnterpriseEditionFeature,
 			nodeParameters: {} as MessageEventBusDestinationOptions,
 		};
 	},
+	setup() {
+		return {
+			...useMessage(),
+		};
+	},
+	components: {},
 	props: {
 		eventBus: {
 			type: Object as PropType<EventBus>,
@@ -82,9 +83,11 @@ export default defineComponent({
 		destination: {
 			type: Object,
 			required: true,
-			default: deepCopy(defaultMessageEventBusDestinationOptions),
+			default: deepCopy(
+				defaultMessageEventBusDestinationOptions,
+			) as MessageEventBusDestinationOptions,
 		},
-		readonly: Boolean,
+		isInstanceOwner: Boolean,
 	},
 	mounted() {
 		this.nodeParameters = Object.assign(
@@ -93,7 +96,7 @@ export default defineComponent({
 		);
 		this.eventBus?.on('destinationWasSaved', this.onDestinationWasSaved);
 	},
-	beforeUnmount() {
+	destroyed() {
 		this.eventBus?.off('destinationWasSaved', this.onDestinationWasSaved);
 	},
 	computed: {
@@ -105,7 +108,7 @@ export default defineComponent({
 					value: DESTINATION_LIST_ITEM_ACTIONS.OPEN,
 				},
 			];
-			if (!this.readonly) {
+			if (this.isInstanceOwner) {
 				actions.push({
 					label: this.$locale.baseText('workflows.item.delete'),
 					value: DESTINATION_LIST_ITEM_ACTIONS.DELETE,
@@ -127,20 +130,19 @@ export default defineComponent({
 				);
 			}
 		},
-		async onClick(event: Event) {
-			const cardActions = this.$refs.cardActions as HTMLDivElement | null;
-			const target = event.target as HTMLDivElement | null;
+		async onClick(event?: PointerEvent) {
 			if (
-				cardActions === target ||
-				cardActions?.contains(target) ||
-				target?.contains(cardActions)
+				event &&
+				event.target &&
+				'className' in event.target &&
+				event.target['className'] === 'el-switch__core'
 			) {
-				return;
+				event.stopPropagation();
+			} else {
+				this.$emit('edit', this.destination.id);
 			}
-
-			this.$emit('edit', this.destination.id);
 		},
-		onEnabledSwitched(state: boolean) {
+		onEnabledSwitched(state: boolean, destinationId: string) {
 			this.nodeParameters.enabled = state;
 			void this.saveDestination();
 		},
@@ -182,8 +184,6 @@ export default defineComponent({
 .cardLink {
 	transition: box-shadow 0.3s ease;
 	cursor: pointer;
-	padding: 0 0 0 var(--spacing-s);
-	align-items: stretch;
 
 	&:hover {
 		box-shadow: 0 2px 8px rgba(#441c17, 0.1);
@@ -201,14 +201,12 @@ export default defineComponent({
 .cardHeading {
 	font-size: var(--font-size-s);
 	word-break: break-word;
-	padding: var(--spacing-s) 0 0 var(--spacing-s);
 }
 
 .cardDescription {
 	min-height: 19px;
 	display: flex;
 	align-items: center;
-	padding: 0 0 var(--spacing-s) var(--spacing-s);
 }
 
 .cardActions {
@@ -216,7 +214,5 @@ export default defineComponent({
 	flex-direction: row;
 	justify-content: center;
 	align-items: center;
-	padding: 0 var(--spacing-s) 0 0;
-	cursor: default;
 }
 </style>

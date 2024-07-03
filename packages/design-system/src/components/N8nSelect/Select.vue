@@ -1,108 +1,3 @@
-<script setup lang="ts">
-import type { PropType } from 'vue';
-import { computed, ref, useAttrs } from 'vue';
-import { ElSelect } from 'element-plus';
-import type { SelectSize } from 'n8n-design-system/types';
-import { isEventBindingElementAttribute } from '../../utils';
-
-type InnerSelectRef = InstanceType<typeof ElSelect>;
-
-const props = defineProps({
-	...ElSelect.props,
-	modelValue: {},
-	size: {
-		type: String as PropType<SelectSize>,
-		default: 'large',
-	},
-	placeholder: {
-		type: String,
-	},
-	disabled: {
-		type: Boolean,
-	},
-	filterable: {
-		type: Boolean,
-	},
-	defaultFirstOption: {
-		type: Boolean,
-	},
-	multiple: {
-		type: Boolean,
-	},
-	filterMethod: {
-		type: Function,
-	},
-	loading: {
-		type: Boolean,
-	},
-	loadingText: {
-		type: String,
-	},
-	popperClass: {
-		type: String,
-	},
-	popperAppendToBody: {
-		type: Boolean,
-	},
-	limitPopperWidth: {
-		type: Boolean,
-	},
-	noDataText: {
-		type: String,
-	},
-});
-
-const attrs = useAttrs();
-const innerSelect = ref<InnerSelectRef | null>(null);
-
-const listeners = computed(() => {
-	return Object.entries(attrs).reduce<Record<string, unknown>>((acc, [key, value]) => {
-		if (isEventBindingElementAttribute(value, key)) {
-			acc[key] = value;
-		}
-		return acc;
-	}, {});
-});
-
-const computedSize = computed(() => {
-	if (props.size === 'mini') {
-		return 'small';
-	}
-	if (props.size === 'medium') {
-		return 'default';
-	}
-	if (props.size === 'xlarge') {
-		return undefined;
-	}
-	return props.size;
-});
-
-const classes = computed(() => {
-	return props.size === 'xlarge' ? 'xlarge' : '';
-});
-
-const focus = () => {
-	innerSelect.value?.focus();
-};
-
-const blur = () => {
-	innerSelect.value?.blur();
-};
-
-const focusOnInput = () => {
-	if (!innerSelect.value) return;
-
-	const inputRef = innerSelect.value.$refs.input as HTMLInputElement | undefined;
-	inputRef?.focus();
-};
-
-defineExpose({
-	focus,
-	blur,
-	focusOnInput,
-});
-</script>
-
 <template>
 	<div
 		:class="{
@@ -114,30 +9,154 @@ defineExpose({
 		<div v-if="$slots.prepend" :class="$style.prepend">
 			<slot name="prepend" />
 		</div>
-		<ElSelect
-			v-bind="{ ...$props, ...listeners }"
-			ref="innerSelect"
-			:model-value="modelValue ?? undefined"
+		<el-select
+			v-bind="$props"
+			:value="value"
 			:size="computedSize"
-			:popper-class="popperClass"
 			:class="$style[classes]"
+			:popper-class="popperClass"
+			v-on="$listeners"
+			ref="innerSelect"
 		>
-			<template v-if="$slots.prefix" #prefix>
+			<template #prefix>
 				<slot name="prefix" />
 			</template>
-			<template v-if="$slots.suffix" #suffix>
+			<template #suffix>
 				<slot name="suffix" />
 			</template>
-			<slot></slot>
-		</ElSelect>
+			<template #default>
+				<slot></slot>
+			</template>
+		</el-select>
 	</div>
 </template>
+
+<script lang="ts">
+import { Select as ElSelect } from 'element-ui';
+import { defineComponent } from 'vue';
+
+type InnerSelectRef = InstanceType<typeof ElSelect>;
+
+export interface IProps {
+	size?: string;
+	limitPopperWidth?: string;
+	popperClass?: string;
+}
+
+export default defineComponent({
+	name: 'n8n-select',
+	components: {
+		ElSelect,
+	},
+	props: {
+		value: {},
+		size: {
+			type: String,
+			default: 'large',
+			validator: (value: string): boolean =>
+				['mini', 'small', 'medium', 'large', 'xlarge'].includes(value),
+		},
+		placeholder: {
+			type: String,
+		},
+		disabled: {
+			type: Boolean,
+		},
+		filterable: {
+			type: Boolean,
+		},
+		defaultFirstOption: {
+			type: Boolean,
+		},
+		multiple: {
+			type: Boolean,
+		},
+		filterMethod: {
+			type: Function,
+		},
+		loading: {
+			type: Boolean,
+		},
+		loadingText: {
+			type: String,
+		},
+		popperClass: {
+			type: String,
+		},
+		popperAppendToBody: {
+			type: Boolean,
+		},
+		limitPopperWidth: {
+			type: Boolean,
+		},
+		noDataText: {
+			type: String,
+		},
+	},
+	computed: {
+		computedSize(): string | undefined {
+			if (this.size === 'xlarge') {
+				return undefined;
+			}
+
+			return this.size;
+		},
+		classes(): string {
+			if (this.size === 'xlarge') {
+				return 'xlarge';
+			}
+
+			return '';
+		},
+		popperClasses(): string {
+			let classes = this.popperClass || '';
+			if (this.limitPopperWidth) {
+				classes = `${classes} ${this.$style.limitPopperWidth}`;
+			}
+
+			return classes;
+		},
+	},
+	methods: {
+		focus() {
+			const selectRef = this.$refs.innerSelect as InnerSelectRef | undefined;
+			if (selectRef) {
+				selectRef.focus();
+			}
+		},
+		blur() {
+			const selectRef = this.$refs.innerSelect as InnerSelectRef | undefined;
+			if (selectRef) {
+				selectRef.blur();
+			}
+		},
+		focusOnInput() {
+			const selectRef = this.$refs.innerSelect as InnerSelectRef | undefined;
+			if (selectRef) {
+				const inputRef = selectRef.$refs.input as HTMLInputElement | undefined;
+				if (inputRef) {
+					inputRef.focus();
+				}
+			}
+		},
+	},
+});
+</script>
 
 <style lang="scss" module>
 .xlarge {
 	--input-font-size: var(--font-size-m);
 	input {
 		height: 48px;
+	}
+}
+
+.limitPopperWidth {
+	width: 0;
+
+	li > span {
+		text-overflow: ellipsis;
+		overflow-x: hidden;
 	}
 }
 

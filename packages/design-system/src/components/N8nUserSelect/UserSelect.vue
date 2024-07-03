@@ -1,23 +1,22 @@
 <template>
-	<N8nSelect
-		data-test-id="user-select-trigger"
-		v-bind="$attrs"
-		:model-value="modelValue"
+	<n8n-select
+		:value="value"
 		:filterable="true"
-		:filter-method="setFilter"
-		:placeholder="placeholder || t('nds.userSelect.selectUser')"
+		:filterMethod="setFilter"
+		:placeholder="placeholder"
 		:default-first-option="true"
-		teleported
+		:popper-append-to-body="true"
 		:popper-class="$style.limitPopperWidth"
-		:no-data-text="t('nds.userSelect.noMatchingUsers')"
+		:noDataText="t('nds.userSelect.noMatchingUsers')"
 		:size="size"
+		@change="onChange"
 		@blur="onBlur"
 		@focus="onFocus"
 	>
-		<template v-if="$slots.prefix" #prefix>
+		<template #prefix v-if="$slots.prefix">
 			<slot name="prefix" />
 		</template>
-		<N8nOption
+		<n8n-option
 			v-for="user in sortedUsers"
 			:key="user.id"
 			:value="user.id"
@@ -25,88 +24,123 @@
 			:label="getLabel(user)"
 			:disabled="user.disabled"
 		>
-			<N8nUserInfo v-bind="user" :is-current-user="currentUserId === user.id" />
-		</N8nOption>
-	</N8nSelect>
+			<n8n-user-info v-bind="user" :isCurrentUser="currentUserId === user.id" />
+		</n8n-option>
+	</n8n-select>
 </template>
 
-<script lang="ts" setup>
-import { computed, ref } from 'vue';
+<script lang="ts">
 import N8nUserInfo from '../N8nUserInfo';
 import N8nSelect from '../N8nSelect';
 import N8nOption from '../N8nOption';
-import { useI18n } from '../../composables/useI18n';
-import type { IUser, SelectSize } from '../../types';
+import type { IUser } from '../../types';
+import Locale from '../../mixins/locale';
+import { t } from '../../locale';
+import type { PropType } from 'vue';
+import { defineComponent } from 'vue';
 
-interface UserSelectProps {
-	users?: IUser[];
-	modelValue?: string;
-	ignoreIds?: string[];
-	currentUserId?: string;
-	placeholder?: string;
-	size?: Exclude<SelectSize, 'xlarge'>;
-}
+export default defineComponent({
+	name: 'n8n-user-select',
+	mixins: [Locale],
+	components: {
+		N8nUserInfo,
+		N8nSelect,
+		N8nOption,
+	},
+	props: {
+		users: {
+			type: Array as PropType<IUser[]>,
+			default: () => [],
+		},
+		value: {
+			type: String,
+			default: '',
+		},
+		ignoreIds: {
+			type: Array as PropType<string[]>,
+			default: () => [],
+			validator: (ids: string[]) => !ids.find((id) => typeof id !== 'string'),
+		},
+		currentUserId: {
+			type: String,
+			default: '',
+		},
+		placeholder: {
+			type: String,
+			default: () => t('nds.userSelect.selectUser'),
+		},
+		size: {
+			type: String,
+			default: '',
+			validator: (value: string): boolean => ['mini', 'small', 'medium', 'large'].includes(value),
+		},
+	},
+	data() {
+		return {
+			filter: '',
+		};
+	},
+	computed: {
+		filteredUsers(): IUser[] {
+			return this.users.filter((user) => {
+				if (user.isPendingUser || !user.email) {
+					return false;
+				}
 
-const props = withDefaults(defineProps<UserSelectProps>(), {
-	users: () => [],
-	modelValue: '',
-	ignoreIds: () => [],
-	currentUserId: '',
-});
+				if (this.ignoreIds.includes(user.id)) {
+					return false;
+				}
 
-const $emit = defineEmits(['blur', 'focus']);
+				if (user.fullName) {
+					const match = user.fullName.toLowerCase().includes(this.filter.toLowerCase());
+					if (match) {
+						return true;
+					}
+				}
 
-const { t } = useI18n();
+				return user.email.includes(this.filter);
+			});
+		},
+		sortedUsers(): IUser[] {
+			return [...this.filteredUsers].sort((a: IUser, b: IUser) => {
+				if (a.lastName && b.lastName && a.lastName !== b.lastName) {
+					return a.lastName > b.lastName ? 1 : -1;
+				}
+				if (a.firstName && b.firstName && a.firstName !== b.firstName) {
+					return a.firstName > b.firstName ? 1 : -1;
+				}
 
-const filter = ref('');
+				if (!a.email || !b.email) {
+					throw new Error('Expected all users to have email');
+				}
 
-const filteredUsers = computed(() =>
-	props.users.filter((user) => {
-		if (user.isPendingUser || !user.email) {
-			return false;
-		}
-
-		if (props.ignoreIds.includes(user.id)) {
-			return false;
-		}
-
-		if (user.fullName) {
-			const match = user.fullName.toLowerCase().includes(filter.value.toLowerCase());
-			if (match) {
-				return true;
+				return a.email > b.email ? 1 : -1;
+			});
+		},
+	},
+	methods: {
+		setFilter(value: string) {
+			this.filter = value;
+		},
+		onChange(value: string) {
+			this.$emit('input', value);
+		},
+		onBlur() {
+			this.$emit('blur');
+		},
+		onFocus() {
+			this.$emit('focus');
+		},
+		getLabel(user: IUser) {
+			if (!user.fullName) {
+				return user.email;
 			}
-		}
 
-		return user.email.includes(filter.value);
-	}),
-);
-
-const sortedUsers = computed(() =>
-	[...filteredUsers.value].sort((a: IUser, b: IUser) => {
-		if (a.lastName && b.lastName && a.lastName !== b.lastName) {
-			return a.lastName > b.lastName ? 1 : -1;
-		}
-		if (a.firstName && b.firstName && a.firstName !== b.firstName) {
-			return a.firstName > b.firstName ? 1 : -1;
-		}
-
-		if (!a.email || !b.email) {
-			throw new Error('Expected all users to have email');
-		}
-
-		return a.email > b.email ? 1 : -1;
-	}),
-);
-
-const setFilter = (value: string) => {
-	filter.value = value;
-};
-
-const onBlur = () => $emit('blur');
-const onFocus = () => $emit('focus');
-
-const getLabel = (user: IUser) =>
-	!user.fullName ? user.email : `${user.fullName} (${user.email})`;
+			// eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+			return `${user.fullName} (${user.email})`;
+		},
+	},
+});
 </script>
 
 <style lang="scss" module>

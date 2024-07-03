@@ -25,10 +25,10 @@
 
 		<template #footer="{ close }">
 			<div :class="$style.footer">
-				<el-checkbox :model-value="checked" @update:model-value="handleCheckboxChange">{{
-					$locale.baseText('generic.dontShowAgain')
+				<el-checkbox :value="checked" @change="handleCheckboxChange">{{
+					$locale.baseText('activationModal.dontShowAgain')
 				}}</el-checkbox>
-				<n8n-button :label="$locale.baseText('activationModal.gotIt')" @click="close" />
+				<n8n-button @click="close" :label="$locale.baseText('activationModal.gotIt')" />
 			</div>
 		</template>
 	</Modal>
@@ -37,7 +37,7 @@
 <script lang="ts">
 import { defineComponent } from 'vue';
 import { mapStores } from 'pinia';
-import { createEventBus } from 'n8n-design-system/utils';
+import { createEventBus } from 'n8n-design-system';
 
 import Modal from '@/components/Modal.vue';
 import {
@@ -46,12 +46,10 @@ import {
 	LOCAL_STORAGE_ACTIVATION_FLAG,
 	VIEWS,
 } from '../constants';
-import { getActivatableTriggerNodes, getTriggerNodeServiceName } from '@/utils/nodeTypesUtils';
+import { getActivatableTriggerNodes, getTriggerNodeServiceName } from '@/utils';
 import { useUIStore } from '@/stores/ui.store';
 import { useWorkflowsStore } from '@/stores/workflows.store';
 import { useNodeTypesStore } from '@/stores/nodeTypes.store';
-import { useStorage } from '@/composables/useStorage';
-import { useExecutionsStore } from '@/stores/executions.store';
 
 export default defineComponent({
 	name: 'ActivationModal',
@@ -68,7 +66,7 @@ export default defineComponent({
 	},
 	methods: {
 		async showExecutionsList() {
-			const activeExecution = this.executionsStore.activeExecution;
+			const activeExecution = this.workflowsStore.activeWorkflowExecution;
 			const currentWorkflow = this.workflowsStore.workflowId;
 
 			if (activeExecution) {
@@ -90,11 +88,11 @@ export default defineComponent({
 		},
 		handleCheckboxChange(checkboxValue: boolean) {
 			this.checked = checkboxValue;
-			useStorage(LOCAL_STORAGE_ACTIVATION_FLAG).value = checkboxValue.toString();
+			window.localStorage.setItem(LOCAL_STORAGE_ACTIVATION_FLAG, checkboxValue.toString());
 		},
 	},
 	computed: {
-		...mapStores(useNodeTypesStore, useUIStore, useWorkflowsStore, useExecutionsStore),
+		...mapStores(useNodeTypesStore, useUIStore, useWorkflowsStore),
 		triggerContent(): string {
 			const foundTriggers = getActivatableTriggerNodes(this.workflowsStore.workflowTriggerNodes);
 			if (!foundTriggers.length) {

@@ -1,16 +1,16 @@
+import type { OptionsWithUri } from 'request';
+
 import type {
-	IDataObject,
 	IExecuteFunctions,
-	IHttpRequestMethods,
 	ILoadOptionsFunctions,
-	IRequestOptions,
+	IDataObject,
 	JsonObject,
 } from 'n8n-workflow';
 import { NodeApiError } from 'n8n-workflow';
 
 export async function sendyApiRequest(
 	this: IExecuteFunctions | ILoadOptionsFunctions,
-	method: IHttpRequestMethods,
+	method: string,
 	path: string,
 
 	body: any = {},
@@ -23,7 +23,7 @@ export async function sendyApiRequest(
 
 	body.boolean = true;
 
-	const options: IRequestOptions = {
+	const options: OptionsWithUri = {
 		headers: {
 			'Content-Type': 'application/x-www-form-urlencoded',
 		},

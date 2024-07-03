@@ -7,7 +7,6 @@ import type {
 	INodeTypeDescription,
 } from 'n8n-workflow';
 
-import { tz } from 'moment-timezone';
 import {
 	adjustAccounts,
 	adjustAttendees,
@@ -38,6 +37,8 @@ import {
 } from './descriptions';
 
 import type { FreshworksConfigResponse, LoadedCurrency, LoadedUser, LoadOption } from './types';
+
+import { tz } from 'moment-timezone';
 
 export class FreshworksCrm implements INodeType {
 	description: INodeTypeDescription = {
@@ -139,15 +140,15 @@ export class FreshworksCrm implements INodeType {
 			},
 
 			async getBusinessTypes(this: ILoadOptionsFunctions) {
-				return await loadResource.call(this, 'business_types');
+				return loadResource.call(this, 'business_types');
 			},
 
 			async getCampaigns(this: ILoadOptionsFunctions) {
-				return await loadResource.call(this, 'campaigns');
+				return loadResource.call(this, 'campaigns');
 			},
 
 			async getContactStatuses(this: ILoadOptionsFunctions) {
-				return await loadResource.call(this, 'contact_statuses');
+				return loadResource.call(this, 'contact_statuses');
 			},
 
 			async getContactViews(this: ILoadOptionsFunctions) {
@@ -169,27 +170,27 @@ export class FreshworksCrm implements INodeType {
 			},
 
 			async getDealPaymentStatuses(this: ILoadOptionsFunctions) {
-				return await loadResource.call(this, 'deal_payment_statuses');
+				return loadResource.call(this, 'deal_payment_statuses');
 			},
 
 			async getDealPipelines(this: ILoadOptionsFunctions) {
-				return await loadResource.call(this, 'deal_pipelines');
+				return loadResource.call(this, 'deal_pipelines');
 			},
 
 			async getDealProducts(this: ILoadOptionsFunctions) {
-				return await loadResource.call(this, 'deal_products');
+				return loadResource.call(this, 'deal_products');
 			},
 
 			async getDealReasons(this: ILoadOptionsFunctions) {
-				return await loadResource.call(this, 'deal_reasons');
+				return loadResource.call(this, 'deal_reasons');
 			},
 
 			async getDealStages(this: ILoadOptionsFunctions) {
-				return await loadResource.call(this, 'deal_stages');
+				return loadResource.call(this, 'deal_stages');
 			},
 
 			async getDealTypes(this: ILoadOptionsFunctions) {
-				return await loadResource.call(this, 'deal_types');
+				return loadResource.call(this, 'deal_types');
 			},
 
 			async getDealViews(this: ILoadOptionsFunctions) {
@@ -199,23 +200,23 @@ export class FreshworksCrm implements INodeType {
 			},
 
 			async getIndustryTypes(this: ILoadOptionsFunctions) {
-				return await loadResource.call(this, 'industry_types');
+				return loadResource.call(this, 'industry_types');
 			},
 
 			async getLifecycleStages(this: ILoadOptionsFunctions) {
-				return await loadResource.call(this, 'lifecycle_stages');
+				return loadResource.call(this, 'lifecycle_stages');
 			},
 
 			async getOutcomes(this: ILoadOptionsFunctions) {
-				return await loadResource.call(this, 'sales_activity_outcomes');
+				return loadResource.call(this, 'sales_activity_outcomes');
 			},
 
 			async getSalesActivityTypes(this: ILoadOptionsFunctions) {
-				return await loadResource.call(this, 'sales_activity_types');
+				return loadResource.call(this, 'sales_activity_types');
 			},
 
 			async getTerritories(this: ILoadOptionsFunctions) {
-				return await loadResource.call(this, 'territories');
+				return loadResource.call(this, 'territories');
 			},
 
 			async getUsers(this: ILoadOptionsFunctions) {
@@ -975,7 +976,7 @@ export class FreshworksCrm implements INodeType {
 					}
 				}
 			} catch (error) {
-				if (this.continueOnFail(error)) {
+				if (this.continueOnFail()) {
 					const executionErrorData = this.helpers.constructExecutionMetaData(
 						this.helpers.returnJsonArray({ error: error.message }),
 						{ itemData: { item: i } },
@@ -993,6 +994,6 @@ export class FreshworksCrm implements INodeType {
 			returnData.push(...executionData);
 		}
 
-		return [returnData];
+		return this.prepareOutputData(returnData);
 	}
 }

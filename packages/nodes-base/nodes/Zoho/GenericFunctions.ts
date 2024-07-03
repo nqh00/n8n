@@ -1,11 +1,11 @@
+import type { OptionsWithUri } from 'request';
+
 import type {
 	IExecuteFunctions,
 	IHookFunctions,
 	IDataObject,
 	ILoadOptionsFunctions,
 	JsonObject,
-	IHttpRequestMethods,
-	IRequestOptions,
 } from 'n8n-workflow';
 import { NodeApiError, NodeOperationError } from 'n8n-workflow';
 
@@ -30,9 +30,7 @@ import type {
 
 export function throwOnErrorStatus(
 	this: IExecuteFunctions | IHookFunctions | ILoadOptionsFunctions,
-	responseData: {
-		data?: Array<{ status: string; message: string }>;
-	},
+	responseData: { data?: Array<{ status: string; message: string }> },
 ) {
 	if (responseData?.data?.[0].status === 'error') {
 		throw new NodeOperationError(this.getNode(), responseData as Error);
@@ -41,7 +39,7 @@ export function throwOnErrorStatus(
 
 export async function zohoApiRequest(
 	this: IExecuteFunctions | IHookFunctions | ILoadOptionsFunctions,
-	method: IHttpRequestMethods,
+	method: string,
 	endpoint: string,
 	body: IDataObject = {},
 	qs: IDataObject = {},
@@ -51,7 +49,7 @@ export async function zohoApiRequest(
 		'zohoOAuth2Api',
 	)) as ZohoOAuth2ApiCredentials;
 
-	const options: IRequestOptions = {
+	const options: OptionsWithUri = {
 		body: {
 			data: [body],
 		},
@@ -71,18 +69,14 @@ export async function zohoApiRequest(
 
 	try {
 		const responseData = await this.helpers.requestOAuth2?.call(this, 'zohoOAuth2Api', options);
+
 		if (responseData === undefined) return [];
+
 		throwOnErrorStatus.call(this, responseData as IDataObject);
 
 		return responseData;
 	} catch (error) {
-		const args = error.cause?.data
-			? {
-					message: error.cause.data.message || 'The Zoho API returned an error.',
-					description: JSON.stringify(error.cause.data, null, 2),
-				}
-			: undefined;
-		throw new NodeApiError(this.getNode(), error as JsonObject, args);
+		throw new NodeApiError(this.getNode(), error as JsonObject);
 	}
 }
 
@@ -91,7 +85,7 @@ export async function zohoApiRequest(
  */
 export async function zohoApiRequestAllItems(
 	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions,
-	method: IHttpRequestMethods,
+	method: string,
 	endpoint: string,
 	body: IDataObject = {},
 	qs: IDataObject = {},
@@ -117,7 +111,7 @@ export async function zohoApiRequestAllItems(
  */
 export async function handleListing(
 	this: IExecuteFunctions,
-	method: IHttpRequestMethods,
+	method: string,
 	endpoint: string,
 	body: IDataObject = {},
 	qs: IDataObject = {},
@@ -125,7 +119,7 @@ export async function handleListing(
 	const returnAll = this.getNodeParameter('returnAll', 0);
 
 	if (returnAll) {
-		return await zohoApiRequestAllItems.call(this, method, endpoint, body, qs);
+		return zohoApiRequestAllItems.call(this, method, endpoint, body, qs);
 	}
 
 	const responseData = await zohoApiRequestAllItems.call(this, method, endpoint, body, qs);
@@ -167,18 +161,13 @@ const omit = (propertyToOmit: string, { [propertyToOmit]: _, ...remainingObject 
 /**
  * Place a product ID at a nested position in a product details field.
  */
-export const adjustProductDetails = (productDetails: ProductDetails, operation?: string) => {
+export const adjustProductDetails = (productDetails: ProductDetails) => {
 	return productDetails.map((p) => {
-		const adjustedProduct = {
+		return {
+			...omit('product', p),
 			product: { id: p.id },
 			quantity: p.quantity || 1,
 		};
-
-		if (operation === 'upsert') {
-			return { ...adjustedProduct, ...omit('id', p) };
-		} else {
-			return { ...adjustedProduct, ...omit('product', p) };
-		}
 	});
 };
 

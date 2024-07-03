@@ -7,8 +7,9 @@ import type {
 	IWebhookResponseData,
 } from 'n8n-workflow';
 
-import { snakeCase } from 'change-case';
 import { autopilotApiRequest } from './GenericFunctions';
+
+import { snakeCase } from 'change-case';
 
 export class AutopilotTrigger implements INodeType {
 	description: INodeTypeDescription = {

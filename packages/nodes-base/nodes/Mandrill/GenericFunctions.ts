@@ -1,11 +1,10 @@
+import type { OptionsWithUri } from 'request';
+
 import map from 'lodash/map';
 import type {
-	IDataObject,
 	IExecuteFunctions,
 	IHookFunctions,
-	IHttpRequestMethods,
 	ILoadOptionsFunctions,
-	IRequestOptions,
 	JsonObject,
 } from 'n8n-workflow';
 import { NodeApiError } from 'n8n-workflow';
@@ -13,11 +12,11 @@ import { NodeApiError } from 'n8n-workflow';
 export async function mandrillApiRequest(
 	this: IExecuteFunctions | IHookFunctions | ILoadOptionsFunctions,
 	resource: string,
-	method: IHttpRequestMethods,
+	method: string,
 	action: string,
 
 	body: any = {},
-	headers?: IDataObject,
+	headers?: object,
 ): Promise<any> {
 	const credentials = await this.getCredentials('mandrillApi');
 
@@ -25,7 +24,7 @@ export async function mandrillApiRequest(
 
 	const endpoint = 'mandrillapp.com/api/1.0';
 
-	const options: IRequestOptions = {
+	const options: OptionsWithUri = {
 		headers,
 		method,
 		uri: `https://${endpoint}${resource}${action}.json`,

@@ -1,14 +1,14 @@
 import type {
 	IDataObject,
 	IExecuteFunctions,
-	IHttpRequestMethods,
 	INodeExecutionData,
 	INodeType,
 	INodeTypeDescription,
-	IRequestOptions,
 	JsonObject,
 } from 'n8n-workflow';
 import { NodeApiError, NodeOperationError } from 'n8n-workflow';
+
+import type { OptionsWithUri } from 'request';
 
 export class FacebookGraphApi implements INodeType {
 	description: INodeTypeDescription = {
@@ -79,14 +79,6 @@ export class FacebookGraphApi implements INodeType {
 					{
 						name: 'Default',
 						value: '',
-					},
-					{
-						name: 'v17.0',
-						value: 'v17.0',
-					},
-					{
-						name: 'v16.0',
-						value: 'v16.0',
 					},
 					{
 						name: 'v15.0',
@@ -184,7 +176,7 @@ export class FacebookGraphApi implements INodeType {
 				description: 'Whether to connect even if SSL certificate validation is not possible',
 			},
 			{
-				displayName: 'Send Binary File',
+				displayName: 'Send Binary Data',
 				name: 'sendBinaryData',
 				type: 'boolean',
 				displayOptions: {
@@ -197,7 +189,7 @@ export class FacebookGraphApi implements INodeType {
 				description: 'Whether binary data should be sent as body',
 			},
 			{
-				displayName: 'Input Binary Field',
+				displayName: 'Binary Property',
 				name: 'binaryPropertyName',
 				type: 'string',
 				default: '',
@@ -210,9 +202,8 @@ export class FacebookGraphApi implements INodeType {
 						httpRequestMethod: ['POST', 'PUT'],
 					},
 				},
-				hint: 'The name of the input binary field containing the file to be uploaded',
 				description:
-					'For Form-Data Multipart, they can be provided in the format: <code>"sendKey1:binaryProperty1,sendKey2:binaryProperty2</code>',
+					'Name of the binary property which contains the data for the file to be uploaded. For Form-Data Multipart, they can be provided in the format: <code>"sendKey1:binaryProperty1,sendKey2:binaryProperty2</code>',
 			},
 			{
 				displayName: 'Options',
@@ -308,10 +299,7 @@ export class FacebookGraphApi implements INodeType {
 			const graphApiCredentials = await this.getCredentials('facebookGraphApi');
 
 			const hostUrl = this.getNodeParameter('hostUrl', itemIndex) as string;
-			const httpRequestMethod = this.getNodeParameter(
-				'httpRequestMethod',
-				itemIndex,
-			) as IHttpRequestMethods;
+			const httpRequestMethod = this.getNodeParameter('httpRequestMethod', itemIndex) as string;
 			let graphApiVersion = this.getNodeParameter('graphApiVersion', itemIndex) as string;
 			const node = this.getNodeParameter('node', itemIndex) as string;
 			const edge = this.getNodeParameter('edge', itemIndex) as string;
@@ -326,10 +314,7 @@ export class FacebookGraphApi implements INodeType {
 				uri = `${uri}/${edge}`;
 			}
 
-			const qs: IDataObject = {
-				access_token: graphApiCredentials.accessToken,
-			};
-			const requestOptions: IRequestOptions = {
+			const requestOptions: OptionsWithUri = {
 				headers: {
 					accept: 'application/json,text/*;q=0.99',
 				},
@@ -337,6 +322,9 @@ export class FacebookGraphApi implements INodeType {
 				uri,
 				json: true,
 				gzip: true,
+				qs: {
+					access_token: graphApiCredentials.accessToken,
+				},
 				rejectUnauthorized: !this.getNodeParameter('allowUnauthorizedCerts', itemIndex, false),
 			};
 
@@ -346,7 +334,7 @@ export class FacebookGraphApi implements INodeType {
 					const fields = options.fields as IDataObject;
 					if (fields.field !== undefined) {
 						const fieldsCsv = (fields.field as IDataObject[]).map((field) => field.name).join(',');
-						qs.fields = fieldsCsv;
+						requestOptions.qs.fields = fieldsCsv;
 					}
 				}
 
@@ -356,12 +344,10 @@ export class FacebookGraphApi implements INodeType {
 
 					if (queryParameters.parameter !== undefined) {
 						for (const queryParameter of queryParameters.parameter as IDataObject[]) {
-							qs[queryParameter.name as string] = queryParameter.value;
+							requestOptions.qs[queryParameter.name as string] = queryParameter.value;
 						}
 					}
 				}
-
-				requestOptions.qs = qs;
 
 				// Add the query parameters defined as a JSON object
 				if (options.queryParametersJson) {
@@ -371,6 +357,7 @@ export class FacebookGraphApi implements INodeType {
 					} catch {
 						/* Do nothing, at least for now */
 					}
+					const qs = requestOptions.qs;
 					requestOptions.qs = {
 						...qs,
 						...queryParametersJsonObj,
@@ -410,7 +397,7 @@ export class FacebookGraphApi implements INodeType {
 				// Now that the options are all set make the actual http request
 				response = await this.helpers.request(requestOptions);
 			} catch (error) {
-				if (!this.continueOnFail(error)) {
+				if (!this.continueOnFail()) {
 					throw new NodeApiError(this.getNode(), error as JsonObject);
 				}
 

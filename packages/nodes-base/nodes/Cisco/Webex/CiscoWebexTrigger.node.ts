@@ -1,4 +1,3 @@
-import { createHmac } from 'crypto';
 import type {
 	IHookFunctions,
 	IWebhookFunctions,
@@ -15,6 +14,8 @@ import {
 	webexApiRequest,
 	webexApiRequestAllItems,
 } from './GenericFunctions';
+
+import { createHmac } from 'crypto';
 
 export class CiscoWebexTrigger implements INodeType {
 	description: INodeTypeDescription = {

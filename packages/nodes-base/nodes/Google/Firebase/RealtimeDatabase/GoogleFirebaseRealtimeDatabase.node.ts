@@ -7,7 +7,6 @@ import type {
 	INodeType,
 	INodeTypeDescription,
 	JsonObject,
-	IHttpRequestMethods,
 } from 'n8n-workflow';
 import { NodeApiError, NodeOperationError } from 'n8n-workflow';
 
@@ -181,7 +180,7 @@ export class GoogleFirebaseRealtimeDatabase implements INodeType {
 			try {
 				const projectId = this.getNodeParameter('projectId', i) as string;
 
-				let method: IHttpRequestMethods = 'GET',
+				let method = 'GET',
 					attributes = '';
 				const document: IDataObject = {};
 				if (operation === 'create') {
@@ -226,7 +225,7 @@ export class GoogleFirebaseRealtimeDatabase implements INodeType {
 					}
 				}
 			} catch (error) {
-				if (this.continueOnFail(error)) {
+				if (this.continueOnFail()) {
 					const executionErrorData = this.helpers.constructExecutionMetaData(
 						this.helpers.returnJsonArray({ error: error.message }),
 						{ itemData: { item: i } },
@@ -250,6 +249,6 @@ export class GoogleFirebaseRealtimeDatabase implements INodeType {
 			returnData.push(...executionData);
 		}
 
-		return [returnData];
+		return this.prepareOutputData(returnData);
 	}
 }

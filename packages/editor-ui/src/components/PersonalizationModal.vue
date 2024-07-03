@@ -3,11 +3,11 @@
 		:name="PERSONALIZATION_MODAL_KEY"
 		:title="$locale.baseText('personalizationModal.customizeN8n')"
 		:subtitle="$locale.baseText('personalizationModal.theseQuestionsHelpUs')"
-		:center-title="true"
-		:show-close="false"
-		:event-bus="modalBus"
-		:close-on-click-modal="false"
-		:close-on-press-escape="false"
+		:centerTitle="true"
+		:showClose="false"
+		:eventBus="modalBus"
+		:closeOnClickModal="false"
+		:closeOnPressEscape="false"
 		width="460px"
 		data-test-id="personalization-form"
 		@enter="onSave"
@@ -15,37 +15,20 @@
 		<template #content>
 			<div :class="$style.container">
 				<n8n-form-inputs
-					v-model="formValues"
 					:inputs="survey"
-					:column-view="true"
-					:event-bus="formBus"
-					:teleported="teleported"
-					tag-size="small"
+					:columnView="true"
+					:eventBus="formBus"
 					@submit="onSubmit"
 				/>
-				<n8n-card v-if="canRegisterForEnterpriseTrial">
-					<n8n-checkbox v-model="registerForEnterpriseTrial">
-						<i18n-t keypath="personalizationModal.registerEmailForTrial">
-							<template #trial>
-								<strong>
-									{{ $locale.baseText('personalizationModal.registerEmailForTrial.enterprise') }}
-								</strong>
-							</template>
-						</i18n-t>
-						<n8n-text size="small" tag="div" color="text-light">
-							{{ $locale.baseText('personalizationModal.registerEmailForTrial.notice') }}
-						</n8n-text>
-					</n8n-checkbox>
-				</n8n-card>
 			</div>
 		</template>
 		<template #footer>
 			<div>
 				<n8n-button
+					@click="onSave"
 					:loading="isSaving"
 					:label="$locale.baseText('personalizationModal.getStarted')"
 					float="right"
-					@click="onSave"
 				/>
 			</div>
 		</template>
@@ -55,6 +38,9 @@
 <script lang="ts">
 import { defineComponent } from 'vue';
 import { mapStores } from 'pinia';
+
+const SURVEY_VERSION = 'v4';
+
 import {
 	COMPANY_SIZE_100_499,
 	COMPANY_SIZE_1000_OR_MORE,
@@ -139,88 +125,40 @@ import {
 	REPORTED_SOURCE_OTHER_KEY,
 	VIEWS,
 } from '@/constants';
-import { useToast } from '@/composables/useToast';
+import { workflowHelpers } from '@/mixins/workflowHelpers';
+import { useToast } from '@/composables';
 import Modal from '@/components/Modal.vue';
 import type { IFormInputs, IPersonalizationLatestVersion, IUser } from '@/Interface';
-import { getAccountAge } from '@/utils/userUtils';
+import { getAccountAge } from '@/utils';
 import type { GenericValue } from 'n8n-workflow';
 import { useUIStore } from '@/stores/ui.store';
 import { useSettingsStore } from '@/stores/settings.store';
-import { useRootStore } from '@/stores/root.store';
+import { useRootStore } from '@/stores/n8nRoot.store';
 import { useUsersStore } from '@/stores/users.store';
-import { createEventBus } from 'n8n-design-system/utils';
-import { usePostHog } from '@/stores/posthog.store';
-import { useExternalHooks } from '@/composables/useExternalHooks';
-import { useUsageStore } from '@/stores/usage.store';
-import { useMessage } from '@/composables/useMessage';
-
-const SURVEY_VERSION = 'v4';
+import { createEventBus } from 'n8n-design-system';
 
 export default defineComponent({
 	name: 'PersonalizationModal',
+	mixins: [workflowHelpers],
 	components: { Modal },
-	props: {
-		teleported: {
-			type: Boolean,
-			default: true,
-		},
-	},
-	setup() {
-		const externalHooks = useExternalHooks();
-
-		return {
-			externalHooks,
-			...useToast(),
-			...useMessage(),
-		};
-	},
 	data() {
 		return {
-			formValues: {} as Record<string, string>,
 			isSaving: false,
 			PERSONALIZATION_MODAL_KEY,
 			otherWorkAreaFieldVisible: false,
 			otherCompanyIndustryFieldVisible: false,
 			showAllIndustryQuestions: true,
-			registerForEnterpriseTrial: false,
 			modalBus: createEventBus(),
 			formBus: createEventBus(),
-			domainBlocklist: [] as string[],
+		};
+	},
+	setup() {
+		return {
+			...useToast(),
 		};
 	},
 	computed: {
-		...mapStores(
-			useRootStore,
-			useSettingsStore,
-			useUIStore,
-			useUsersStore,
-			useUsageStore,
-			usePostHog,
-		),
-		currentUser() {
-			return this.usersStore.currentUser;
-		},
-		canRegisterForEnterpriseTrial() {
-			if (
-				this.settingsStore.isCloudDeployment ||
-				this.domainBlocklist.length === 0 ||
-				!this.currentUser?.email
-			) {
-				return false;
-			}
-
-			const isSizeEligible = [COMPANY_SIZE_500_999, COMPANY_SIZE_1000_OR_MORE].includes(
-				this.formValues[COMPANY_SIZE_KEY],
-			);
-
-			const emailParts = this.currentUser.email.split('@');
-			const emailDomain = emailParts[emailParts.length - 1];
-			const isEmailEligible = !this.domainBlocklist.find(
-				(blocklistedDomain) => emailDomain === blocklistedDomain,
-			);
-
-			return isSizeEligible && isEmailEligible;
-		},
+		...mapStores(useRootStore, useSettingsStore, useUIStore, useUsersStore),
 		survey() {
 			const survey: IFormInputs = [
 				{
@@ -672,9 +610,6 @@ export default defineComponent({
 			return survey;
 		},
 	},
-	mounted() {
-		void this.loadDomainBlocklist();
-	},
 	methods: {
 		closeDialog() {
 			this.modalBus.emit('close');
@@ -684,16 +619,11 @@ export default defineComponent({
 				void this.$router.replace({ name: VIEWS.NEW_WORKFLOW });
 			}
 		},
-		async loadDomainBlocklist() {
-			try {
-				this.domainBlocklist = (await import('email-providers/common.json')).default;
-			} catch (error) {}
-		},
 		onSave() {
 			this.formBus.emit('submit');
 		},
 		async onSubmit(values: IPersonalizationLatestVersion): Promise<void> {
-			this.isSaving = true;
+			this.$data.isSaving = true;
 
 			try {
 				const survey: Record<string, GenericValue> = {
@@ -703,14 +633,9 @@ export default defineComponent({
 					personalization_survey_n8n_version: this.rootStore.versionCli,
 				};
 
-				await this.externalHooks.run(
-					'personalizationModal.onSubmit',
-					survey as IPersonalizationLatestVersion,
-				);
+				await this.$externalHooks().run('personalizationModal.onSubmit', survey);
 
 				await this.usersStore.submitPersonalizationSurvey(survey as IPersonalizationLatestVersion);
-
-				this.posthogStore.setMetadata(survey, 'user');
 
 				if (Object.keys(values).length === 0) {
 					this.closeDialog();
@@ -721,39 +646,8 @@ export default defineComponent({
 				this.showError(e, 'Error while submitting results');
 			}
 
-			let licenseRequestSucceeded = false;
-			try {
-				if (this.registerForEnterpriseTrial && this.canRegisterForEnterpriseTrial) {
-					await this.usageStore.requestEnterpriseLicenseTrial();
-					licenseRequestSucceeded = true;
-					this.$telemetry.track('User registered for self serve trial', {
-						email: this.usersStore.currentUser?.email,
-						instance_id: this.rootStore.instanceId,
-					});
-				}
-			} catch (e) {
-				this.showError(
-					e,
-					this.$locale.baseText('personalizationModal.registerEmailForTrial.error'),
-				);
-			}
-
-			this.isSaving = false;
+			this.$data.isSaving = false;
 			this.closeDialog();
-
-			if (licenseRequestSucceeded) {
-				await this.alert(
-					this.$locale.baseText('personalizationModal.registerEmailForTrial.success.message'),
-					{
-						title: this.$locale.baseText(
-							'personalizationModal.registerEmailForTrial.success.title',
-						),
-						confirmButtonText: this.$locale.baseText(
-							'personalizationModal.registerEmailForTrial.success.button',
-						),
-					},
-				);
-			}
 		},
 		async fetchOnboardingPrompt() {
 			if (
@@ -761,32 +655,29 @@ export default defineComponent({
 				getAccountAge(this.usersStore.currentUser || ({} as IUser)) <= ONBOARDING_PROMPT_TIMEBOX
 			) {
 				const onboardingResponse = await this.uiStore.getNextOnboardingPrompt();
-
-				if (!onboardingResponse) {
-					return;
-				}
-
 				const promptTimeout =
 					onboardingResponse.toast_sequence_number === 1 ? FIRST_ONBOARDING_PROMPT_TIMEOUT : 1000;
 
-				setTimeout(async () => {
-					this.showToast({
-						type: 'info',
-						title: onboardingResponse.title,
-						message: onboardingResponse.description,
-						duration: 0,
-						customClass: 'clickable',
-						closeOnClick: true,
-						onClick: () => {
-							this.$telemetry.track('user clicked onboarding toast', {
-								seq_num: onboardingResponse.toast_sequence_number,
-								title: onboardingResponse.title,
-								description: onboardingResponse.description,
-							});
-							this.uiStore.openModal(ONBOARDING_CALL_SIGNUP_MODAL_KEY);
-						},
-					});
-				}, promptTimeout);
+				if (onboardingResponse.title && onboardingResponse.description) {
+					setTimeout(async () => {
+						this.showToast({
+							type: 'info',
+							title: onboardingResponse.title,
+							message: onboardingResponse.description,
+							duration: 0,
+							customClass: 'clickable',
+							closeOnClick: true,
+							onClick: () => {
+								this.$telemetry.track('user clicked onboarding toast', {
+									seq_num: onboardingResponse.toast_sequence_number,
+									title: onboardingResponse.title,
+									description: onboardingResponse.description,
+								});
+								this.uiStore.openModal(ONBOARDING_CALL_SIGNUP_MODAL_KEY);
+							},
+						});
+					}, promptTimeout);
+				}
 			}
 		},
 	},

@@ -6,15 +6,14 @@
 			firstItem && $style.first,
 			!loading && $style.loaded,
 		]"
-		data-test-id="template-card"
 		@click="onCardClick"
 	>
-		<div v-if="loading" :class="$style.loading">
-			<n8n-loading :rows="2" :shrink-last="false" :loading="loading" />
+		<div :class="$style.loading" v-if="loading">
+			<n8n-loading :rows="2" :shrinkLast="false" :loading="loading" />
 		</div>
-		<div v-else-if="workflow">
+		<div v-else>
 			<n8n-heading :bold="true" size="small">{{ workflow.name }}</n8n-heading>
-			<div v-if="!simpleView" :class="$style.content">
+			<div :class="$style.content">
 				<span v-if="workflow.totalViews">
 					<n8n-text size="small" color="text-light">
 						<font-awesome-icon icon="eye" />
@@ -31,18 +30,14 @@
 				>
 			</div>
 		</div>
-		<div
-			v-if="!loading && workflow"
-			:class="[$style.nodesContainer, useWorkflowButton && $style.hideOnHover]"
-		>
+		<div :class="[$style.nodesContainer, useWorkflowButton && $style.hideOnHover]" v-if="!loading">
 			<NodeList v-if="workflow.nodes" :nodes="workflow.nodes" :limit="nodesToBeShown" size="md" />
 		</div>
-		<div v-if="useWorkflowButton" :class="$style.buttonContainer">
+		<div :class="$style.buttonContainer" v-if="useWorkflowButton">
 			<n8n-button
 				v-if="useWorkflowButton"
 				outline
 				label="Use workflow"
-				data-test-id="use-workflow-button"
 				@click.stop="onUseWorkflowClick"
 			/>
 		</div>
@@ -50,23 +45,16 @@
 </template>
 
 <script lang="ts">
-import { type PropType, defineComponent } from 'vue';
-import { filterTemplateNodes } from '@/utils/nodeTypesUtils';
-import { abbreviateNumber } from '@/utils/typesUtils';
+import { defineComponent } from 'vue';
+import { genericHelpers } from '@/mixins/genericHelpers';
+import { filterTemplateNodes, abbreviateNumber } from '@/utils';
 import NodeList from './NodeList.vue';
 import TimeAgo from '@/components/TimeAgo.vue';
-import type { ITemplatesWorkflow } from '@/Interface';
 
 export default defineComponent({
 	name: 'TemplateCard',
-	components: {
-		TimeAgo,
-		NodeList,
-	},
+	mixins: [genericHelpers],
 	props: {
-		workflow: {
-			type: Object as PropType<ITemplatesWorkflow>,
-		},
 		lastItem: {
 			type: Boolean,
 			default: false,
@@ -75,16 +63,19 @@ export default defineComponent({
 			type: Boolean,
 			default: false,
 		},
+		workflow: {
+			type: Object,
+		},
 		useWorkflowButton: {
 			type: Boolean,
 		},
 		loading: {
 			type: Boolean,
 		},
-		simpleView: {
-			type: Boolean,
-			default: false,
-		},
+	},
+	components: {
+		TimeAgo,
+		NodeList,
 	},
 	data() {
 		return {
@@ -131,7 +122,6 @@ export default defineComponent({
 	background-color: var(--color-background-xlight);
 
 	display: flex;
-	align-items: center;
 	padding: 0 var(--spacing-s) var(--spacing-s) var(--spacing-s);
 	background-color: var(--color-background-xlight);
 	cursor: pointer;

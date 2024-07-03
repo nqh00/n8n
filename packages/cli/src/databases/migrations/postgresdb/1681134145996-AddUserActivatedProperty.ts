@@ -18,15 +18,15 @@ export class AddUserActivatedProperty1681134145996 implements ReversibleMigratio
 						AND r.scope = 'workflow'`,
 		)) as UserSettings[];
 
-		const updatedUserPromises = activatedUsers.map(async (user) => {
-			await queryRunner.query(
+		const updatedUsers = activatedUsers.map(async (user) =>
+			queryRunner.query(
 				`UPDATE "${tablePrefix}user" SET settings = '${JSON.stringify(
 					user.settings,
 				)}' WHERE id = '${user.id}' `,
-			);
-		});
+			),
+		);
 
-		await Promise.all(updatedUserPromises);
+		await Promise.all(updatedUsers);
 
 		if (!activatedUsers.length) {
 			await queryRunner.query(

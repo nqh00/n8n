@@ -1,17 +1,17 @@
 import type {
 	IDataObject,
 	IExecuteFunctions,
+	IExecuteSingleFunctions,
 	IHookFunctions,
-	IHttpRequestMethods,
 	ILoadOptionsFunctions,
-	IRequestOptions,
 	JsonObject,
 } from 'n8n-workflow';
 import { NodeApiError } from 'n8n-workflow';
+import type { OptionsWithUri } from 'request';
 
 export async function mauticApiRequest(
-	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions,
-	method: IHttpRequestMethods,
+	this: IHookFunctions | IExecuteFunctions | IExecuteSingleFunctions | ILoadOptionsFunctions,
+	method: string,
 	endpoint: string,
 
 	body: any = {},
@@ -20,7 +20,7 @@ export async function mauticApiRequest(
 ): Promise<any> {
 	const authenticationMethod = this.getNodeParameter('authentication', 0, 'credentials') as string;
 
-	const options: IRequestOptions = {
+	const options: OptionsWithUri = {
 		headers: {},
 		method,
 		qs: query,
@@ -51,7 +51,7 @@ export async function mauticApiRequest(
 		}
 
 		if (returnData.errors) {
-			// They seem to sometimes return 200 status but still error.
+			// They seem to to sometimes return 200 status but still error.
 			throw new NodeApiError(this.getNode(), returnData as JsonObject);
 		}
 
@@ -68,7 +68,7 @@ export async function mauticApiRequest(
 export async function mauticApiRequestAllItems(
 	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions,
 	propertyName: string,
-	method: IHttpRequestMethods,
+	method: string,
 	endpoint: string,
 
 	body: any = {},

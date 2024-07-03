@@ -4,42 +4,57 @@
 		:class="{
 			[$style.container]: true,
 			['tab-bar-container']: true,
+			[$style.menuCollapsed]: mainSidebarCollapsed,
 		}"
 	>
-		<N8nRadioButtons
-			:model-value="modelValue"
-			:options="items"
-			@update:model-value="onUpdateModelValue"
-		/>
+		<n8n-radio-buttons :value="activeTab" :options="items" @input="onSelect" />
 	</div>
 </template>
 
-<script lang="ts" setup>
-import { MAIN_HEADER_TABS } from '@/constants';
+<script lang="ts">
+import { defineComponent } from 'vue';
+import type { PropType } from 'vue';
 import type { ITabBarItem } from '@/Interface';
+import { MAIN_HEADER_TABS } from '@/constants';
+import { mapStores } from 'pinia';
+import { useUIStore } from '@/stores/ui.store';
 
-withDefaults(
-	defineProps<{
-		items: ITabBarItem[];
-		modelValue?: string;
-	}>(),
-	{
-		modelValue: MAIN_HEADER_TABS.WORKFLOW,
+export default defineComponent({
+	name: 'tab-bar',
+	data() {
+		return {
+			MAIN_HEADER_TABS,
+		};
 	},
-);
-
-const emit = defineEmits(['update:modelValue']);
-
-function onUpdateModelValue(tab: string, event: MouseEvent): void {
-	emit('update:modelValue', tab, event);
-}
+	props: {
+		items: {
+			type: Array as PropType<ITabBarItem[]>,
+			required: true,
+		},
+		activeTab: {
+			type: String,
+			default: MAIN_HEADER_TABS.WORKFLOW,
+		},
+	},
+	computed: {
+		...mapStores(useUIStore),
+		mainSidebarCollapsed(): boolean {
+			return this.uiStore.sidebarMenuCollapsed;
+		},
+	},
+	methods: {
+		onSelect(tab: string, event: MouseEvent): void {
+			this.$emit('select', tab, event);
+		},
+	},
+});
 </script>
 
 <style module lang="scss">
 .container {
 	position: absolute;
 	top: 47px;
-	left: 50%;
+	left: calc(50% + 100px);
 	transform: translateX(-50%);
 	min-height: 30px;
 	display: flex;
@@ -47,6 +62,10 @@ function onUpdateModelValue(tab: string, event: MouseEvent): void {
 	background-color: var(--color-foreground-base);
 	border-radius: var(--border-radius-base);
 	transition: all 150ms ease-in-out;
+
+	&.menuCollapsed {
+		left: 52%;
+	}
 }
 
 @media screen and (max-width: 430px) {

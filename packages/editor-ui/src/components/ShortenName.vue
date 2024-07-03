@@ -1,12 +1,12 @@
 <template>
 	<span :title="name" :data-test-id="testId">
-		<slot :shortened-name="shortenedName"></slot>
+		<slot :shortenedName="shortenedName"></slot>
 	</span>
 </template>
 
 <script lang="ts">
 import { defineComponent } from 'vue';
-import { shorten } from '@/utils/typesUtils';
+import { shorten } from '@/utils';
 
 const DEFAULT_WORKFLOW_NAME_LIMIT = 25;
 const WORKFLOW_NAME_END_COUNT_TO_KEEP = 4;

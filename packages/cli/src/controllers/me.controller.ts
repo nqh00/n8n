@@ -1,50 +1,62 @@
 import validator from 'validator';
 import { plainToInstance } from 'class-transformer';
-import { type RequestHandler, Response } from 'express';
-import { randomBytes } from 'crypto';
-
-import { AuthService } from '@/auth/auth.service';
-import { Delete, Get, Patch, Post, RestController } from '@/decorators';
-import { PasswordUtility } from '@/services/password.utility';
+import { Authorized, Delete, Get, Patch, Post, RestController } from '@/decorators';
+import {
+	compareHash,
+	hashPassword,
+	sanitizeUser,
+	validatePassword,
+} from '@/UserManagement/UserManagementHelper';
+import { BadRequestError } from '@/ResponseHelper';
 import { validateEntity } from '@/GenericHelpers';
+import { issueCookie } from '@/auth/jwt';
 import type { User } from '@db/entities/User';
+import type { UserRepository } from '@db/repositories';
+import { Response } from 'express';
+import type { ILogger } from 'n8n-workflow';
 import {
 	AuthenticatedRequest,
 	MeRequest,
 	UserSettingsUpdatePayload,
 	UserUpdatePayload,
 } from '@/requests';
-import type { PublicUser } from '@/Interfaces';
-import { isSamlLicensedAndEnabled } from '@/sso/saml/samlHelpers';
-import { UserService } from '@/services/user.service';
-import { Logger } from '@/Logger';
-import { ExternalHooks } from '@/ExternalHooks';
-import { InternalHooks } from '@/InternalHooks';
-import { BadRequestError } from '@/errors/response-errors/bad-request.error';
-import { UserRepository } from '@/databases/repositories/user.repository';
-import { isApiEnabled } from '@/PublicApi';
-import { EventRelay } from '@/eventbus/event-relay.service';
+import type {
+	PublicUser,
+	IDatabaseCollections,
+	IExternalHooksClass,
+	IInternalHooksClass,
+} from '@/Interfaces';
+import { randomBytes } from 'crypto';
+import { isSamlLicensedAndEnabled } from '../sso/saml/samlHelpers';
+import { UserService } from '@/user/user.service';
 
-export const isApiEnabledMiddleware: RequestHandler = (_, res, next) => {
-	if (isApiEnabled()) {
-		next();
-	} else {
-		res.status(404).end();
-	}
-};
-
+@Authorized()
 @RestController('/me')
 export class MeController {
-	constructor(
-		private readonly logger: Logger,
-		private readonly externalHooks: ExternalHooks,
-		private readonly internalHooks: InternalHooks,
-		private readonly authService: AuthService,
-		private readonly userService: UserService,
-		private readonly passwordUtility: PasswordUtility,
-		private readonly userRepository: UserRepository,
-		private readonly eventRelay: EventRelay,
-	) {}
+	private readonly logger: ILogger;
+
+	private readonly externalHooks: IExternalHooksClass;
+
+	private readonly internalHooks: IInternalHooksClass;
+
+	private readonly userRepository: UserRepository;
+
+	constructor({
+		logger,
+		externalHooks,
+		internalHooks,
+		repositories,
+	}: {
+		logger: ILogger;
+		externalHooks: IExternalHooksClass;
+		internalHooks: IInternalHooksClass;
+		repositories: Pick<IDatabaseCollections, 'User'>;
+	}) {
+		this.logger = logger;
+		this.externalHooks = externalHooks;
+		this.internalHooks = internalHooks;
+		this.userRepository = repositories.User;
+	}
 
 	/**
 	 * Update the logged-in user's properties, except password.
@@ -52,7 +64,7 @@ export class MeController {
 	@Patch('/')
 	async updateCurrentUser(req: MeRequest.UserUpdate, res: Response): Promise<PublicUser> {
 		const { id: userId, email: currentEmail } = req.user;
-		const payload = plainToInstance(UserUpdatePayload, req.body, { excludeExtraneousValues: true });
+		const payload = plainToInstance(UserUpdatePayload, req.body);
 
 		const { email } = payload;
 		if (!email) {
@@ -87,26 +99,25 @@ export class MeController {
 			}
 		}
 
-		await this.externalHooks.run('user.profile.beforeUpdate', [userId, currentEmail, payload]);
-
-		await this.userService.update(userId, payload);
+		await this.userRepository.update(userId, payload);
 		const user = await this.userRepository.findOneOrFail({
 			where: { id: userId },
+			relations: { globalRole: true },
 		});
 
 		this.logger.info('User updated successfully', { userId });
 
-		this.authService.issueCookie(res, user, req.browserId);
+		await issueCookie(res, user);
 
-		const fieldsChanged = Object.keys(payload);
-		void this.internalHooks.onUserUpdate({ user, fields_changed: fieldsChanged });
-		this.eventRelay.emit('user-updated', { user, fieldsChanged });
+		const updatedKeys = Object.keys(payload);
+		void this.internalHooks.onUserUpdate({
+			user,
+			fields_changed: updatedKeys,
+		});
 
-		const publicUser = await this.userService.toPublic(user);
+		await this.externalHooks.run('user.profile.update', [currentEmail, sanitizeUser(user)]);
 
-		await this.externalHooks.run('user.profile.update', [currentEmail, publicUser]);
-
-		return publicUser;
+		return sanitizeUser(user);
 	}
 
 	/**
@@ -114,13 +125,12 @@ export class MeController {
 	 */
 	@Patch('/password')
 	async updatePassword(req: MeRequest.Password, res: Response) {
-		const { user } = req;
 		const { currentPassword, newPassword } = req.body;
 
 		// If SAML is enabled, we don't allow the user to change their email address
 		if (isSamlLicensedAndEnabled()) {
 			this.logger.debug('Attempted to change password for user, while SAML is enabled', {
-				userId: user.id,
+				userId: req.user?.id,
 			});
 			throw new BadRequestError(
 				'With SAML enabled, users need to use their SAML provider to change passwords',
@@ -131,28 +141,30 @@ export class MeController {
 			throw new BadRequestError('Invalid payload.');
 		}
 
-		if (!user.password) {
+		if (!req.user.password) {
 			throw new BadRequestError('Requesting user not set up.');
 		}
 
-		const isCurrentPwCorrect = await this.passwordUtility.compare(currentPassword, user.password);
+		const isCurrentPwCorrect = await compareHash(currentPassword, req.user.password);
 		if (!isCurrentPwCorrect) {
 			throw new BadRequestError('Provided current password is incorrect.');
 		}
 
-		const validPassword = this.passwordUtility.validate(newPassword);
+		const validPassword = validatePassword(newPassword);
 
-		user.password = await this.passwordUtility.hash(validPassword);
+		req.user.password = await hashPassword(validPassword);
 
-		const updatedUser = await this.userRepository.save(user, { transaction: false });
+		const user = await this.userRepository.save(req.user);
 		this.logger.info('Password updated successfully', { userId: user.id });
 
-		this.authService.issueCookie(res, updatedUser, req.browserId);
+		await issueCookie(res, user);
 
-		void this.internalHooks.onUserUpdate({ user: updatedUser, fields_changed: ['password'] });
-		this.eventRelay.emit('user-updated', { user: updatedUser, fieldsChanged: ['password'] });
+		void this.internalHooks.onUserUpdate({
+			user,
+			fields_changed: ['password'],
+		});
 
-		await this.externalHooks.run('user.password.update', [updatedUser.email, updatedUser.password]);
+		await this.externalHooks.run('user.password.update', [user.email, req.user.password]);
 
 		return { success: true };
 	}
@@ -174,13 +186,10 @@ export class MeController {
 			throw new BadRequestError('Personalization answers are mandatory');
 		}
 
-		await this.userRepository.save(
-			{
-				id: req.user.id,
-				personalizationAnswers,
-			},
-			{ transaction: false },
-		);
+		await this.userRepository.save({
+			id: req.user.id,
+			personalizationAnswers,
+		});
 
 		this.logger.info('User survey updated successfully', { userId: req.user.id });
 
@@ -192,14 +201,18 @@ export class MeController {
 	/**
 	 * Creates an API Key
 	 */
-	@Post('/api-key', { middlewares: [isApiEnabledMiddleware] })
+	@Post('/api-key')
 	async createAPIKey(req: AuthenticatedRequest) {
 		const apiKey = `n8n_api_${randomBytes(40).toString('hex')}`;
 
-		await this.userService.update(req.user.id, { apiKey });
+		await this.userRepository.update(req.user.id, {
+			apiKey,
+		});
 
-		void this.internalHooks.onApiKeyCreated({ user: req.user, public_api: false });
-		this.eventRelay.emit('api-key-created', { user: req.user });
+		void this.internalHooks.onApiKeyCreated({
+			user: req.user,
+			public_api: false,
+		});
 
 		return { apiKey };
 	}
@@ -207,7 +220,7 @@ export class MeController {
 	/**
 	 * Get an API Key
 	 */
-	@Get('/api-key', { middlewares: [isApiEnabledMiddleware] })
+	@Get('/api-key')
 	async getAPIKey(req: AuthenticatedRequest) {
 		return { apiKey: req.user.apiKey };
 	}
@@ -215,12 +228,16 @@ export class MeController {
 	/**
 	 * Deletes an API Key
 	 */
-	@Delete('/api-key', { middlewares: [isApiEnabledMiddleware] })
+	@Delete('/api-key')
 	async deleteAPIKey(req: AuthenticatedRequest) {
-		await this.userService.update(req.user.id, { apiKey: null });
+		await this.userRepository.update(req.user.id, {
+			apiKey: null,
+		});
 
-		void this.internalHooks.onApiKeyDeleted({ user: req.user, public_api: false });
-		this.eventRelay.emit('api-key-deleted', { user: req.user });
+		void this.internalHooks.onApiKeyDeleted({
+			user: req.user,
+			public_api: false,
+		});
 
 		return { success: true };
 	}
@@ -230,12 +247,10 @@ export class MeController {
 	 */
 	@Patch('/settings')
 	async updateCurrentUserSettings(req: MeRequest.UserSettingsUpdate): Promise<User['settings']> {
-		const payload = plainToInstance(UserSettingsUpdatePayload, req.body, {
-			excludeExtraneousValues: true,
-		});
+		const payload = plainToInstance(UserSettingsUpdatePayload, req.body);
 		const { id } = req.user;
 
-		await this.userService.updateSettings(id, payload);
+		await UserService.updateUserSettings(id, payload);
 
 		const user = await this.userRepository.findOneOrFail({
 			select: ['settings'],

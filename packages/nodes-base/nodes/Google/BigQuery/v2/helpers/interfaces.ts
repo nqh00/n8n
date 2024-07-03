@@ -21,7 +21,7 @@ export type JobReference = {
 	location: string;
 };
 
-export type ResponseWithJobReference = {
+export type JobInsertResponse = {
 	kind: string;
 	id: string;
 	jobReference: JobReference;

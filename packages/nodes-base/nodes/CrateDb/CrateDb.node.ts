@@ -6,15 +6,16 @@ import type {
 } from 'n8n-workflow';
 import { NodeOperationError } from 'n8n-workflow';
 
-import pgPromise from 'pg-promise';
 import {
 	generateReturning,
 	getItemCopy,
 	getItemsCopy,
 	pgInsert,
-	pgQueryV2,
+	pgQuery,
 	pgUpdate,
 } from '../Postgres/v1/genericFunctions';
+
+import pgPromise from 'pg-promise';
 
 export class CrateDb implements INodeType {
 	description: INodeTypeDescription = {
@@ -72,11 +73,9 @@ export class CrateDb implements INodeType {
 				displayName: 'Query',
 				name: 'query',
 				type: 'string',
-				noDataExpression: true,
 				typeOptions: {
 					editor: 'sqlEditor',
-					rows: 5,
-					sqlDialect: 'PostgreSQL',
+					sqlDialect: 'postgres',
 				},
 				displayOptions: {
 					show: {
@@ -284,9 +283,13 @@ export class CrateDb implements INodeType {
 			//         executeQuery
 			// ----------------------------------
 
-			const queryResult = await pgQueryV2.call(this, pgp, db, items, this.continueOnFail(), {
-				resolveExpression: true,
-			});
+			const queryResult = await pgQuery(
+				this.getNodeParameter,
+				pgp,
+				db,
+				items,
+				this.continueOnFail(),
+			);
 
 			returnItems = this.helpers.returnJsonArray(queryResult);
 		} else if (operation === 'insert') {
@@ -373,20 +376,20 @@ export class CrateDb implements INodeType {
 							returning,
 					);
 				}
-				await db.multi(pgp.helpers.concat(queries));
+				const _updateItems = await db.multi(pgp.helpers.concat(queries));
 				returnItems = this.helpers.returnJsonArray(getItemsCopy(items, columns));
 			}
 		} else {
-			await db.$pool.end();
+			pgp.end();
 			throw new NodeOperationError(
 				this.getNode(),
 				`The operation "${operation}" is not supported!`,
 			);
 		}
 
-		// shuts down the connection pool associated with the db object to allow the process to finish
-		await db.$pool.end();
+		// Close the connection
+		pgp.end();
 
-		return [returnItems];
+		return this.prepareOutputData(returnItems);
 	}
 }

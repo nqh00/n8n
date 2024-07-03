@@ -9,7 +9,6 @@ import type {
 } from 'n8n-workflow';
 import { NodeApiError } from 'n8n-workflow';
 
-import { capitalCase } from 'change-case';
 import {
 	adjustAddresses,
 	getFilterQuery,
@@ -36,7 +35,9 @@ import type {
 	NewCustomer,
 	NewProduct,
 	Search,
-} from './types';
+} from './Types';
+
+import { capitalCase } from 'change-case';
 
 export class Magento2 implements INodeType {
 	description: INodeTypeDescription = {
@@ -277,10 +278,10 @@ export class Magento2 implements INodeType {
 			async getFilterableCustomerAttributes(
 				this: ILoadOptionsFunctions,
 			): Promise<INodePropertyOptions[]> {
-				return await getProductAttributes.call(this, (attribute) => attribute.is_filterable);
+				return getProductAttributes.call(this, (attribute) => attribute.is_filterable);
 			},
 			async getProductAttributes(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
-				return await getProductAttributes.call(this);
+				return getProductAttributes.call(this);
 			},
 			// async getProductAttributesFields(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
 			// 	return getProductAttributes.call(this, undefined, { name: '*', value: '*', description: 'All properties' });
@@ -288,15 +289,12 @@ export class Magento2 implements INodeType {
 			async getFilterableProductAttributes(
 				this: ILoadOptionsFunctions,
 			): Promise<INodePropertyOptions[]> {
-				return await getProductAttributes.call(
-					this,
-					(attribute) => attribute.is_searchable === '1',
-				);
+				return getProductAttributes.call(this, (attribute) => attribute.is_searchable === '1');
 			},
 			async getSortableProductAttributes(
 				this: ILoadOptionsFunctions,
 			): Promise<INodePropertyOptions[]> {
-				return await getProductAttributes.call(this, (attribute) => attribute.used_for_sort_by);
+				return getProductAttributes.call(this, (attribute) => attribute.used_for_sort_by);
 			},
 			async getOrderAttributes(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
 				return getOrderFields()
@@ -800,7 +798,7 @@ export class Magento2 implements INodeType {
 
 				returnData.push(...executionData);
 			} catch (error) {
-				if (this.continueOnFail(error)) {
+				if (this.continueOnFail()) {
 					const executionErrorData = this.helpers.constructExecutionMetaData(
 						this.helpers.returnJsonArray({ error: error.message }),
 						{ itemData: { item: i } },
@@ -812,6 +810,6 @@ export class Magento2 implements INodeType {
 			}
 		}
 
-		return [returnData];
+		return this.prepareOutputData(returnData);
 	}
 }

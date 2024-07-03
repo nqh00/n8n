@@ -1,11 +1,5 @@
-import type {
-	IDataObject,
-	IExecuteFunctions,
-	IHookFunctions,
-	IHttpRequestMethods,
-	ILoadOptionsFunctions,
-	IRequestOptions,
-} from 'n8n-workflow';
+import type { OptionsWithUri } from 'request';
+import type { IExecuteFunctions, IHookFunctions, ILoadOptionsFunctions } from 'n8n-workflow';
 
 /**
  * Make an API request to Twake
@@ -13,13 +7,13 @@ import type {
  */
 export async function twakeApiRequest(
 	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions,
-	method: IHttpRequestMethods,
+	method: string,
 	resource: string,
 	body: object,
-	query?: IDataObject,
+	query?: object,
 	uri?: string,
 ) {
-	const options: IRequestOptions = {
+	const options: OptionsWithUri = {
 		headers: {},
 		method,
 		body,
@@ -35,5 +29,5 @@ export async function twakeApiRequest(
 	// 	options.uri = `${credentials!.hostUrl}/api/v1${resource}`;
 	// }
 
-	return await this.helpers.requestWithAuthentication.call(this, 'twakeCloudApi', options);
+	return this.helpers.requestWithAuthentication.call(this, 'twakeCloudApi', options);
 }

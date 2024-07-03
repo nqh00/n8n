@@ -9,20 +9,6 @@ import type {
 } from 'n8n-workflow';
 import { NodeOperationError } from 'n8n-workflow';
 
-import isEmpty from 'lodash/isEmpty';
-import omit from 'lodash/omit';
-
-import moment from 'moment-timezone';
-import {
-	goToWebinarApiRequest,
-	goToWebinarApiRequestAllItems,
-	handleGetAll,
-	loadAnswers,
-	loadRegistranMultiChoiceQuestions,
-	loadRegistranSimpleQuestions,
-	loadWebinars,
-	loadWebinarSessions,
-} from './GenericFunctions';
 import {
 	attendeeFields,
 	attendeeOperations,
@@ -37,6 +23,22 @@ import {
 	webinarFields,
 	webinarOperations,
 } from './descriptions';
+
+import {
+	goToWebinarApiRequest,
+	goToWebinarApiRequestAllItems,
+	handleGetAll,
+	loadAnswers,
+	loadRegistranMultiChoiceQuestions,
+	loadRegistranSimpleQuestions,
+	loadWebinars,
+	loadWebinarSessions,
+} from './GenericFunctions';
+
+import isEmpty from 'lodash/isEmpty';
+import omit from 'lodash/omit';
+
+import moment from 'moment-timezone';
 
 export class GoToWebinar implements INodeType {
 	description: INodeTypeDescription = {
@@ -110,13 +112,13 @@ export class GoToWebinar implements INodeType {
 	methods = {
 		loadOptions: {
 			async getWebinars(this: ILoadOptionsFunctions) {
-				return await loadWebinars.call(this);
+				return loadWebinars.call(this);
 			},
 			async getAnswers(this: ILoadOptionsFunctions) {
-				return await loadAnswers.call(this);
+				return loadAnswers.call(this);
 			},
 			async getWebinarSessions(this: ILoadOptionsFunctions) {
-				return await loadWebinarSessions.call(this);
+				return loadWebinarSessions.call(this);
 			},
 			// Get all the timezones to display them to user so that they can
 			// select them easily
@@ -135,12 +137,12 @@ export class GoToWebinar implements INodeType {
 			async getRegistranSimpleQuestions(
 				this: ILoadOptionsFunctions,
 			): Promise<INodePropertyOptions[]> {
-				return await loadRegistranSimpleQuestions.call(this);
+				return loadRegistranSimpleQuestions.call(this);
 			},
 			async getRegistranMultiChoiceQuestions(
 				this: ILoadOptionsFunctions,
 			): Promise<INodePropertyOptions[]> {
-				return await loadRegistranMultiChoiceQuestions.call(this);
+				return loadRegistranMultiChoiceQuestions.call(this);
 			},
 		},
 	};
@@ -630,7 +632,7 @@ export class GoToWebinar implements INodeType {
 					}
 				}
 			} catch (error) {
-				if (this.continueOnFail(error)) {
+				if (this.continueOnFail()) {
 					const executionErrorData = this.helpers.constructExecutionMetaData(
 						this.helpers.returnJsonArray({ error: error.message }),
 						{ itemData: { item: i } },
@@ -650,6 +652,6 @@ export class GoToWebinar implements INodeType {
 			returnData.push(...executionData);
 		}
 
-		return [returnData];
+		return this.prepareOutputData(returnData);
 	}
 }

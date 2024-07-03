@@ -789,6 +789,6 @@ export class Salesmate implements INodeType {
 			returnData.push(...executionData);
 		}
 
-		return [returnData];
+		return this.prepareOutputData(returnData);
 	}
 }

@@ -1,19 +1,54 @@
 <template>
-	<N8nButton square v-bind="{ ...$attrs, ...$props }" />
+	<n8n-button square v-bind="$props" v-on="$listeners" />
 </template>
 
-<script lang="ts" setup>
-import type { IconButtonProps } from 'n8n-design-system/types/button';
+<script lang="ts">
 import N8nButton from '../N8nButton';
 
-defineOptions({ name: 'N8nIconButton' });
-withDefaults(defineProps<IconButtonProps>(), {
-	type: 'primary',
-	size: 'medium',
-	loading: false,
-	outline: false,
-	text: false,
-	disabled: false,
-	active: false,
+import { defineComponent } from 'vue';
+
+export default defineComponent({
+	name: 'n8n-icon-button',
+	components: {
+		N8nButton,
+	},
+	props: {
+		type: {
+			type: String,
+			default: 'primary',
+		},
+		size: {
+			type: String,
+			default: 'medium',
+		},
+		loading: {
+			type: Boolean,
+			default: false,
+		},
+		outline: {
+			type: Boolean,
+			default: false,
+		},
+		text: {
+			type: Boolean,
+			default: false,
+		},
+		disabled: {
+			type: Boolean,
+			default: false,
+		},
+		active: {
+			type: Boolean,
+			default: false,
+		},
+		icon: {
+			type: [String, Array],
+			required: true,
+		},
+		float: {
+			type: String,
+			validator: (value: string): boolean => ['left', 'right'].includes(value),
+		},
+	},
 });
 </script>

@@ -1,4 +1,4 @@
-import type { StoryFn } from '@storybook/vue3';
+import type { StoryFn } from '@storybook/vue';
 import SpacingPreview from '../components/SpacingPreview.vue';
 
 export default {
@@ -6,12 +6,11 @@ export default {
 };
 
 const Template: StoryFn = (args, { argTypes }) => ({
-	setup: () => ({ args }),
 	props: Object.keys(argTypes),
 	components: {
 		SpacingPreview,
 	},
-	template: '<spacing-preview v-bind="args" />',
+	template: '<spacing-preview v-bind="$props" />',
 });
 
 export const Padding = Template.bind({});

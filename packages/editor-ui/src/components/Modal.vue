@@ -1,26 +1,21 @@
 <template>
 	<el-dialog
-		:model-value="uiStore.isModalOpen(name)"
+		:visible="uiStore.isModalOpen(this.name)"
 		:before-close="closeDialog"
-		:class="{
-			'dialog-wrapper': true,
-			scrollable: scrollable,
-			[getCustomClass()]: true,
-		}"
-		:center="center"
+		:class="{ 'dialog-wrapper': true, [$style.center]: center, scrollable: scrollable }"
 		:width="width"
 		:show-close="showClose"
+		:custom-class="getCustomClass()"
 		:close-on-click-modal="closeOnClickModal"
 		:close-on-press-escape="closeOnPressEscape"
 		:style="styles"
-		:append-to-body="appendToBody"
-		:data-test-id="`${name}-modal`"
-		:modal-class="center ? $style.center : ''"
+		append-to-body
+		:data-test-id="`${this.name}-modal`"
 	>
-		<template v-if="$slots.header" #header>
-			<slot v-if="!loading" name="header" />
+		<template #title v-if="$scopedSlots.header">
+			<slot name="header" v-if="!loading" />
 		</template>
-		<template v-else-if="title" #title>
+		<template #title v-else-if="title">
 			<div :class="centerTitle ? $style.centerTitle : ''">
 				<div v-if="title">
 					<n8n-heading tag="h1" size="xlarge">{{ title }}</n8n-heading>
@@ -37,31 +32,28 @@
 			@keydown.esc="closeDialog"
 		>
 			<slot v-if="!loading" name="content" />
-			<div v-else :class="$style.loader">
+			<div :class="$style.loader" v-else>
 				<n8n-spinner />
 			</div>
 		</div>
-		<div v-if="!loading && $slots.footer" :class="$style.footer">
+		<div v-if="!loading && $scopedSlots.footer" :class="$style.footer">
 			<slot name="footer" :close="closeDialog" />
 		</div>
 	</el-dialog>
 </template>
 
 <script lang="ts">
-import { ElDialog } from 'element-plus';
 import { defineComponent } from 'vue';
 import type { PropType } from 'vue';
 import { mapStores } from 'pinia';
 import type { EventBus } from 'n8n-design-system';
 import { useUIStore } from '@/stores/ui.store';
-import type { ModalKey } from '@/Interface';
 
 export default defineComponent({
 	name: 'Modal',
 	props: {
-		...ElDialog.props,
 		name: {
-			type: String as PropType<ModalKey>,
+			type: String,
 		},
 		title: {
 			type: String,
@@ -126,23 +118,21 @@ export default defineComponent({
 			type: Boolean,
 			default: true,
 		},
-		appendToBody: {
-			type: Boolean,
-			default: true,
-		},
 	},
 	mounted() {
 		window.addEventListener('keydown', this.onWindowKeydown);
 
 		this.eventBus?.on('close', this.closeDialog);
+		this.eventBus?.on('closeAll', this.uiStore.closeAllModals);
 
 		const activeElement = document.activeElement as HTMLElement;
 		if (activeElement) {
 			activeElement.blur();
 		}
 	},
-	beforeUnmount() {
+	beforeDestroy() {
 		this.eventBus?.off('close', this.closeDialog);
+		this.eventBus?.off('closeAll', this.uiStore.closeAllModals);
 		window.removeEventListener('keydown', this.onWindowKeydown);
 	},
 	computed: {
@@ -207,7 +197,7 @@ export default defineComponent({
 
 <style lang="scss">
 .dialog-wrapper {
-	&.el-dialog {
+	.el-dialog {
 		display: flex;
 		flex-direction: column;
 		max-width: var(--dialog-max-width, 80%);
@@ -226,7 +216,6 @@ export default defineComponent({
 
 	.modal-content {
 		overflow: hidden;
-		overflow-y: auto;
 		flex-grow: 1;
 	}
 
@@ -237,7 +226,9 @@ export default defineComponent({
 </style>
 
 <style lang="scss" module>
-.center > div {
+.center {
+	display: flex;
+	align-items: center;
 	justify-content: center;
 }
 

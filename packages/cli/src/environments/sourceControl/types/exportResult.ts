@@ -6,5 +6,4 @@ export interface ExportResult {
 		name: string;
 	}>;
 	removedFiles?: string[];
-	missingIds?: string[];
 }

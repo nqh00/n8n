@@ -113,9 +113,10 @@ export const issueFields: INodeProperties[] = [
 				default: '',
 			},
 			{
-				displayName: 'Priority',
+				displayName: 'Priority Name/ID',
 				name: 'priorityId',
 				type: 'options',
+				// eslint-disable-next-line n8n-nodes-base/node-param-options-type-unsorted-items
 				options: [
 					{
 						name: 'Urgent',
@@ -126,12 +127,12 @@ export const issueFields: INodeProperties[] = [
 						value: 2,
 					},
 					{
-						name: 'Normal',
+						name: 'Medium',
 						value: 3,
 					},
 					{
 						name: 'Low',
-						value: 4,
+						value: 3,
 					},
 					{
 						name: 'No Priority',
@@ -192,6 +193,7 @@ export const issueFields: INodeProperties[] = [
 		default: 50,
 		typeOptions: {
 			minValue: 1,
+			maxValue: 300,
 		},
 		displayOptions: {
 			show: {
@@ -252,7 +254,7 @@ export const issueFields: INodeProperties[] = [
 				displayName: 'Priority Name/ID',
 				name: 'priorityId',
 				type: 'options',
-
+				// eslint-disable-next-line n8n-nodes-base/node-param-options-type-unsorted-items
 				options: [
 					{
 						name: 'Urgent',

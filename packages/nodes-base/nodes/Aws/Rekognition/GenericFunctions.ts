@@ -9,7 +9,6 @@ import type {
 	ILoadOptionsFunctions,
 	IWebhookFunctions,
 	IHttpRequestOptions,
-	IHttpRequestMethods,
 } from 'n8n-workflow';
 
 import { pascalCase } from 'change-case';
@@ -17,7 +16,7 @@ import { pascalCase } from 'change-case';
 export async function awsApiRequest(
 	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions | IWebhookFunctions,
 	service: string,
-	method: IHttpRequestMethods,
+	method: string,
 	path: string,
 	body?: string | Buffer | IDataObject,
 	_query: IDataObject = {},
@@ -42,13 +41,13 @@ export async function awsApiRequest(
 	if (Object.keys(option).length !== 0) {
 		Object.assign(requestOptions, option);
 	}
-	return await this.helpers.requestWithAuthentication.call(this, 'aws', requestOptions);
+	return this.helpers.requestWithAuthentication.call(this, 'aws', requestOptions);
 }
 
 export async function awsApiRequestREST(
 	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions,
 	service: string,
-	method: IHttpRequestMethods,
+	method: string,
 	path: string,
 	body?: string,
 	query: IDataObject = {},
@@ -77,7 +76,7 @@ export async function awsApiRequestREST(
 export async function awsApiRequestSOAP(
 	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions | IWebhookFunctions,
 	service: string,
-	method: IHttpRequestMethods,
+	method: string,
 	path: string,
 	body?: string | Buffer | IDataObject,
 	query: IDataObject = {},
@@ -114,7 +113,7 @@ export async function awsApiRequestSOAPAllItems(
 	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions | IWebhookFunctions,
 	propertyName: string,
 	service: string,
-	method: IHttpRequestMethods,
+	method: string,
 	path: string,
 	body?: string,
 	query: IDataObject = {},
@@ -140,11 +139,11 @@ export async function awsApiRequestSOAPAllItems(
 		);
 
 		//https://forums.aws.amazon.com/thread.jspa?threadID=55746
-		if (get(responseData, [propertyName.split('.')[0], 'NextContinuationToken'])) {
-			query['continuation-token'] = get(responseData, [
-				propertyName.split('.')[0],
-				'NextContinuationToken',
-			]);
+		if (get(responseData, `${propertyName.split('.')[0]}.NextContinuationToken`)) {
+			query['continuation-token'] = get(
+				responseData,
+				`${propertyName.split('.')[0]}.NextContinuationToken`,
+			);
 		}
 		if (get(responseData, propertyName)) {
 			if (Array.isArray(get(responseData, propertyName))) {
@@ -158,8 +157,8 @@ export async function awsApiRequestSOAPAllItems(
 			return returnData;
 		}
 	} while (
-		get(responseData, [propertyName.split('.')[0], 'IsTruncated']) !== undefined &&
-		get(responseData, [propertyName.split('.')[0], 'IsTruncated']) !== 'false'
+		get(responseData, `${propertyName.split('.')[0]}.IsTruncated`) !== undefined &&
+		get(responseData, `${propertyName.split('.')[0]}.IsTruncated`) !== 'false'
 	);
 
 	return returnData;

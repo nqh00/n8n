@@ -47,10 +47,11 @@
 		& .el-select__caret {
 			font-size: var.$select-input-font-size;
 			transition: transform 0.3s;
+			transform: rotateZ(180deg);
 			cursor: pointer;
 
 			@include mixins.when(reverse) {
-				transform: rotateZ(180deg);
+				transform: rotateZ(0deg);
 			}
 
 			@include mixins.when(show-close) {
@@ -79,14 +80,6 @@
 
 		&.is-focus .el-input__inner {
 			border-color: var.$select-input-focus-border-color;
-		}
-
-		&__prefix {
-			left: var(--spacing-2xs);
-		}
-
-		&--prefix .el-input__inner {
-			padding-left: 26px;
 		}
 	}
 
@@ -170,11 +163,6 @@
 	&--large {
 		.el-input__inner {
 			height: 42px;
-		}
-	}
-	&--default {
-		.el-tag {
-			padding: var(--spacing-5xs) var(--spacing-xs);
 		}
 	}
 }

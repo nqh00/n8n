@@ -1,60 +1,75 @@
 <template>
-	<ElCheckbox
+	<el-checkbox
 		v-bind="$props"
 		ref="checkbox"
 		:class="['n8n-checkbox', $style.n8nCheckbox]"
 		:disabled="disabled"
 		:indeterminate="indeterminate"
-		:model-value="modelValue"
-		@update:model-value="onUpdateModelValue"
+		:value="value"
+		@change="onChange"
 	>
 		<slot></slot>
-		<N8nInputLabel
+		<n8n-input-label
 			v-if="label"
 			:label="label"
-			:tooltip-text="tooltipText"
+			:tooltipText="tooltipText"
 			:bold="false"
 			:size="labelSize"
 			@click.prevent="onLabelClick"
 		/>
-	</ElCheckbox>
+	</el-checkbox>
 </template>
 
-<script lang="ts" setup>
-import { ref } from 'vue';
-import { ElCheckbox } from 'element-plus';
-import type { CheckboxValueType } from 'element-plus';
+<script lang="ts">
+import { defineComponent } from 'vue';
+import { Checkbox as ElCheckbox } from 'element-ui';
 import N8nInputLabel from '../N8nInputLabel';
 
-const LABEL_SIZE = ['small', 'medium'] as const;
+export default defineComponent({
+	name: 'n8n-checkbox',
+	components: {
+		ElCheckbox,
+		N8nInputLabel,
+	},
+	props: {
+		label: {
+			type: String,
+		},
+		disabled: {
+			type: Boolean,
+			default: false,
+		},
+		tooltipText: {
+			type: String,
+		},
+		indeterminate: {
+			type: Boolean,
+			default: false,
+		},
+		value: {
+			type: Boolean,
+			default: false,
+		},
+		labelSize: {
+			type: String,
+			default: 'medium',
+			validator: (value: string): boolean => ['small', 'medium'].includes(value),
+		},
+	},
+	methods: {
+		onChange(event: Event) {
+			this.$emit('input', event);
+		},
+		onLabelClick() {
+			const checkboxComponent = this.$refs.checkbox as ElCheckbox;
+			if (!checkboxComponent) {
+				return;
+			}
 
-interface CheckboxProps {
-	label?: string;
-	disabled?: boolean;
-	tooltipText?: string;
-	indeterminate?: boolean;
-	modelValue?: boolean;
-	labelSize?: (typeof LABEL_SIZE)[number];
-}
-
-defineOptions({ name: 'N8nCheckbox' });
-withDefaults(defineProps<CheckboxProps>(), {
-	disabled: false,
-	indeterminate: false,
-	modelValue: false,
-	labelSize: 'medium',
+			(checkboxComponent.$el as HTMLElement).click();
+		},
+	},
 });
-
-const $emit = defineEmits<{
-	(event: 'update:modelValue', value: CheckboxValueType): void;
-}>();
-const onUpdateModelValue = (value: CheckboxValueType) => $emit('update:modelValue', value);
-
-const checkbox = ref<InstanceType<typeof ElCheckbox>>();
-const onLabelClick = () => {
-	if (!checkbox?.value) return;
-	(checkbox.value.$el as HTMLElement).click();
-};
 </script>
 
 <style lang="scss" module>

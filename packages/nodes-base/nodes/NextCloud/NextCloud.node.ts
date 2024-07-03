@@ -1,9 +1,7 @@
-import { URLSearchParams } from 'url';
 import type {
 	IBinaryKeyData,
 	IDataObject,
 	IExecuteFunctions,
-	IHttpRequestMethods,
 	INodeExecutionData,
 	INodeType,
 	INodeTypeDescription,
@@ -11,9 +9,10 @@ import type {
 } from 'n8n-workflow';
 import { NodeApiError, NodeOperationError } from 'n8n-workflow';
 
+import { URLSearchParams } from 'url';
+
 import { parseString } from 'xml2js';
 
-import { wrapData } from '../../utils/utilities';
 import { nextCloudApiRequest } from './GenericFunctions';
 
 export class NextCloud implements INodeType {
@@ -351,7 +350,7 @@ export class NextCloud implements INodeType {
 					'The file path of the file to download. Has to contain the full path. The path should start with "/".',
 			},
 			{
-				displayName: 'Put Output File in Field',
+				displayName: 'Binary Property',
 				name: 'binaryPropertyName',
 				type: 'string',
 				default: 'data',
@@ -362,7 +361,7 @@ export class NextCloud implements INodeType {
 						resource: ['file'],
 					},
 				},
-				hint: 'The name of the output binary field to put the file in',
+				description: 'Name of the binary property to which to write the data of the read file',
 			},
 
 			// ----------------------------------
@@ -385,7 +384,7 @@ export class NextCloud implements INodeType {
 					'The absolute file path of the file to upload. Has to contain the full path. The parent folder has to exist. Existing files get overwritten.',
 			},
 			{
-				displayName: 'Binary File',
+				displayName: 'Binary Data',
 				name: 'binaryDataUpload',
 				type: 'boolean',
 				default: false,
@@ -413,7 +412,7 @@ export class NextCloud implements INodeType {
 				description: 'The text content of the file to upload',
 			},
 			{
-				displayName: 'Input Binary Field',
+				displayName: 'Binary Property',
 				name: 'binaryPropertyName',
 				type: 'string',
 				default: 'data',
@@ -426,7 +425,8 @@ export class NextCloud implements INodeType {
 					},
 				},
 				placeholder: '',
-				hint: 'The name of the input binary field containing the file to be uploaded',
+				description:
+					'Name of the binary property which contains the data for the file to be uploaded',
 			},
 
 			// ----------------------------------
@@ -860,7 +860,7 @@ export class NextCloud implements INodeType {
 
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
 		const items = this.getInputData().slice();
-		const returnData: INodeExecutionData[] = [];
+		const returnData: IDataObject[] = [];
 
 		const authenticationMethod = this.getNodeParameter('authentication', 0);
 		let credentials;
@@ -875,7 +875,7 @@ export class NextCloud implements INodeType {
 		const operation = this.getNodeParameter('operation', 0);
 
 		let endpoint = '';
-		let requestMethod: IHttpRequestMethods = 'GET';
+		let requestMethod = '';
 		let responseData: any;
 
 		let body: string | Buffer | IDataObject = '';
@@ -915,14 +915,14 @@ export class NextCloud implements INodeType {
 						//         create
 						// ----------------------------------
 
-						requestMethod = 'MKCOL' as IHttpRequestMethods;
+						requestMethod = 'MKCOL';
 						endpoint = this.getNodeParameter('path', i) as string;
 					} else if (operation === 'list') {
 						// ----------------------------------
 						//         list
 						// ----------------------------------
 
-						requestMethod = 'PROPFIND' as IHttpRequestMethods;
+						requestMethod = 'PROPFIND';
 						endpoint = this.getNodeParameter('path', i) as string;
 					}
 				}
@@ -933,7 +933,7 @@ export class NextCloud implements INodeType {
 						//         copy
 						// ----------------------------------
 
-						requestMethod = 'COPY' as IHttpRequestMethods;
+						requestMethod = 'COPY';
 						endpoint = this.getNodeParameter('path', i) as string;
 						const toPath = this.getNodeParameter('toPath', i) as string;
 						headers.Destination = `${credentials.webDavUrl}/${encodeURI(toPath)}`;
@@ -949,7 +949,7 @@ export class NextCloud implements INodeType {
 						//         move
 						// ----------------------------------
 
-						requestMethod = 'MOVE' as IHttpRequestMethods;
+						requestMethod = 'MOVE';
 						endpoint = this.getNodeParameter('path', i) as string;
 						const toPath = this.getNodeParameter('toPath', i) as string;
 						headers.Destination = `${credentials.webDavUrl}/${encodeURI(toPath)}`;
@@ -1099,11 +1099,11 @@ export class NextCloud implements INodeType {
 						qs,
 					);
 				} catch (error) {
-					if (this.continueOnFail(error)) {
+					if (this.continueOnFail()) {
 						if (resource === 'file' && operation === 'download') {
 							items[i].json = { error: error.message };
 						} else {
-							returnData.push({ json: { error: error.message }, pairedItem: { item: i } });
+							returnData.push({ error: error.message });
 						}
 						continue;
 					}
@@ -1114,7 +1114,6 @@ export class NextCloud implements INodeType {
 				if (resource === 'file' && operation === 'download') {
 					const newItem: INodeExecutionData = {
 						json: items[i].json,
-						pairedItem: { item: i },
 						binary: {},
 					};
 
@@ -1154,12 +1153,7 @@ export class NextCloud implements INodeType {
 						});
 					});
 
-					const executionData = this.helpers.constructExecutionMetaData(
-						wrapData(jsonResponseData),
-						{ itemData: { item: i } },
-					);
-
-					returnData.push(...executionData);
+					returnData.push(jsonResponseData);
 				} else if (resource === 'user') {
 					if (operation !== 'getAll') {
 						// eslint-disable-next-line @typescript-eslint/no-loop-func
@@ -1186,12 +1180,7 @@ export class NextCloud implements INodeType {
 							});
 						});
 
-						const executionData = this.helpers.constructExecutionMetaData(
-							wrapData(jsonResponseData),
-							{ itemData: { item: i } },
-						);
-
-						returnData.push(...executionData);
+						returnData.push(jsonResponseData);
 					} else {
 						// eslint-disable-next-line @typescript-eslint/no-loop-func
 						const jsonResponseData: IDataObject[] = await new Promise((resolve, reject) => {
@@ -1215,7 +1204,7 @@ export class NextCloud implements INodeType {
 						});
 
 						jsonResponseData.forEach((value) => {
-							returnData.push({ json: { id: value }, pairedItem: { item: i } });
+							returnData.push({ id: value } as IDataObject);
 						});
 					}
 				} else if (resource === 'folder' && operation === 'list') {
@@ -1276,23 +1265,19 @@ export class NextCloud implements INodeType {
 								// @ts-ignore
 								newItem.eTag = props['d:getetag'].slice(1, -1);
 
-								returnData.push({ json: newItem, pairedItem: { item: i } });
+								returnData.push(newItem);
 							}
 						}
 					}
 				} else {
-					const executionData = this.helpers.constructExecutionMetaData(wrapData(responseData), {
-						itemData: { item: i },
-					});
-
-					returnData.push(...executionData);
+					returnData.push(responseData as IDataObject);
 				}
 			} catch (error) {
-				if (this.continueOnFail(error)) {
+				if (this.continueOnFail()) {
 					if (resource === 'file' && operation === 'download') {
 						items[i].json = { error: error.message };
 					} else {
-						returnData.push({ json: { error: error.message }, pairedItem: { item: i } });
+						returnData.push({ error: error.message });
 					}
 					continue;
 				}
@@ -1302,10 +1287,10 @@ export class NextCloud implements INodeType {
 
 		if (resource === 'file' && operation === 'download') {
 			// For file downloads the files get attached to the existing items
-			return [items];
+			return this.prepareOutputData(items);
 		} else {
 			// For all other ones does the output get replaced
-			return [returnData];
+			return [this.helpers.returnJsonArray(returnData)];
 		}
 	}
 }

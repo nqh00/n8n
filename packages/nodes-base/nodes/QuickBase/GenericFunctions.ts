@@ -1,10 +1,10 @@
+import type { OptionsWithUri } from 'request';
+
 import type {
 	IDataObject,
 	IExecuteFunctions,
 	IHookFunctions,
-	IHttpRequestMethods,
 	ILoadOptionsFunctions,
-	IRequestOptions,
 	IWebhookFunctions,
 	JsonObject,
 } from 'n8n-workflow';
@@ -12,7 +12,7 @@ import { NodeApiError, NodeOperationError } from 'n8n-workflow';
 
 export async function quickbaseApiRequest(
 	this: IExecuteFunctions | ILoadOptionsFunctions | IHookFunctions | IWebhookFunctions,
-	method: IHttpRequestMethods,
+	method: string,
 	resource: string,
 
 	body: any = {},
@@ -30,7 +30,7 @@ export async function quickbaseApiRequest(
 	}
 
 	try {
-		const options: IRequestOptions = {
+		const options: OptionsWithUri = {
 			headers: {
 				'QB-Realm-Hostname': credentials.hostname,
 				'User-Agent': 'n8n',
@@ -77,7 +77,7 @@ export async function getFieldsObject(this: IHookFunctions | ILoadOptionsFunctio
 
 export async function quickbaseApiRequestAllItems(
 	this: IHookFunctions | ILoadOptionsFunctions | IExecuteFunctions,
-	method: IHttpRequestMethods,
+	method: string,
 	resource: string,
 
 	body: any = {},

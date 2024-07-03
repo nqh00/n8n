@@ -1,11 +1,6 @@
-import type {
-	IDataObject,
-	IExecuteFunctions,
-	IHookFunctions,
-	IHttpRequestMethods,
-	IRequestOptions,
-	JsonObject,
-} from 'n8n-workflow';
+import type { OptionsWithUri } from 'request';
+
+import type { IDataObject, IExecuteFunctions, IHookFunctions, JsonObject } from 'n8n-workflow';
 import { NodeApiError } from 'n8n-workflow';
 
 /**
@@ -14,14 +9,14 @@ import { NodeApiError } from 'n8n-workflow';
  */
 export async function dropboxApiRequest(
 	this: IHookFunctions | IExecuteFunctions,
-	method: IHttpRequestMethods,
+	method: string,
 	endpoint: string,
 	body: object,
 	query: IDataObject = {},
-	headers: IDataObject = {},
+	headers: object = {},
 	option: IDataObject = {},
 ): Promise<any> {
-	const options: IRequestOptions = {
+	const options: OptionsWithUri = {
 		headers,
 		method,
 		qs: query,
@@ -52,7 +47,7 @@ export async function dropboxApiRequest(
 export async function dropboxpiRequestAllItems(
 	this: IExecuteFunctions | IHookFunctions,
 	propertyName: string,
-	method: IHttpRequestMethods,
+	method: string,
 	endpoint: string,
 
 	body: any = {},
@@ -90,7 +85,7 @@ export async function dropboxpiRequestAllItems(
 }
 
 export async function getRootDirectory(this: IHookFunctions | IExecuteFunctions) {
-	return await dropboxApiRequest.call(
+	return dropboxApiRequest.call(
 		this,
 		'POST',
 		'https://api.dropboxapi.com/2/users/get_current_account',

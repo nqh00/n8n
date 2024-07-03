@@ -1,6 +1,35 @@
 <template>
-	<PageViewLayout>
-		<template #header> <slot name="header" /> </template>
+	<page-view-layout>
+		<template #aside v-if="showAside">
+			<div :class="[$style['heading-wrapper'], 'mb-xs']">
+				<n8n-heading size="2xlarge">
+					{{ $locale.baseText(`${resourceKey}.heading`) }}
+				</n8n-heading>
+			</div>
+
+			<div class="mt-xs mb-l">
+				<slot name="add-button">
+					<n8n-button
+						size="large"
+						block
+						:disabled="disabled"
+						@click="$emit('click:add', $event)"
+						data-test-id="resources-list-add"
+					>
+						{{ $locale.baseText(`${resourceKey}.add`) }}
+					</n8n-button>
+				</slot>
+			</div>
+
+			<enterprise-edition :features="[EnterpriseEditionFeature.Sharing]" v-if="shareable">
+				<resource-ownership-select
+					v-model="isOwnerSubview"
+					:my-resources-label="$locale.baseText(`${resourceKey}.menu.my`)"
+					:all-resources-label="$locale.baseText(`${resourceKey}.menu.all`)"
+				/>
+			</enterprise-edition>
+		</template>
+
 		<div v-if="loading">
 			<n8n-loading :class="[$style['header-loading'], 'mb-l']" variant="custom" />
 			<n8n-loading :class="[$style['card-loading'], 'mb-2xs']" variant="custom" />
@@ -13,83 +42,72 @@
 						data-test-id="empty-resources-list"
 						emoji="👋"
 						:heading="
-							i18n.baseText(
-								usersStore.currentUser?.firstName
-									? (`${resourceKey}.empty.heading` as BaseTextKey)
-									: (`${resourceKey}.empty.heading.userNotSetup` as BaseTextKey),
+							$locale.baseText(
+								usersStore.currentUser.firstName
+									? `${resourceKey}.empty.heading`
+									: `${resourceKey}.empty.heading.userNotSetup`,
 								{
-									interpolate: { name: usersStore.currentUser?.firstName ?? '' },
+									interpolate: { name: usersStore.currentUser.firstName },
 								},
 							)
 						"
-						:description="i18n.baseText(`${resourceKey}.empty.description` as BaseTextKey)"
-						:button-text="i18n.baseText(`${resourceKey}.empty.button` as BaseTextKey)"
-						button-type="secondary"
-						@click:button="onAddButtonClick"
+						:description="$locale.baseText(`${resourceKey}.empty.description`)"
+						:buttonText="$locale.baseText(`${resourceKey}.empty.button`)"
+						buttonType="secondary"
+						@click="$emit('click:add', $event)"
 					/>
 				</slot>
 			</div>
-			<PageViewLayoutList v-else :overflow="type !== 'list'">
+			<page-view-layout-list :overflow="type !== 'list'" v-else>
 				<template #header>
-					<div :class="$style['filters-row']">
-						<div :class="$style.filters">
+					<div class="mb-xs">
+						<div :class="$style['filters-row']">
 							<n8n-input
-								ref="search"
-								:model-value="filtersModel.search"
 								:class="[$style['search'], 'mr-2xs']"
-								:placeholder="i18n.baseText(`${resourceKey}.search.placeholder` as BaseTextKey)"
+								:placeholder="$locale.baseText(`${resourceKey}.search.placeholder`)"
+								v-model="filters.search"
+								size="medium"
 								clearable
+								ref="search"
 								data-test-id="resources-list-search"
-								@update:model-value="onSearch"
 							>
 								<template #prefix>
 									<n8n-icon icon="search" />
 								</template>
 							</n8n-input>
-							<ResourceFiltersDropdown
-								v-if="showFiltersDropdown"
-								:keys="filterKeys"
-								:reset="resetFilters"
-								:model-value="filtersModel"
-								:shareable="shareable"
-								@update:model-value="onUpdateFilters"
-								@update:filters-length="onUpdateFiltersLength"
-							>
-								<template #default="resourceFiltersSlotProps">
-									<slot name="filters" v-bind="resourceFiltersSlotProps" />
-								</template>
-							</ResourceFiltersDropdown>
 							<div :class="$style['sort-and-filter']">
-								<n8n-select v-model="sortBy" data-test-id="resources-list-sort">
+								<n8n-select v-model="sortBy" size="medium" data-test-id="resources-list-sort">
 									<n8n-option
 										v-for="sortOption in sortOptions"
 										:key="sortOption"
-										data-test-id="resources-list-sort-item"
 										:value="sortOption"
-										:label="i18n.baseText(`${resourceKey}.sort.${sortOption}` as BaseTextKey)"
+										:label="$locale.baseText(`${resourceKey}.sort.${sortOption}`)"
 									/>
 								</n8n-select>
+								<resource-filters-dropdown
+									v-if="showFiltersDropdown"
+									:keys="filterKeys"
+									:reset="resetFilters"
+									:value="filters"
+									:shareable="shareable"
+									@input="$emit('update:filters', $event)"
+									@update:filtersLength="onUpdateFiltersLength"
+								>
+									<template #default="resourceFiltersSlotProps">
+										<slot name="filters" v-bind="resourceFiltersSlotProps" />
+									</template>
+								</resource-filters-dropdown>
 							</div>
 						</div>
-						<slot name="add-button" :disabled="disabled">
-							<n8n-button
-								size="large"
-								:disabled="disabled"
-								data-test-id="resources-list-add"
-								@click="onAddButtonClick"
-							>
-								{{ i18n.baseText(`${resourceKey}.add` as BaseTextKey) }}
-							</n8n-button>
-						</slot>
 					</div>
 
 					<slot name="callout"></slot>
 
-					<div v-if="showFiltersDropdown" v-show="hasFilters" class="mt-xs">
+					<div v-show="hasFilters" class="mt-xs">
 						<n8n-info-tip :bold="false">
-							{{ i18n.baseText(`${resourceKey}.filters.active` as BaseTextKey) }}
-							<n8n-link data-test-id="workflows-filter-reset" size="small" @click="resetFilters">
-								{{ i18n.baseText(`${resourceKey}.filters.active.reset` as BaseTextKey) }}
+							{{ $locale.baseText(`${resourceKey}.filters.active`) }}
+							<n8n-link @click="resetFilters" size="small">
+								{{ $locale.baseText(`${resourceKey}.filters.active.reset`) }}
 							</n8n-link>
 						</n8n-info-tip>
 					</div>
@@ -100,31 +118,32 @@
 				<slot name="preamble" />
 
 				<div
-					v-if="filteredAndSortedResources.length > 0"
-					ref="listWrapperRef"
+					v-if="filteredAndSortedSubviewResources.length > 0"
 					:class="$style.listWrapper"
+					ref="listWrapperRef"
 				>
 					<n8n-recycle-scroller
 						v-if="type === 'list'"
 						data-test-id="resources-list"
-						:items="filteredAndSortedResources"
-						:item-size="itemSize()"
+						:class="[$style.list, 'list-style-none']"
+						:items="filteredAndSortedSubviewResources"
+						:item-size="typeProps.itemSize"
 						item-key="id"
 					>
 						<template #default="{ item, updateItemSize }">
-							<slot :data="item" :update-item-size="updateItemSize" />
+							<slot :data="item" :updateItemSize="updateItemSize" />
 						</template>
 					</n8n-recycle-scroller>
 					<n8n-datatable
-						v-if="type === 'datatable'"
+						v-if="typeProps.columns"
 						data-test-id="resources-table"
 						:class="$style.datatable"
-						:columns="getColumns()"
-						:rows="filteredAndSortedResources"
-						:current-page="currentPage"
-						:rows-per-page="rowsPerPage"
-						@update:current-page="setCurrentPage"
-						@update:rows-per-page="setRowsPerPage"
+						:columns="typeProps.columns"
+						:rows="filteredAndSortedSubviewResources"
+						:currentPage="currentPage"
+						:rowsPerPage="rowsPerPage"
+						@update:currentPage="setCurrentPage"
+						@update:rowsPerPage="setRowsPerPage"
 					>
 						<template #row="{ columns, row }">
 							<slot :data="row" :columns="columns" />
@@ -132,60 +151,79 @@
 					</n8n-datatable>
 				</div>
 
-				<n8n-text v-else color="text-base" size="medium" data-test-id="resources-list-empty">
-					{{ i18n.baseText(`${resourceKey}.noResults` as BaseTextKey) }}
+				<n8n-text color="text-base" size="medium" data-test-id="resources-list-empty" v-else>
+					{{ $locale.baseText(`${resourceKey}.noResults`) }}
+					<template v-if="shouldSwitchToAllSubview">
+						<span v-if="!filters.search">
+							({{ $locale.baseText(`${resourceKey}.noResults.switchToShared.preamble`) }}
+							<n8n-link @click="setOwnerSubview(false)">
+								{{ $locale.baseText(`${resourceKey}.noResults.switchToShared.link`) }} </n8n-link
+							>)
+						</span>
+
+						<span v-else>
+							({{
+								$locale.baseText(`${resourceKey}.noResults.withSearch.switchToShared.preamble`)
+							}}
+							<n8n-link @click="setOwnerSubview(false)">
+								{{
+									$locale.baseText(`${resourceKey}.noResults.withSearch.switchToShared.link`)
+								}} </n8n-link
+							>)
+						</span>
+					</template>
 				</n8n-text>
 
 				<slot name="postamble" />
-			</PageViewLayoutList>
+			</page-view-layout-list>
 		</template>
-	</PageViewLayout>
+	</page-view-layout>
 </template>
 
 <script lang="ts">
-import { computed, defineComponent, nextTick, ref, onMounted, watch } from 'vue';
+import { defineComponent } from 'vue';
 import type { PropType } from 'vue';
+import { mapStores } from 'pinia';
 
-import type { ProjectSharingData } from '@/types/projects.types';
+import type { IUser } from '@/Interface';
 import PageViewLayout from '@/components/layouts/PageViewLayout.vue';
 import PageViewLayoutList from '@/components/layouts/PageViewLayoutList.vue';
+import { EnterpriseEditionFeature } from '@/constants';
+import { debounceHelper } from '@/mixins/debounce';
+import ResourceOwnershipSelect from '@/components/forms/ResourceOwnershipSelect.ee.vue';
 import ResourceFiltersDropdown from '@/components/forms/ResourceFiltersDropdown.vue';
+import { useSettingsStore } from '@/stores/settings.store';
 import { useUsersStore } from '@/stores/users.store';
+import type { N8nInput } from 'n8n-design-system';
 import type { DatatableColumn } from 'n8n-design-system';
-import { useI18n } from '@/composables/useI18n';
-import { useDebounce } from '@/composables/useDebounce';
-import { useTelemetry } from '@/composables/useTelemetry';
-import { useRoute } from 'vue-router';
 
-// eslint-disable-next-line unused-imports/no-unused-imports, @typescript-eslint/no-unused-vars
-import type { BaseTextKey } from '@/plugins/i18n';
-import type { Scope } from '@n8n/permissions';
-
-export type IResource = {
+export interface IResource {
 	id: string;
 	name: string;
-	value: string;
-	updatedAt?: string;
-	createdAt?: string;
-	homeProject?: ProjectSharingData;
-	scopes?: Scope[];
-	type?: string;
-	sharedWithProjects?: ProjectSharingData[];
-};
+	updatedAt: string;
+	createdAt: string;
+	ownedBy?: Partial<IUser>;
+	sharedWith?: Array<Partial<IUser>>;
+}
 
 interface IFilters {
 	search: string;
-	homeProject: string;
+	ownedBy: string;
+	sharedWith: string;
+
 	[key: string]: boolean | string | string[];
 }
 
 type IResourceKeyType = 'credentials' | 'workflows';
+type SearchRef = InstanceType<typeof N8nInput>;
 
 export default defineComponent({
-	name: 'ResourcesListLayout',
+	name: 'resources-list-layout',
+	mixins: [debounceHelper],
 	components: {
 		PageViewLayout,
 		PageViewLayoutList,
+		ResourceOwnershipSelect,
 		ResourceFiltersDropdown,
 	},
 	props: {
@@ -198,7 +236,7 @@ export default defineComponent({
 			default: (resource: IResource) => resource.name,
 		},
 		resources: {
-			type: Array as PropType<IResource[]>,
+			type: Array,
 			default: (): IResource[] => [],
 		},
 		disabled: {
@@ -211,12 +249,14 @@ export default defineComponent({
 		},
 		filters: {
 			type: Object,
-			default: (): IFilters => ({ search: '', homeProject: '' }),
+			default: (): IFilters => ({ search: '', ownedBy: '', sharedWith: '' }),
 		},
 		additionalFiltersHandler: {
 			type: Function,
-			required: false,
-			default: undefined,
+		},
+		showAside: {
+			type: Boolean,
+			default: true,
 		},
 		shareable: {
 			type: Boolean,
@@ -245,113 +285,158 @@ export default defineComponent({
 			}),
 		},
 	},
-	emits: ['update:filters', 'click:add', 'sort'],
-	setup(props, { emit }) {
-		const route = useRoute();
-		const i18n = useI18n();
-		const { callDebounced } = useDebounce();
-		const usersStore = useUsersStore();
-		const telemetry = useTelemetry();
+	data() {
+		return {
+			loading: true,
+			isOwnerSubview: false,
+			sortBy: this.sortOptions[0],
+			hasFilters: false,
+			currentPage: 1,
+			rowsPerPage: 10 as number | '*',
+			resettingFilters: false,
+			EnterpriseEditionFeature,
+		};
+	},
+	computed: {
+		...mapStores(useSettingsStore, useUsersStore),
+		subviewResources(): IResource[] {
+			if (!this.shareable) {
+				return this.resources as IResource[];
+			}
 
-		const loading = ref(true);
-		const sortBy = ref(props.sortOptions[0]);
-		const hasFilters = ref(false);
-		const filtersModel = ref(props.filters);
-		const currentPage = ref(1);
-		const rowsPerPage = ref<number>(10);
-		const resettingFilters = ref(false);
-		const search = ref<HTMLElement | null>(null);
+			return (this.resources as IResource[]).filter((resource) => {
+				if (
+					this.isOwnerSubview &&
+					this.settingsStore.isEnterpriseFeatureEnabled(EnterpriseEditionFeature.Sharing)
+				) {
+					return !!(resource.ownedBy && resource.ownedBy.id === this.usersStore.currentUser?.id);
+				}
 
-		//computed
-
-		const filterKeys = computed(() => {
-			return Object.keys(filtersModel.value);
-		});
-
-		const filteredAndSortedResources = computed(() => {
-			const filtered = props.resources.filter((resource) => {
+				return true;
+			});
+		},
+		filterKeys(): string[] {
+			return Object.keys(this.filters);
+		},
+		filteredAndSortedSubviewResources(): IResource[] {
+			const filtered: IResource[] = this.subviewResources.filter((resource: IResource) => {
 				let matches = true;
 
-				if (filtersModel.value.homeProject) {
+				if (this.filters.ownedBy) {
+					matches = matches && !!(resource.ownedBy && resource.ownedBy.id === this.filters.ownedBy);
+				}
+
+				if (this.filters.sharedWith) {
 					matches =
 						matches &&
-						!!(resource.homeProject && resource.homeProject.id === filtersModel.value.homeProject);
+						!!(
+							resource.sharedWith &&
+							resource.sharedWith.find((sharee) => sharee.id === this.filters.sharedWith)
+						);
 				}
 
-				if (filtersModel.value.search) {
-					const searchString = filtersModel.value.search.toLowerCase();
-					matches = matches && props.displayName(resource).toLowerCase().includes(searchString);
+				if (this.filters.search) {
+					const searchString = this.filters.search.toLowerCase();
+
+					matches = matches && this.displayName(resource).toLowerCase().includes(searchString);
 				}
 
-				if (props.additionalFiltersHandler) {
-					matches = props.additionalFiltersHandler(resource, filtersModel.value, matches);
+				if (this.additionalFiltersHandler) {
+					matches = this.additionalFiltersHandler(resource, this.filters, matches);
 				}
 
 				return matches;
 			});
 
 			return filtered.sort((a, b) => {
-				switch (sortBy.value) {
+				switch (this.sortBy) {
 					case 'lastUpdated':
-						return props.sortFns.lastUpdated
-							? props.sortFns.lastUpdated(a, b)
-							: new Date(b.updatedAt ?? '').valueOf() - new Date(a.updatedAt ?? '').valueOf();
+						return this.sortFns['lastUpdated']
+							? this.sortFns['lastUpdated'](a, b)
+							: new Date(b.updatedAt).valueOf() - new Date(a.updatedAt).valueOf();
 					case 'lastCreated':
-						return props.sortFns.lastCreated
-							? props.sortFns.lastCreated(a, b)
-							: new Date(b.createdAt ?? '').valueOf() - new Date(a.createdAt ?? '').valueOf();
+						return this.sortFns['lastCreated']
+							? this.sortFns['lastCreated'](a, b)
+							: new Date(b.createdAt).valueOf() - new Date(a.createdAt).valueOf();
 					case 'nameAsc':
-						return props.sortFns.nameAsc
-							? props.sortFns.nameAsc(a, b)
-							: props.displayName(a).trim().localeCompare(props.displayName(b).trim());
+						return this.sortFns['nameAsc']
+							? this.sortFns['nameAsc'](a, b)
+							: this.displayName(a).trim().localeCompare(this.displayName(b).trim());
 					case 'nameDesc':
-						return props.sortFns.nameDesc
-							? props.sortFns.nameDesc(a, b)
-							: props.displayName(b).trim().localeCompare(props.displayName(a).trim());
+						return this.sortFns['nameDesc']
+							? this.sortFns['nameDesc'](a, b)
+							: this.displayName(b).trim().localeCompare(this.displayName(a).trim());
 					default:
-						return props.sortFns[sortBy.value] ? props.sortFns[sortBy.value](a, b) : 0;
+						return this.sortFns[this.sortBy] ? this.sortFns[this.sortBy](a, b) : 0;
 				}
 			});
-		});
+		},
+		resourcesNotOwned(): IResource[] {
+			return (this.resources as IResource[]).filter((resource) => {
+				return resource.ownedBy && resource.ownedBy.id !== this.usersStore.currentUser?.id;
+			});
+		},
+		shouldSwitchToAllSubview(): boolean {
+			return !this.hasFilters && this.isOwnerSubview && this.resourcesNotOwned.length > 0;
+		},
+	},
+	methods: {
+		async onMounted() {
+			await this.initialize();
 
-		//methods
+			this.loading = false;
+			this.$nextTick(this.focusSearchInput);
+		},
+		setCurrentPage(page: number) {
+			this.currentPage = page;
+		},
+		setRowsPerPage(rowsPerPage: number | '*') {
+			this.rowsPerPage = rowsPerPage;
+		},
+		resetFilters() {
+			Object.keys(this.filters).forEach((key) => {
+				this.filters[key] = Array.isArray(this.filters[key]) ? [] : '';
+			});
 
-		const focusSearchInput = () => {
-			if (search.value) {
-				search.value.focus();
+			this.resettingFilters = true;
+			this.sendFiltersTelemetry('reset');
+		},
+		focusSearchInput() {
+			if (this.$refs.search) {
+				(this.$refs.search as SearchRef).focus();
 			}
-		};
-
-		const hasAppliedFilters = (): boolean => {
-			return !!filterKeys.value.find(
-				(key) =>
-					key !== 'search' &&
-					(Array.isArray(props.filters[key])
-						? props.filters[key].length > 0
-						: props.filters[key] !== ''),
+		},
+		setOwnerSubview(active: boolean) {
+			this.isOwnerSubview = active;
+		},
+		getTelemetrySubview(): string {
+			return this.$locale.baseText(
+				`${this.resourceKey as IResourceKeyType}.menu.${this.isOwnerSubview ? 'my' : 'all'}`,
 			);
-		};
-
-		const setRowsPerPage = (numberOfRowsPerPage: number) => {
-			rowsPerPage.value = numberOfRowsPerPage;
-		};
-
-		const setCurrentPage = (page: number) => {
-			currentPage.value = page;
-		};
-
-		const sendFiltersTelemetry = (source: string) => {
+		},
+		sendSubviewTelemetry() {
+			this.$telemetry.track(`User changed ${this.resourceKey} sub view`, {
+				sub_view: this.getTelemetrySubview(),
+			});
+		},
+		sendSortingTelemetry() {
+			this.$telemetry.track(`User changed sorting in ${this.resourceKey} list`, {
+				sub_view: this.getTelemetrySubview(),
+				sorting: this.sortBy,
+			});
+		},
+		sendFiltersTelemetry(source: string) {
 			// Prevent sending multiple telemetry events when resetting filters
 			// Timeout is required to wait for search debounce to be over
-			if (resettingFilters.value) {
+			if (this.resettingFilters) {
 				if (source !== 'reset') {
 					return;
 				}
 
-				setTimeout(() => (resettingFilters.value = false), 1500);
+				setTimeout(() => (this.resettingFilters = false), 1500);
 			}
 
-			const filters = filtersModel.value as Record<string, string[] | string | boolean>;
+			const filters = this.filters as Record<string, string[] | string | boolean>;
 			const filtersSet: string[] = [];
 			const filterValues: Array<string[] | string | boolean | null> = [];
 
@@ -362,139 +447,54 @@ export default defineComponent({
 				}
 			});
 
-			telemetry.track(`User set filters in ${props.resourceKey} list`, {
+			this.$telemetry.track(`User set filters in ${this.resourceKey} list`, {
 				filters_set: filtersSet,
 				filter_values: filterValues,
-				[`${props.resourceKey}_total_in_view`]: props.resources.length,
-				[`${props.resourceKey}_after_filtering`]: filteredAndSortedResources.value.length,
+				sub_view: this.getTelemetrySubview(),
+				[`${this.resourceKey}_total_in_view`]: this.subviewResources.length,
+				[`${this.resourceKey}_after_filtering`]: this.filteredAndSortedSubviewResources.length,
 			});
-		};
-
-		const onAddButtonClick = (e: Event) => {
-			emit('click:add', e);
-		};
-
-		const onUpdateFilters = (e: Event) => {
-			emit('update:filters', e);
-		};
-
-		const resetFilters = () => {
-			Object.keys(filtersModel.value).forEach((key) => {
-				filtersModel.value[key] = Array.isArray(filtersModel.value[key]) ? [] : '';
-			});
-
-			resettingFilters.value = true;
-			sendFiltersTelemetry('reset');
-			emit('update:filters', filtersModel.value);
-		};
-
-		const itemSize = () => {
-			if ('itemSize' in props.typeProps) {
-				return props.typeProps.itemSize;
+		},
+		onUpdateFiltersLength(length: number) {
+			this.hasFilters = length > 0;
+		},
+	},
+	mounted() {
+		void this.onMounted();
+	},
+	watch: {
+		isOwnerSubview() {
+			this.sendSubviewTelemetry();
+		},
+		'filters.ownedBy'(value) {
+			if (value) {
+				this.setOwnerSubview(false);
 			}
-			return 0;
-		};
-
-		const getColumns = () => {
-			if ('columns' in props.typeProps) {
-				return props.typeProps.columns;
-			}
-			return {};
-		};
-
-		const sendSortingTelemetry = () => {
-			telemetry.track(`User changed sorting in ${props.resourceKey} list`, {
-				sorting: sortBy.value,
-			});
-		};
-
-		const onUpdateFiltersLength = (length: number) => {
-			hasFilters.value = length > 0;
-		};
-
-		const onSearch = (s: string) => {
-			filtersModel.value.search = s;
-			emit('update:filters', filtersModel.value);
-		};
-
-		//watchers
-
-		watch(
-			() => props.filters,
-			(value) => {
-				filtersModel.value = value;
-			},
-		);
-
-		watch(
-			() => filtersModel.value.homeProject,
-			() => {
-				sendFiltersTelemetry('homeProject');
-			},
-		);
-
-		watch(
-			() => filtersModel.value.search,
-			() => callDebounced(sendFiltersTelemetry, { debounceTime: 1000, trailing: true }, 'search'),
-		);
-
-		watch(
-			() => sortBy.value,
-			(newValue) => {
-				emit('sort', newValue);
-				sendSortingTelemetry();
-			},
-		);
-
-		watch(
-			() => route?.params?.projectId,
-			() => {
-				resetFilters();
-			},
-		);
-
-		onMounted(async () => {
-			await props.initialize();
-			loading.value = false;
-			await nextTick();
-
-			focusSearchInput();
-
-			if (hasAppliedFilters()) {
-				hasFilters.value = true;
-			}
-		});
-
-		return {
-			loading,
-			i18n,
-			search,
-			usersStore,
-			filterKeys,
-			currentPage,
-			rowsPerPage,
-			filteredAndSortedResources,
-			hasFilters,
-			sortBy,
-			resettingFilters,
-			filtersModel,
-			sendFiltersTelemetry,
-			getColumns,
-			itemSize,
-			onAddButtonClick,
-			onUpdateFiltersLength,
-			onUpdateFilters,
-			resetFilters,
-			callDebounced,
-			setCurrentPage,
-			setRowsPerPage,
-			onSearch,
-		};
+			this.sendFiltersTelemetry('ownedBy');
+		},
+		'filters.sharedWith'() {
+			this.sendFiltersTelemetry('sharedWith');
+		},
+		'filters.search'() {
+			void this.callDebounced(
+				'sendFiltersTelemetry',
+				{ debounceTime: 1000, trailing: true },
+				'search',
+			);
+		},
+		sortBy(newValue) {
+			this.$emit('sort', newValue);
+			this.sendSortingTelemetry();
+		},
 	},
 });
 </script>
 
 <style lang="scss" module>
+.heading-wrapper {
+	padding-bottom: 1px; // Match input height
+}
+
 .filters-row {
 	display: flex;
 	flex-direction: row;
@@ -502,26 +502,24 @@ export default defineComponent({
 	justify-content: space-between;
 }
 
-.filters {
-	display: grid;
-	grid-auto-flow: column;
-	grid-auto-columns: max-content;
-	gap: var(--spacing-2xs);
-	align-items: center;
-}
-
 .search {
 	max-width: 240px;
 }
 
+.list {
+	//display: flex;
+	//flex-direction: column;
+}
+
 .listWrapper {
-	position: absolute;
 	height: 100%;
-	width: 100%;
 }
 
 .sort-and-filter {
-	white-space: nowrap;
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	justify-content: space-between;
 }
 
 .header-loading {

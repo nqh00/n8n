@@ -1,9 +1,4 @@
-import type {
-	IAuthenticateGeneric,
-	ICredentialTestRequest,
-	ICredentialType,
-	INodeProperties,
-} from 'n8n-workflow';
+import type { ICredentialType, INodeProperties } from 'n8n-workflow';
 
 export class MispApi implements ICredentialType {
 	name = 'mispApi';
@@ -34,21 +29,4 @@ export class MispApi implements ICredentialType {
 			default: false,
 		},
 	];
-
-	authenticate: IAuthenticateGeneric = {
-		type: 'generic',
-		properties: {
-			headers: {
-				Authorization: '={{$credentials.apiKey}}',
-			},
-		},
-	};
-
-	test: ICredentialTestRequest = {
-		request: {
-			baseURL: '={{$credentials.baseUrl.replace(new RegExp("/$"), "")}}',
-			url: '/tags',
-			skipSslCertificateValidation: '={{$credentials.allowUnauthorizedCerts}}',
-		},
-	};
 }

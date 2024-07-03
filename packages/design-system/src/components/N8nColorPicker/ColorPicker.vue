@@ -1,47 +1,53 @@
 <script lang="ts" setup>
 import { computed, ref } from 'vue';
-import { uid } from '../../utils';
-import { ElColorPicker } from 'element-plus';
+import { ColorPicker } from 'element-ui';
 import N8nInput from '../N8nInput';
 
-export type ColorPickerProps = {
+export type Props = {
 	disabled?: boolean;
-	size?: 'small' | 'large';
+	size?: 'small' | 'medium' | 'mini';
 	showAlpha?: boolean;
 	colorFormat?: 'hex' | 'rgb' | 'hsl' | 'hsv';
 	popperClass?: string;
 	predefine?: string[];
-	modelValue?: string;
+	value?: string;
 	showInput?: boolean;
-	name?: string;
 };
 
-defineOptions({ name: 'N8nColorPicker' });
-const props = withDefaults(defineProps<ColorPickerProps>(), {
+const props = withDefaults(defineProps<Props>(), {
 	disabled: false,
-	size: 'large',
+	size: 'medium',
 	showAlpha: false,
 	colorFormat: 'hex',
 	popperClass: '',
-	predefine: undefined,
-	modelValue: undefined,
 	showInput: true,
-	name: uid('color-picker'),
+	value: null,
 });
 
-const color = ref(props.modelValue);
+const color = ref(props.value);
+
 const colorPickerProps = computed(() => {
-	const { showInput, modelValue, size, ...rest } = props;
+	const { value, showInput, ...rest } = props;
 	return rest;
 });
 
 const emit = defineEmits<{
-	(event: 'update:modelValue', value: string | null): void;
-	(event: 'change', value: string | null): void;
-	(event: 'active-change', value: string | null): void;
+	(event: 'input', value: string): void;
+	(event: 'change', value: string): void;
+	(event: 'active-change', value: string): void;
 }>();
 
-const onChange = (value: string | null) => {
+const model = computed({
+	get() {
+		return color.value;
+	},
+	set(value: string) {
+		color.value = value;
+		emit('input', value);
+	},
+});
+
+const onChange = (value: string) => {
 	emit('change', value);
 };
 
@@ -49,38 +55,29 @@ const onInput = (value: string) => {
 	color.value = value;
 };
 
-const onActiveChange = (value: string | null) => {
+const onActiveChange = (value: string) => {
 	emit('active-change', value);
 };
-
-const onColorSelect = (value: string | null) => {
-	emit('update:modelValue', value);
-};
 </script>
-
 <template>
 	<span :class="['n8n-color-picker', $style.component]">
-		<ElColorPicker
+		<color-picker
+			v-model="model"
 			v-bind="colorPickerProps"
-			:model-value="modelValue"
-			:size="props.size"
 			@change="onChange"
 			@active-change="onActiveChange"
-			@update:model-value="onColorSelect"
 		/>
-		<N8nInput
+		<n8n-input
 			v-if="showInput"
 			:class="$style.input"
 			:disabled="props.disabled"
 			:size="props.size"
-			:model-value="color"
-			:name="name"
+			:value="color"
+			@input="onInput"
 			type="text"
-			@update:model-value="onInput"
 		/>
 	</span>
 </template>
-
 <style lang="scss" module>
 .component {
 	display: inline-flex;

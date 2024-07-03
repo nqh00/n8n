@@ -1,5 +1,5 @@
 import { action } from '@storybook/addon-actions';
-import type { StoryFn } from '@storybook/vue3';
+import type { StoryFn } from '@storybook/vue';
 import N8nSticky from './Sticky.vue';
 
 export default {
@@ -40,20 +40,19 @@ export default {
 };
 
 const methods = {
-	onInput: action('update:modelValue'),
+	onInput: action('input'),
 	onResize: action('resize'),
 	onResizeEnd: action('resizeend'),
 	onResizeStart: action('resizestart'),
 };
 
 const Template: StoryFn = (args, { argTypes }) => ({
-	setup: () => ({ args }),
 	props: Object.keys(argTypes),
 	components: {
 		N8nSticky,
 	},
 	template:
-		'<n8n-sticky v-bind="args"  @resize="onResize" @resizeend="onResizeEnd" @resizeStart="onResizeStart" @input="onInput"></n8n-sticky>',
+		'<n8n-sticky v-bind="$props"  @resize="onResize" @resizeend="onResizeEnd" @resizeStart="onResizeStart" @input="onInput"></n8n-sticky>',
 	methods,
 });
 

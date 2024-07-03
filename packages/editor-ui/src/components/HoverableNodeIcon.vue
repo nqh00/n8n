@@ -2,12 +2,12 @@
 	<div
 		:class="$style.wrapper"
 		:style="iconStyleData"
-		@click="() => $emit('click')"
+		@click="(e) => $emit('click')"
 		@mouseover="showTooltip = true"
 		@mouseleave="showTooltip = false"
 	>
 		<div :class="$style.tooltip">
-			<n8n-tooltip placement="top" :visible="showTooltip">
+			<n8n-tooltip placement="top" manual :value="showTooltip">
 				<template #content>
 					<div v-text="nodeType.displayName"></div>
 				</template>
@@ -40,17 +40,16 @@
 </template>
 
 <script lang="ts">
-import { type StyleValue, defineComponent, type PropType } from 'vue';
+import { defineComponent } from 'vue';
 
 import type { ITemplatesNode } from '@/Interface';
 import type { INodeTypeDescription } from 'n8n-workflow';
 import { mapStores } from 'pinia';
-import { useRootStore } from '@/stores/root.store';
+import { useRootStore } from '@/stores/n8nRoot.store';
 
 interface NodeIconData {
 	type: string;
 	path?: string;
-	icon?: string;
 	fileExtension?: string;
 	fileBuffer?: string;
 }
@@ -70,8 +69,7 @@ export default defineComponent({
 			default: false,
 		},
 		nodeType: {
-			type: Object as PropType<INodeTypeDescription>,
-			required: true,
+			type: Object,
 		},
 		size: {
 			type: Number,
@@ -84,11 +82,9 @@ export default defineComponent({
 				'max-width': this.size + 'px',
 			};
 		},
-		iconStyleData(): StyleValue {
-			const nodeType = this.nodeType;
-			const nodeTypeColor = nodeType?.defaults?.color;
-			const color = typeof nodeTypeColor === 'string' ? nodeTypeColor : '';
-
+		iconStyleData(): object {
+			const nodeType = this.nodeType as ITemplatesNode | null;
+			const color = nodeType ? nodeType.defaults && nodeType!.defaults.color : '';
 			if (!this.size) {
 				return { color };
 			}
@@ -107,7 +103,7 @@ export default defineComponent({
 				}),
 			};
 		},
-		imageStyleData(): StyleValue {
+		imageStyleData(): object {
 			return {
 				width: '100%',
 				'max-width': '100%',
@@ -124,9 +120,9 @@ export default defineComponent({
 				return (nodeType as ITemplatesNode).iconData;
 			}
 
-			const restUrl = this.rootStore.restUrl;
+			const restUrl = this.rootStore.getRestUrl;
 
-			if (typeof nodeType.icon === 'string') {
+			if (nodeType.icon) {
 				const [type, path] = nodeType.icon.split(':');
 				const returnData: NodeIconData = {
 					type,

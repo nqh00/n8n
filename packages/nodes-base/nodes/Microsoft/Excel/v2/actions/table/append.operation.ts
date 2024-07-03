@@ -1,14 +1,10 @@
-import type {
-	IDataObject,
-	IExecuteFunctions,
-	INodeExecutionData,
-	INodeProperties,
-} from 'n8n-workflow';
+import type { IExecuteFunctions } from 'n8n-core';
+import type { IDataObject, INodeExecutionData, INodeProperties } from 'n8n-workflow';
+import { processJsonInput, updateDisplayOptions } from '../../../../../../utils/utilities';
 import type { ExcelResponse } from '../../helpers/interfaces';
 import { prepareOutput } from '../../helpers/utils';
 import { microsoftApiRequest } from '../../transport';
 import { tableRLC, workbookRLC, worksheetRLC } from '../common.descriptions';
-import { generatePairedItemData, processJsonInput, updateDisplayOptions } from '@utils/utilities';
 
 const properties: INodeProperties[] = [
 	workbookRLC,
@@ -264,18 +260,17 @@ export async function execute(
 		const dataProperty = (options.dataProperty as string) || 'data';
 
 		returnData.push(
-			...prepareOutput.call(this, this.getNode(), responseData as ExcelResponse, {
+			...prepareOutput(this.getNode(), responseData as ExcelResponse, {
 				columnsRow,
 				dataProperty,
 				rawData,
 			}),
 		);
 	} catch (error) {
-		if (this.continueOnFail(error)) {
-			const itemData = generatePairedItemData(this.getInputData().length);
+		if (this.continueOnFail()) {
 			const executionErrorData = this.helpers.constructExecutionMetaData(
 				this.helpers.returnJsonArray({ error: error.message }),
-				{ itemData },
+				{ itemData: { item: 0 } },
 			);
 			returnData.push(...executionErrorData);
 		} else {

@@ -1,6 +1,7 @@
 import type {
 	IDataObject,
 	IExecuteFunctions,
+	IExecuteSingleFunctions,
 	IHookFunctions,
 	ILoadOptionsFunctions,
 	IHttpRequestMethods,
@@ -10,14 +11,15 @@ import type {
 import { NodeApiError } from 'n8n-workflow';
 
 export async function uprocApiRequest(
-	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions,
-	method: IHttpRequestMethods,
+	this: IHookFunctions | IExecuteFunctions | IExecuteSingleFunctions | ILoadOptionsFunctions,
+	method: string,
 	body: any = {},
 	qs: IDataObject = {},
+	uri?: string,
 	_option: IDataObject = {},
 ): Promise<any> {
 	const options: IHttpRequestOptions = {
-		method,
+		method: method as IHttpRequestMethods,
 		qs,
 		body,
 		url: 'https://api.uproc.io/api/v2/process',

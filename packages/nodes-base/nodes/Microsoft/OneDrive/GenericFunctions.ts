@@ -1,18 +1,17 @@
+import type { OptionsWithUri } from 'request';
+
 import type {
 	IExecuteFunctions,
+	IExecuteSingleFunctions,
 	ILoadOptionsFunctions,
 	IDataObject,
 	JsonObject,
-	IHttpRequestMethods,
-	IRequestOptions,
-	IPollFunctions,
 } from 'n8n-workflow';
 import { NodeApiError } from 'n8n-workflow';
-import { DateTime } from 'luxon';
 
 export async function microsoftApiRequest(
-	this: IExecuteFunctions | ILoadOptionsFunctions | IPollFunctions,
-	method: IHttpRequestMethods,
+	this: IExecuteFunctions | IExecuteSingleFunctions | ILoadOptionsFunctions,
+	method: string,
 	resource: string,
 
 	body: any = {},
@@ -21,7 +20,7 @@ export async function microsoftApiRequest(
 	headers: IDataObject = {},
 	option: IDataObject = { json: true },
 ): Promise<any> {
-	const options: IRequestOptions = {
+	const options: OptionsWithUri = {
 		headers: {
 			'Content-Type': 'application/json',
 		},
@@ -49,9 +48,9 @@ export async function microsoftApiRequest(
 }
 
 export async function microsoftApiRequestAllItems(
-	this: IExecuteFunctions | ILoadOptionsFunctions | IPollFunctions,
+	this: IExecuteFunctions | ILoadOptionsFunctions,
 	propertyName: string,
-	method: IHttpRequestMethods,
+	method: string,
 	endpoint: string,
 
 	body: any = {},
@@ -76,9 +75,9 @@ export async function microsoftApiRequestAllItems(
 }
 
 export async function microsoftApiRequestAllItemsSkip(
-	this: IExecuteFunctions | ILoadOptionsFunctions | IPollFunctions,
+	this: IExecuteFunctions | ILoadOptionsFunctions,
 	propertyName: string,
-	method: IHttpRequestMethods,
+	method: string,
 	endpoint: string,
 
 	body: any = {},
@@ -97,78 +96,4 @@ export async function microsoftApiRequestAllItemsSkip(
 	} while (responseData.value.length !== 0);
 
 	return returnData;
-}
-
-export async function microsoftApiRequestAllItemsDelta(
-	this: IExecuteFunctions | ILoadOptionsFunctions | IPollFunctions,
-	link: string,
-	lastDate: DateTime,
-	eventType: string,
-): Promise<any> {
-	const returnData: IDataObject[] = [];
-
-	let responseData;
-	let deltaLink: string = '';
-	let uri: string = link;
-
-	do {
-		responseData = (await microsoftApiRequest.call(this, 'GET', '', {}, {}, uri)) as IDataObject;
-		uri = responseData['@odata.nextLink'] as string;
-
-		for (const value of responseData.value as IDataObject[]) {
-			if (value.fileSystemInfo as IDataObject) {
-				const updatedTimeStamp = (value.fileSystemInfo as IDataObject)
-					?.lastModifiedDateTime as string;
-				const createdTimeStamp = (value.fileSystemInfo as IDataObject)?.createdDateTime as string;
-				if (eventType === 'created') {
-					if (DateTime.fromISO(createdTimeStamp) >= lastDate) {
-						returnData.push(value);
-					}
-				}
-				if (eventType === 'updated') {
-					if (
-						DateTime.fromISO(updatedTimeStamp) >= lastDate &&
-						DateTime.fromISO(createdTimeStamp) < lastDate
-					) {
-						returnData.push(value);
-					}
-				}
-			}
-		}
-		//returnData.push.apply(returnData, responseData.value as IDataObject[]);
-		deltaLink = (responseData['@odata.deltaLink'] as string) || '';
-	} while (responseData['@odata.nextLink'] !== undefined);
-
-	return { deltaLink, returnData };
-}
-
-export async function getPath(
-	this: IExecuteFunctions | ILoadOptionsFunctions | IPollFunctions,
-	itemId: string,
-): Promise<string> {
-	const responseData = (await microsoftApiRequest.call(
-		this,
-		'GET',
-		'',
-		{},
-		{},
-		`https://graph.microsoft.com/v1.0/me/drive/items/${itemId}`,
-	)) as IDataObject;
-	if (responseData.folder) {
-		return (responseData?.parentReference as IDataObject)?.path + `/${responseData?.name}`;
-	} else {
-		const workflow = this.getWorkflow();
-		const node = this.getNode();
-		this.logger.error(
-			`There was a problem in '${node.name}' node in workflow '${workflow.id}': 'Item to watch is not a folder'`,
-			{
-				node: node.name,
-				workflowId: workflow.id,
-				error: 'Item to watch is not a folder',
-			},
-		);
-		throw new NodeApiError(this.getNode(), {
-			error: 'Item to watch is not a folder',
-		} as JsonObject);
-	}
 }

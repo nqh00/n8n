@@ -90,7 +90,7 @@ export class AwsRekognition implements INodeType {
 				default: 'detectFaces',
 			},
 			{
-				displayName: 'Binary File',
+				displayName: 'Binary Data',
 				name: 'binaryData',
 				type: 'boolean',
 				default: false,
@@ -104,7 +104,7 @@ export class AwsRekognition implements INodeType {
 				description: 'Whether the image to analyze should be taken from binary field',
 			},
 			{
-				displayName: 'Input Binary Field',
+				displayName: 'Binary Property',
 				displayOptions: {
 					show: {
 						operation: ['analyze'],
@@ -115,7 +115,7 @@ export class AwsRekognition implements INodeType {
 				name: 'binaryPropertyName',
 				type: 'string',
 				default: 'data',
-				hint: 'The name of the input binary field containing the file to be written',
+				description: 'Object property name which holds binary data',
 				required: true,
 			},
 			{
@@ -454,7 +454,7 @@ export class AwsRekognition implements INodeType {
 				);
 				returnData.push(...executionData);
 			} catch (error) {
-				if (this.continueOnFail(error)) {
+				if (this.continueOnFail()) {
 					returnData.push({ error: error.message });
 					continue;
 				}

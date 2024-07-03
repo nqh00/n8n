@@ -1,12 +1,14 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
-
+/* eslint-disable @typescript-eslint/no-unsafe-return */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { MessageEventBusDestination } from './MessageEventBusDestination.ee';
 import * as Sentry from '@sentry/node';
-import { MessageEventBusDestinationTypeNames } from 'n8n-workflow';
+import { LoggerProxy, MessageEventBusDestinationTypeNames } from 'n8n-workflow';
 import type {
 	MessageEventBusDestinationOptions,
 	MessageEventBusDestinationSentryOptions,
 } from 'n8n-workflow';
+import { isLogStreamingEnabled } from '../MessageEventBus/MessageEventBusHelper';
 import { eventMessageGenericDestinationTestEvent } from '../EventMessageClasses/EventMessageGeneric';
 import { N8N_VERSION } from '@/constants';
 import type { MessageEventBus, MessageWithCallback } from '../MessageEventBus/MessageEventBus';
@@ -56,7 +58,7 @@ export class MessageEventBusDestinationSentry
 		let sendResult = false;
 		if (!this.sentryClient) return sendResult;
 		if (msg.eventName !== eventMessageGenericDestinationTestEvent) {
-			if (!this.license.isLogStreamingEnabled()) return sendResult;
+			if (!isLogStreamingEnabled()) return sendResult;
 			if (!this.hasSubscribedToEvent(msg)) return sendResult;
 		}
 		try {
@@ -87,7 +89,7 @@ export class MessageEventBusDestinationSentry
 				sendResult = true;
 			}
 		} catch (error) {
-			if (error.message) this.logger.debug(error.message as string);
+			if (error.message) LoggerProxy.debug(error.message as string);
 		}
 		return sendResult;
 	}

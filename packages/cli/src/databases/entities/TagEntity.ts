@@ -1,11 +1,30 @@
-import { Column, Entity, Index, ManyToMany, OneToMany } from '@n8n/typeorm';
+import { BeforeInsert, Column, Entity, Index, ManyToMany, OneToMany, PrimaryColumn } from 'typeorm';
 import { IsString, Length } from 'class-validator';
 import type { WorkflowEntity } from './WorkflowEntity';
 import type { WorkflowTagMapping } from './WorkflowTagMapping';
-import { WithTimestampsAndStringId } from './AbstractEntity';
+import { AbstractEntity } from './AbstractEntity';
+import { generateNanoId } from '../utils/generators';
 
 @Entity()
-export class TagEntity extends WithTimestampsAndStringId {
+export class TagEntity extends AbstractEntity {
+	constructor(data?: Partial<TagEntity>) {
+		super();
+		Object.assign(this, data);
+		if (!this.id) {
+			this.id = generateNanoId();
+		}
+	}
+
+	@BeforeInsert()
+	nanoId() {
+		if (!this.id) {
+			this.id = generateNanoId();
+		}
+	}
+
+	@PrimaryColumn('varchar')
+	id: string;
+
 	@Column({ length: 24 })
 	@Index({ unique: true })
 	@IsString({ message: 'Tag name must be of type string.' })

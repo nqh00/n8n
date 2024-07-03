@@ -1,7 +1,9 @@
-import type { IDataObject, IExecuteFunctions, INode, INodeExecutionData } from 'n8n-workflow';
+import type { IExecuteFunctions } from 'n8n-core';
+import type { IDataObject, INode, INodeExecutionData } from 'n8n-workflow';
 import { NodeOperationError } from 'n8n-workflow';
 import type { ExcelResponse, SheetData, UpdateSummary } from './interfaces';
-import { generatePairedItemData, wrapData } from '@utils/utilities';
+import { constructExecutionMetaData } from 'n8n-core';
+import { wrapData } from '../../../../../utils/utilities';
 
 type PrepareOutputConfig = {
 	rawData: boolean;
@@ -13,7 +15,6 @@ type PrepareOutputConfig = {
 };
 
 export function prepareOutput(
-	this: IExecuteFunctions,
 	node: INode,
 	responseData: ExcelResponse,
 	config: PrepareOutputConfig,
@@ -53,17 +54,16 @@ export function prepareOutput(
 			for (let columnIndex = 0; columnIndex < columns.length; columnIndex++) {
 				data[columns[columnIndex] as string] = values[rowIndex][columnIndex];
 			}
-			const executionData = this.helpers.constructExecutionMetaData(wrapData({ ...data }), {
+			const executionData = constructExecutionMetaData(wrapData({ ...data }), {
 				itemData: { item: rowIndex },
 			});
 
 			returnData.push(...executionData);
 		}
 	} else {
-		const itemData = generatePairedItemData(this.getInputData().length);
-		const executionData = this.helpers.constructExecutionMetaData(
+		const executionData = constructExecutionMetaData(
 			wrapData({ [config.dataProperty || 'data']: responseData }),
-			{ itemData },
+			{ itemData: { item: 0 } },
 		);
 
 		returnData.push(...executionData);
@@ -206,14 +206,3 @@ export function updateByAutoMaping(
 
 	return summary;
 }
-
-export const checkRange = (node: INode, range: string) => {
-	const rangeRegex = /^[A-Z]+:[A-Z]+$/i;
-
-	if (rangeRegex.test(range)) {
-		throw new NodeOperationError(
-			node,
-			`Specify the range more precisely e.g. A1:B5, generic ranges like ${range} are not supported`,
-		);
-	}
-};

@@ -1,18 +1,16 @@
-import { ApplicationError } from 'n8n-workflow';
+import type { OptionsWithUri } from 'request';
 
 import type {
 	IDataObject,
 	IExecuteFunctions,
 	IHookFunctions,
-	IHttpRequestMethods,
 	ILoadOptionsFunctions,
-	IRequestOptions,
 	IWebhookFunctions,
 } from 'n8n-workflow';
 
 export async function mailCheckApiRequest(
 	this: IWebhookFunctions | IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions,
-	method: IHttpRequestMethods,
+	method: string,
 	resource: string,
 
 	body: any = {},
@@ -23,7 +21,7 @@ export async function mailCheckApiRequest(
 ): Promise<any> {
 	const credentials = await this.getCredentials('mailcheckApi');
 
-	let options: IRequestOptions = {
+	let options: OptionsWithUri = {
 		headers: {
 			'Content-Type': 'application/json',
 			Authorization: `Bearer ${credentials.apiKey}`,
@@ -46,9 +44,8 @@ export async function mailCheckApiRequest(
 	} catch (error) {
 		if (error.response?.body?.message) {
 			// Try to return the error prettier
-			throw new ApplicationError(
+			throw new Error(
 				`Mailcheck error response [${error.statusCode}]: ${error.response.body.message}`,
-				{ level: 'warning' },
 			);
 		}
 		throw error;

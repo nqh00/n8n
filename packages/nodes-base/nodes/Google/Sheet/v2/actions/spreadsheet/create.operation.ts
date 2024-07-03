@@ -1,7 +1,6 @@
 import type { IExecuteFunctions, IDataObject, INodeExecutionData } from 'n8n-workflow';
 import type { SpreadSheetProperties } from '../../helpers/GoogleSheets.types';
 import { apiRequest } from '../../transport';
-import { wrapData } from '../../../../../../utils/utilities';
 
 export const description: SpreadSheetProperties = [
 	{
@@ -116,7 +115,7 @@ export const description: SpreadSheetProperties = [
 
 export async function execute(this: IExecuteFunctions): Promise<INodeExecutionData[]> {
 	const items = this.getInputData();
-	const returnData: INodeExecutionData[] = [];
+	const returnData: IDataObject[] = [];
 
 	for (let i = 0; i < items.length; i++) {
 		const title = this.getNodeParameter('title', i) as string;
@@ -146,14 +145,8 @@ export async function execute(this: IExecuteFunctions): Promise<INodeExecutionDa
 		body.properties.locale = options.locale ? (options.locale as string) : undefined;
 
 		const response = await apiRequest.call(this, 'POST', '/v4/spreadsheets', body);
-
-		const executionData = this.helpers.constructExecutionMetaData(
-			wrapData(response as IDataObject),
-			{ itemData: { item: i } },
-		);
-
-		returnData.push(...executionData);
+		returnData.push(response as IDataObject);
 	}
 
-	return returnData;
+	return this.helpers.returnJsonArray(returnData);
 }

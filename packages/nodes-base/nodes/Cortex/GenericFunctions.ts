@@ -1,17 +1,18 @@
+import type { OptionsWithUri } from 'request';
+
 import type {
 	IDataObject,
 	IExecuteFunctions,
+	IExecuteSingleFunctions,
 	IHookFunctions,
-	IHttpRequestMethods,
 	ILoadOptionsFunctions,
-	IRequestOptions,
 } from 'n8n-workflow';
 
-import moment from 'moment-timezone';
+import moment from 'moment';
 
 export async function cortexApiRequest(
-	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions,
-	method: IHttpRequestMethods,
+	this: IHookFunctions | IExecuteFunctions | IExecuteSingleFunctions | ILoadOptionsFunctions,
+	method: string,
 	resource: string,
 
 	body: any = {},
@@ -21,7 +22,7 @@ export async function cortexApiRequest(
 ): Promise<any> {
 	const credentials = await this.getCredentials('cortexApi');
 
-	let options: IRequestOptions = {
+	let options: OptionsWithUri = {
 		headers: {},
 		method,
 		qs: query,
@@ -39,7 +40,7 @@ export async function cortexApiRequest(
 		delete options.qs;
 	}
 
-	return await this.helpers.requestWithAuthentication.call(this, 'cortexApi', options);
+	return this.helpers.requestWithAuthentication.call(this, 'cortexApi', options);
 }
 
 export function getEntityLabel(entity: IDataObject): string {

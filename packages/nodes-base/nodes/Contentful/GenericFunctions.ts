@@ -1,16 +1,17 @@
+import type { OptionsWithUri } from 'request';
+
 import type {
 	IDataObject,
 	IExecuteFunctions,
-	IHttpRequestMethods,
+	IExecuteSingleFunctions,
 	ILoadOptionsFunctions,
-	IRequestOptions,
 	JsonObject,
 } from 'n8n-workflow';
 import { NodeApiError } from 'n8n-workflow';
 
 export async function contentfulApiRequest(
-	this: IExecuteFunctions | ILoadOptionsFunctions,
-	method: IHttpRequestMethods,
+	this: IExecuteFunctions | IExecuteSingleFunctions | ILoadOptionsFunctions,
+	method: string,
 	resource: string,
 
 	body: any = {},
@@ -22,7 +23,7 @@ export async function contentfulApiRequest(
 	const source = this.getNodeParameter('source', 0) as string;
 	const isPreview = source === 'previewApi';
 
-	const options: IRequestOptions = {
+	const options: OptionsWithUri = {
 		method,
 		qs,
 		body,
@@ -43,10 +44,10 @@ export async function contentfulApiRequest(
 	}
 }
 
-export async function contentfulApiRequestAllItems(
+export async function contenfulApiRequestAllItems(
 	this: ILoadOptionsFunctions | IExecuteFunctions,
 	propertyName: string,
-	method: IHttpRequestMethods,
+	method: string,
 	resource: string,
 
 	body: any = {},

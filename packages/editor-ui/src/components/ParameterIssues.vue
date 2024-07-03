@@ -1,8 +1,8 @@
 <template>
-	<div v-if="issues.length" :class="$style['parameter-issues']" data-test-id="parameter-issues">
+	<div :class="$style['parameter-issues']" v-if="issues.length">
 		<n8n-tooltip placement="top">
 			<template #content>
-				<TitledList :title="`${$locale.baseText('parameterInput.issues')}:`" :items="issues" />
+				<titled-list :title="`${$locale.baseText('parameterInput.issues')}:`" :items="issues" />
 			</template>
 			<font-awesome-icon icon="exclamation-triangle" />
 		</n8n-tooltip>

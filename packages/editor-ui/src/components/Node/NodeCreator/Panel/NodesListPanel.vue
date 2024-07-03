@@ -1,24 +1,18 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, watch } from 'vue';
+import { getCurrentInstance, computed, onMounted, onUnmounted, watch } from 'vue';
 import type { INodeCreateElement } from '@/Interface';
-import {
-	AI_OTHERS_NODE_CREATOR_VIEW,
-	AI_NODE_CREATOR_VIEW,
-	REGULAR_NODE_CREATOR_VIEW,
-	TRIGGER_NODE_CREATOR_VIEW,
-} from '@/constants';
+import { TRIGGER_NODE_CREATOR_VIEW } from '@/constants';
 
 import { useNodeCreatorStore } from '@/stores/nodeCreator.store';
 
-import { TriggerView, RegularView, AIView, AINodesView } from '../viewsData';
+import { TriggerView, RegularView } from '../viewsData';
 import { useViewStacks } from '../composables/useViewStacks';
 import { useKeyboardNavigation } from '../composables/useKeyboardNavigation';
 import SearchBar from './SearchBar.vue';
 import ActionsRenderer from '../Modes/ActionsMode.vue';
 import NodesRenderer from '../Modes/NodesMode.vue';
-import { useI18n } from '@/composables/useI18n';
 
-const i18n = useI18n();
+const instance = getCurrentInstance();
 
 const { mergedNodes } = useNodeCreatorStore();
 const { pushViewStack, popViewStack, updateCurrentViewStack } = useViewStacks();
@@ -31,44 +25,30 @@ const viewStacks = computed(() => useViewStacks().viewStacks);
 const isActionsMode = computed(() => useViewStacks().activeViewStackMode === 'actions');
 const searchPlaceholder = computed(() =>
 	isActionsMode.value
-		? i18n.baseText('nodeCreator.actionsCategory.searchActions', {
+		? instance?.proxy?.$locale.baseText('nodeCreator.actionsCategory.searchActions', {
 				interpolate: { node: activeViewStack.value.title as string },
-			})
-		: i18n.baseText('nodeCreator.searchBar.searchNodes'),
+		  })
+		: instance?.proxy?.$locale.baseText('nodeCreator.searchBar.searchNodes'),
 );
 
 const nodeCreatorView = computed(() => useNodeCreatorStore().selectedView);
 
-function getDefaultActiveIndex(search: string = ''): number {
-	if (activeViewStack.value.activeIndex) {
-		return activeViewStack.value.activeIndex;
-	}
-
-	if (activeViewStack.value.mode === 'actions') {
-		// For actions, set the active focus to the first action, not category
-		return 1;
-	} else if (activeViewStack.value.sections) {
-		// For sections, set the active focus to the first node, not section (unless searching)
-		return search ? 0 : 1;
-	}
-
-	return 0;
-}
-
 function onSearch(value: string) {
 	if (activeViewStack.value.uuid) {
 		updateCurrentViewStack({ search: value });
-		void setActiveItemIndex(getDefaultActiveIndex(value));
+		void setActiveItemIndex(activeViewStack.value.activeIndex ?? 0);
 	}
 }
 
 function onTransitionEnd() {
-	void setActiveItemIndex(getDefaultActiveIndex());
+	// For actions, set the active focus to the first action, not category
+	const newStackIndex = activeViewStack.value.mode === 'actions' ? 1 : 0;
+	void setActiveItemIndex(activeViewStack.value.activeIndex || 0 || newStackIndex);
 }
 
 onMounted(() => {
 	attachKeydownEvent();
-	void setActiveItemIndex(getDefaultActiveIndex());
+	void setActiveItemIndex(activeViewStack.value.activeIndex ?? 0);
 });
 
 onUnmounted(() => {
@@ -78,27 +58,15 @@ onUnmounted(() => {
 watch(
 	() => nodeCreatorView.value,
 	(selectedView) => {
-		const views = {
-			[TRIGGER_NODE_CREATOR_VIEW]: TriggerView,
-			[REGULAR_NODE_CREATOR_VIEW]: RegularView,
-			[AI_NODE_CREATOR_VIEW]: AIView,
-			[AI_OTHERS_NODE_CREATOR_VIEW]: AINodesView,
-		};
-
-		const itemKey = selectedView;
-		const matchedView = views[itemKey];
-
-		if (!matchedView) {
-			console.warn(`No view found for ${itemKey}`);
-			return;
-		}
-		const view = matchedView(mergedNodes);
+		const view =
+			selectedView === TRIGGER_NODE_CREATOR_VIEW
+				? TriggerView(instance?.proxy?.$locale)
+				: RegularView(instance?.proxy?.$locale);
 
 		pushViewStack({
 			title: view.title,
 			subtitle: view?.subtitle ?? '',
 			items: view.items as INodeCreateElement[],
-			info: view.info,
 			hasSearch: true,
 			mode: 'nodes',
 			rootView: selectedView,
@@ -118,27 +86,15 @@ function onBackButton() {
 	<transition
 		v-if="viewStacks.length > 0"
 		:name="`panel-slide-${activeViewStack.transitionDirection}`"
-		@after-leave="onTransitionEnd"
+		@afterLeave="onTransitionEnd"
 	>
-		<aside
-			:key="`${activeViewStack.uuid}`"
-			:class="[$style.nodesListPanel, activeViewStack.panelClass]"
-			@keydown.capture.stop
-		>
+		<aside :class="$style.nodesListPanel" @keydown.capture.stop :key="`${activeViewStack.uuid}`">
 			<header
-				:class="{
-					[$style.header]: true,
-					[$style.hasBg]: !activeViewStack.subtitle,
-					'nodes-list-panel-header': true,
-				}"
+				:class="{ [$style.header]: true, [$style.hasBg]: !activeViewStack.subtitle }"
 				data-test-id="nodes-list-header"
 			>
 				<div :class="$style.top">
-					<button
-						v-if="viewStacks.length > 1 && !activeViewStack.preventBack"
-						:class="$style.backButton"
-						@click="onBackButton"
-					>
+					<button :class="$style.backButton" @click="onBackButton" v-if="viewStacks.length > 1">
 						<font-awesome-icon :class="$style.backButtonIcon" icon="arrow-left" size="2x" />
 					</button>
 					<n8n-node-icon
@@ -149,10 +105,10 @@ function onBackButton() {
 						:name="activeViewStack.nodeIcon.icon"
 						:color="activeViewStack.nodeIcon.color"
 						:circle="false"
-						:show-tooltip="false"
-						:size="20"
+						:showTooltip="false"
+						:size="16"
 					/>
-					<p v-if="activeViewStack.title" :class="$style.title" v-text="activeViewStack.title" />
+					<p :class="$style.title" v-text="activeViewStack.title" v-if="activeViewStack.title" />
 				</div>
 				<p
 					v-if="activeViewStack.subtitle"
@@ -160,7 +116,7 @@ function onBackButton() {
 					v-text="activeViewStack.subtitle"
 				/>
 			</header>
-			<SearchBar
+			<search-bar
 				v-if="activeViewStack.hasSearch"
 				:class="$style.searchBar"
 				:placeholder="
@@ -168,21 +124,15 @@ function onBackButton() {
 						? searchPlaceholder
 						: $locale.baseText('nodeCreator.searchBar.searchNodes')
 				"
-				:model-value="activeViewStack.search"
-				@update:model-value="onSearch"
+				@input="onSearch"
+				:value="activeViewStack.search"
 			/>
 			<div :class="$style.renderedItems">
-				<n8n-notice
-					v-if="activeViewStack.info && !activeViewStack.search"
-					:class="$style.info"
-					:content="activeViewStack.info"
-					theme="warning"
-				/>
 				<!-- Actions mode -->
-				<ActionsRenderer v-if="isActionsMode && activeViewStack.subcategory" v-bind="$attrs" />
+				<ActionsRenderer v-if="isActionsMode && activeViewStack.subcategory" v-on="$listeners" />
 
 				<!-- Nodes Mode -->
-				<NodesRenderer v-else :root-view="nodeCreatorView" v-bind="$attrs" />
+				<NodesRenderer v-else :rootView="nodeCreatorView" v-on="$listeners" />
 			</div>
 		</aside>
 	</transition>
@@ -199,21 +149,18 @@ function onBackButton() {
 	right: 0;
 }
 
-:global(.panel-slide-out-enter-from),
+:global(.panel-slide-out-enter),
 :global(.panel-slide-in-leave-to) {
 	transform: translateX(0);
 	z-index: -1;
 }
 
 :global(.panel-slide-out-leave-to),
-:global(.panel-slide-in-enter-from) {
+:global(.panel-slide-in-enter) {
 	transform: translateX(100%);
 	// Make sure the leaving panel stays on top
 	// for the slide-out panel effect
 	z-index: 1;
-}
-.info {
-	margin: var(--spacing-2xs) var(--spacing-s);
 }
 .backButton {
 	background: transparent;
@@ -228,7 +175,7 @@ function onBackButton() {
 	padding: 0;
 }
 .nodeIcon {
-	--node-icon-size: 20px;
+	--node-icon-size: 16px;
 	margin-right: var(--spacing-s);
 }
 .renderedItems {
@@ -249,7 +196,6 @@ function onBackButton() {
 	background: var(--color-background-xlight);
 	height: 100%;
 	background-color: $node-creator-background-color;
-	--color-background-node-icon-badge: var(--color-background-xlight);
 	width: 385px;
 	display: flex;
 	flex-direction: column;
@@ -308,15 +254,5 @@ function onBackButton() {
 }
 .offsetSubtitle {
 	margin-left: calc(var(--spacing-xl) + var(--spacing-4xs));
-}
-</style>
-
-<style lang="scss">
-@each $node-type in $supplemental-node-types {
-	.nodes-list-panel-#{$node-type} .nodes-list-panel-header {
-		.n8n-node-icon svg {
-			color: var(--node-type-#{$node-type}-color);
-		}
-	}
 }
 </style>

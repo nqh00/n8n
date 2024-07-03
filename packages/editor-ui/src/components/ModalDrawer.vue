@@ -1,19 +1,21 @@
 <template>
-	<ElDrawer
+	<el-drawer
 		:direction="direction"
-		:model-value="uiStore.isModalOpen(name)"
+		:visible="uiStore.isModalOpen(this.name)"
 		:size="width"
 		:before-close="close"
 		:modal="modal"
-		:wrapper-closable="wrapperClosable"
+		:wrapperClosable="wrapperClosable"
 	>
-		<template #header>
+		<template #title>
 			<slot name="header" />
 		</template>
-		<span @keydown.stop>
-			<slot name="content" />
-		</span>
-	</ElDrawer>
+		<template>
+			<span @keydown.stop>
+				<slot name="content" />
+			</span>
+		</template>
+	</el-drawer>
 </template>
 
 <script lang="ts">
@@ -22,17 +24,12 @@ import { mapStores } from 'pinia';
 import { defineComponent } from 'vue';
 import type { PropType } from 'vue';
 import type { EventBus } from 'n8n-design-system';
-import { ElDrawer } from 'element-plus';
 
 export default defineComponent({
 	name: 'ModalDrawer',
-	components: {
-		ElDrawer,
-	},
 	props: {
 		name: {
 			type: String,
-			required: true,
 		},
 		beforeClose: {
 			type: Function,
@@ -41,8 +38,7 @@ export default defineComponent({
 			type: Object as PropType<EventBus>,
 		},
 		direction: {
-			type: String as PropType<'ltr' | 'rtl' | 'ttb' | 'btt'>,
-			required: true,
+			type: String,
 		},
 		modal: {
 			type: Boolean,
@@ -65,7 +61,7 @@ export default defineComponent({
 			activeElement.blur();
 		}
 	},
-	beforeUnmount() {
+	beforeDestroy() {
 		this.eventBus?.off('close', this.close);
 		window.removeEventListener('keydown', this.onWindowKeydown);
 	},

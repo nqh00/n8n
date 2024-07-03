@@ -1,26 +1,30 @@
+import { PiniaVuePlugin } from 'pinia';
+import { render, within } from '@testing-library/vue';
+import { merge } from 'lodash-es';
 import {
 	DEFAULT_SETUP,
 	MAPPING_COLUMNS_RESPONSE,
+	NODE_PARAMETER_VALUES,
 	UPDATED_SCHEMA,
 } from './utils/ResourceMapper.utils';
 import { useNodeTypesStore } from '@/stores/nodeTypes.store';
 import { waitAllPromises } from '@/__tests__/utils';
+import * as workflowHelpers from '@/mixins/workflowHelpers';
 import ResourceMapper from '@/components/ResourceMapper/ResourceMapper.vue';
 import userEvent from '@testing-library/user-event';
-import { createComponentRenderer } from '@/__tests__/render';
-import type { MockInstance } from 'vitest';
 
 let nodeTypeStore: ReturnType<typeof useNodeTypesStore>;
-let fetchFieldsSpy: MockInstance;
 
-const renderComponent = createComponentRenderer(ResourceMapper, DEFAULT_SETUP);
+const renderComponent = (renderOptions: Parameters<typeof render>[1] = {}) =>
+	render(ResourceMapper, merge(DEFAULT_SETUP, renderOptions), (vue) => {
+		vue.use(PiniaVuePlugin);
+	});
 
 describe('ResourceMapper.vue', () => {
-	beforeAll(() => {
+	beforeEach(() => {
 		nodeTypeStore = useNodeTypesStore();
-		fetchFieldsSpy = vi
-			.spyOn(nodeTypeStore, 'getResourceMapperFields')
-			.mockResolvedValue(MAPPING_COLUMNS_RESPONSE);
+		vi.spyOn(workflowHelpers, 'resolveParameter').mockReturnValue(NODE_PARAMETER_VALUES);
+		vi.spyOn(nodeTypeStore, 'getResourceMapperFields').mockResolvedValue(MAPPING_COLUMNS_RESPONSE);
 	});
 
 	afterEach(() => {
@@ -40,21 +44,18 @@ describe('ResourceMapper.vue', () => {
 		).toBe(MAPPING_COLUMNS_RESPONSE.fields.length);
 	});
 
-	it('renders add mode properly', async () => {
-		const { getByTestId, queryByTestId } = renderComponent(
-			{
-				props: {
-					parameter: {
-						typeOptions: {
-							resourceMapper: {
-								mode: 'add',
-							},
+	it('renders add mode  properly', async () => {
+		const { getByTestId, queryByTestId } = renderComponent({
+			props: {
+				parameter: {
+					typeOptions: {
+						resourceMapper: {
+							mode: 'add',
 						},
 					},
 				},
 			},
-			{ merge: true },
-		);
+		});
 		await waitAllPromises();
 		expect(getByTestId('resource-mapper-container')).toBeInTheDocument();
 		// This mode doesn't render matching column selector
@@ -62,126 +63,113 @@ describe('ResourceMapper.vue', () => {
 	});
 
 	it('renders multi-key match selector properly', async () => {
-		const { container, getByTestId } = renderComponent(
-			{
-				props: {
-					parameter: {
-						typeOptions: {
-							resourceMapper: {
-								mode: 'upsert',
-								multiKeyMatch: true,
-							},
+		const { container, getByTestId } = renderComponent({
+			props: {
+				parameter: {
+					typeOptions: {
+						resourceMapper: {
+							mode: 'upsert',
+							multiKeyMatch: true,
 						},
 					},
 				},
 			},
-			{ merge: true },
-		);
+		});
 		await waitAllPromises();
 		expect(getByTestId('resource-mapper-container')).toBeInTheDocument();
 		expect(container.querySelector('.el-select__tags')).toBeInTheDocument();
 	});
 
 	it('does not render mapping mode selector if it is disabled', async () => {
-		const { getByTestId, queryByTestId } = renderComponent(
-			{
-				props: {
-					parameter: {
-						typeOptions: {
-							resourceMapper: {
-								supportAutoMap: false,
-							},
+		const { getByTestId, queryByTestId } = renderComponent({
+			props: {
+				parameter: {
+					typeOptions: {
+						resourceMapper: {
+							supportAutoMap: false,
 						},
 					},
 				},
 			},
-			{ merge: true },
-		);
+		});
 		await waitAllPromises();
 		expect(getByTestId('resource-mapper-container')).toBeInTheDocument();
 		expect(queryByTestId('mapping-mode-select')).not.toBeInTheDocument();
 	});
 
 	it('renders field on top of the list when they are selected for matching', async () => {
-		const user = userEvent.setup();
-		const { container, getByTestId } = renderComponent(
-			{
-				props: {
-					parameter: {
-						typeOptions: {
-							resourceMapper: {
-								supportAutoMap: true,
-								mode: 'upsert',
-								multiKeyMatch: false,
-							},
+		const { container, getByTestId } = renderComponent({
+			props: {
+				parameter: {
+					typeOptions: {
+						resourceMapper: {
+							supportAutoMap: true,
+							mode: 'upsert',
+							multiKeyMatch: false,
 						},
 					},
 				},
 			},
-			{ merge: true },
-		);
+		});
 		await waitAllPromises();
 		expect(getByTestId('resource-mapper-container')).toBeInTheDocument();
 		// Id should be the first field in the list
 		expect(container.querySelector('.parameter-item')).toContainHTML('id (using to match)');
-		// Select Last Name as matching column
-		await user.click(getByTestId('matching-column-option-Last name'));
-		// Now, last name should be the first field in the list
-		expect(container.querySelector('.parameter-item div.title')).toHaveTextContent(
-			'Last name (using to match)',
-		);
-	}, 10000);
+		// // Select Last Name as matching column
+		await userEvent.click(getByTestId('matching-column-select'));
+		const matchingColumnDropdown = getByTestId('matching-column-select');
+		await userEvent.click(within(matchingColumnDropdown).getByText('Last Name'));
+		// // Now, last name should be the first field in the list
+		expect(container.querySelector('.parameter-item')).toContainHTML('Last Name (using to match)');
+	});
 
 	it('renders selected matching columns properly when multiple key matching is enabled', async () => {
-		const user = userEvent.setup();
-		const { getByTestId, getAllByText, queryByText } = renderComponent(
-			{
-				props: {
-					parameter: {
-						typeOptions: {
-							resourceMapper: {
-								supportAutoMap: true,
-								mode: 'upsert',
-								multiKeyMatch: true,
-							},
+		const { getByTestId, getByText, queryByText } = renderComponent({
+			props: {
+				parameter: {
+					typeOptions: {
+						resourceMapper: {
+							supportAutoMap: true,
+							mode: 'upsert',
+							multiKeyMatch: true,
 						},
 					},
 				},
 			},
-			{ merge: true },
-		);
+		});
 		await waitAllPromises();
 		expect(getByTestId('resource-mapper-container')).toBeInTheDocument();
-		await user.click(getByTestId('matching-column-option-Username'));
-
-		// Both matching columns (id and Username) should be rendered in the dropdown
-		expect(
-			getByTestId('matching-column-select').querySelector('.el-select  > div'),
-		).toHaveTextContent('idUsername');
+		const matchingColumnDropdown = getByTestId('matching-column-select');
+		await userEvent.click(matchingColumnDropdown);
+		await userEvent.click(within(matchingColumnDropdown).getByText('Username'));
+		// Both matching columns should be rendered in the dropdown
+		expect(getByTestId('matching-column-select')).toContainHTML(
+			'<span class="el-select__tags-text">id</span>',
+		);
+		expect(getByTestId('matching-column-select')).toContainHTML(
+			'<span class="el-select__tags-text">Username</span>',
+		);
 		// All selected columns should have correct labels
-		expect(getAllByText('id (using to match)')[0]).toBeInTheDocument();
-		expect(getAllByText('Username (using to match)')[0]).toBeInTheDocument();
+		expect(getByText('id (using to match)')).toBeInTheDocument();
+		expect(getByText('Username (using to match)')).toBeInTheDocument();
 		expect(queryByText('First Name (using to match)')).not.toBeInTheDocument();
 	});
 
 	it('uses field words defined in node definition', async () => {
-		const { getByText } = renderComponent(
-			{
-				props: {
-					parameter: {
-						typeOptions: {
-							resourceMapper: {
-								fieldWords: {
-									singular: 'foo',
-									plural: 'foos',
-								},
+		const { getByText } = renderComponent({
+			props: {
+				parameter: {
+					typeOptions: {
+						resourceMapper: {
+							fieldWords: {
+								singular: 'foo',
+								plural: 'foos',
 							},
 						},
 					},
 				},
 			},
-			{ merge: true },
-		);
+		});
 		await waitAllPromises();
 		expect(getByText('Set the value for each foo')).toBeInTheDocument();
 		expect(
@@ -192,84 +180,7 @@ describe('ResourceMapper.vue', () => {
 	});
 
 	it('should render correct fields based on saved schema', async () => {
-		const { getByTestId } = renderComponent(
-			{
-				props: {
-					node: {
-						parameters: {
-							columns: {
-								schema: UPDATED_SCHEMA,
-							},
-						},
-					},
-					parameter: {
-						typeOptions: {
-							resourceMapper: {
-								mode: 'add',
-							},
-						},
-					},
-				},
-			},
-			{ merge: true },
-		);
-		await waitAllPromises();
-		// There should be 4 fields rendered and only 1 of them should have remove button
-		expect(
-			getByTestId('mapping-fields-container').querySelectorAll('.parameter-input').length,
-		).toBe(4);
-		expect(
-			getByTestId('mapping-fields-container').querySelectorAll(
-				'[data-test-id^="remove-field-button"]',
-			).length,
-		).toBe(1);
-	});
-
-	it('should render correct options based on saved schema', async () => {
-		const { getByTestId } = renderComponent(
-			{
-				props: {
-					node: {
-						parameters: {
-							columns: {
-								schema: UPDATED_SCHEMA,
-							},
-						},
-					},
-					parameter: {
-						typeOptions: {
-							resourceMapper: {
-								mode: 'add',
-							},
-						},
-					},
-				},
-			},
-			{ merge: true },
-		);
-		await waitAllPromises();
-		// Should have one option in the bottom dropdown for one removed field
-		expect(getByTestId('add-fields-select').querySelectorAll('li').length).toBe(1);
-	});
-
-	it('should fetch fields if there is no cached schema', async () => {
-		renderComponent({
-			props: {
-				node: {
-					parameters: {
-						columns: {
-							schema: null,
-						},
-					},
-				},
-			},
-		});
-		await waitAllPromises();
-		expect(fetchFieldsSpy).toHaveBeenCalledTimes(1);
-	});
-
-	it('should not fetch fields if schema is already fetched', async () => {
-		renderComponent({
+		const { getByTestId, queryAllByTestId } = renderComponent({
 			props: {
 				node: {
 					parameters: {
@@ -288,48 +199,34 @@ describe('ResourceMapper.vue', () => {
 			},
 		});
 		await waitAllPromises();
-		expect(fetchFieldsSpy).not.toHaveBeenCalled();
+		// There should be 5 fields rendered and only 2 of them should have remove button
+		expect(
+			getByTestId('mapping-fields-container').querySelectorAll('.parameter-input').length,
+		).toBe(5);
+		expect(queryAllByTestId('remove-field-button').length).toBe(2);
 	});
 
-	it('renders initially selected matching column properly', async () => {
-		const { getByTestId } = renderComponent(
-			{
-				props: {
-					node: {
-						parameters: {
-							columns: {
-								mappingMode: 'autoMapInputData',
-								matchingColumns: ['name'],
-								schema: [
-									{
-										id: 'name',
-										displayName: 'name',
-										canBeUsedToMatch: true,
-									},
-									{
-										id: 'email',
-										displayName: 'email',
-										canBeUsedToMatch: true,
-									},
-								],
-							},
+	it('should render correct options based on saved schema', async () => {
+		const { getByTestId } = renderComponent({
+			props: {
+				node: {
+					parameters: {
+						columns: {
+							schema: UPDATED_SCHEMA,
 						},
 					},
-					parameter: {
-						typeOptions: {
-							resourceMapper: {
-								supportAutoMap: true,
-								mode: 'upsert',
-								multiKeyMatch: false,
-							},
+				},
+				parameter: {
+					typeOptions: {
+						resourceMapper: {
+							mode: 'add',
 						},
 					},
 				},
 			},
-			{ merge: true },
-		);
+		});
 		await waitAllPromises();
-
-		expect(getByTestId('matching-column-select').querySelector('input')).toHaveValue('name');
+		// Should have one option in the bottom dropdown for one removed field
+		expect(getByTestId('add-fields-select').querySelectorAll('li').length).toBe(1);
 	});
 });

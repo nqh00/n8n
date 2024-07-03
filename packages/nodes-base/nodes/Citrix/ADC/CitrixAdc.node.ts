@@ -17,7 +17,7 @@ export class CitrixAdc implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Citrix ADC',
 		name: 'citrixAdc',
-		icon: { light: 'file:citrix.svg', dark: 'file:citrix.dark.svg' },
+		icon: 'file:citrix.svg',
 		group: ['output'],
 		version: 1,
 		subtitle: '={{$parameter["operation"] + ": " + $parameter["resource"]}}',
@@ -237,7 +237,7 @@ export class CitrixAdc implements INodeType {
 					}),
 				);
 			} catch (error) {
-				if (this.continueOnFail(error)) {
+				if (this.continueOnFail()) {
 					returnData.push({ error: (error as JsonObject).toString() });
 					continue;
 				}

@@ -1,1 +1,1 @@
-export type AuthenticationMethod = 'email' | 'ldap' | 'saml';
+export type AuthenticationMethod = 'none' | 'email' | 'ldap' | 'saml';

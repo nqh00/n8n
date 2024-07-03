@@ -1,5 +1,5 @@
-import { getValueDescription, validateFieldType } from '@/TypeValidation';
-import { DateTime } from 'luxon';
+import { validateFieldType } from '@/NodeHelpers';
+import type { DateTime } from 'luxon';
 
 const VALID_ISO_DATES = [
 	'1994-11-05T08:15:30-05:00',
@@ -30,18 +30,12 @@ const VALID_RFC_DATES = [
 
 const VALID_SQL_DATES = ['2008-11-11', '2008-11-11 13:23:44'];
 
-const OTHER_VALID_DATES = [
-	'Wed, 17 May 2023 10:52:32',
-	'SMT, 17 May 2023 10:52:32',
-	'1-Feb-2024',
-	new Date(),
-	DateTime.now(),
-];
-
 const INVALID_DATES = [
 	'1994-11-05M08:15:30-05:00',
 	'18-05-2020',
 	'',
+	'Wed, 17 May 2023 10:52:32',
+	'SMT, 17 May 2023 10:52:32',
 	'1685084980', // We are not supporting timestamps
 	'1685085012135',
 	1685084980,
@@ -51,38 +45,40 @@ const INVALID_DATES = [
 ];
 
 describe('Type Validation', () => {
-	describe('Dates', () => {
-		test.each(VALID_ISO_DATES)('should validate and cast ISO date "%s"', (date) => {
+	it('should validate and cast ISO dates', () => {
+		VALID_ISO_DATES.forEach((date) => {
 			const validationResult = validateFieldType('date', date, 'dateTime');
 			expect(validationResult.valid).toBe(true);
 			expect((validationResult.newValue as DateTime).isValid).toBe(true);
 		});
+	});
 
-		test.each(VALID_RFC_DATES)('should validate and cast RFC2822 date "%s"', (date) => {
+	it('should validate and cast RFC 2822 dates', () => {
+		VALID_RFC_DATES.forEach((date) => {
 			const validationResult = validateFieldType('date', date, 'dateTime');
 			expect(validationResult.valid).toBe(true);
 			expect((validationResult.newValue as DateTime).isValid).toBe(true);
 		});
+	});
 
-		test.each(VALID_HTTP_DATES)('should validate and cast HTTP date "%s"', (date) => {
+	it('should validate and cast HTTP dates', () => {
+		VALID_HTTP_DATES.forEach((date) => {
 			const validationResult = validateFieldType('date', date, 'dateTime');
 			expect(validationResult.valid).toBe(true);
 			expect((validationResult.newValue as DateTime).isValid).toBe(true);
 		});
+	});
 
-		test.each(VALID_SQL_DATES)('should validate and cast SQL date "%s"', (date) => {
+	it('should validate and cast SQL dates', () => {
+		VALID_SQL_DATES.forEach((date) => {
 			const validationResult = validateFieldType('date', date, 'dateTime');
 			expect(validationResult.valid).toBe(true);
 			expect((validationResult.newValue as DateTime).isValid).toBe(true);
 		});
+	});
 
-		test.each(OTHER_VALID_DATES)('should validate and cast date "%s"', (date) => {
-			const validationResult = validateFieldType('date', date, 'dateTime');
-			expect(validationResult.valid).toBe(true);
-			expect((validationResult.newValue as DateTime).isValid).toBe(true);
-		});
-
-		test.each(INVALID_DATES)('should not validate invalid date "%s"', (date) => {
+	it('should not validate invalid dates', () => {
+		INVALID_DATES.forEach((date) => {
 			const validationResult = validateFieldType('date', date, 'dateTime');
 			expect(validationResult.valid).toBe(false);
 		});
@@ -140,7 +136,8 @@ describe('Type Validation', () => {
 		).toEqual(true);
 		// Invalid value:
 		expect(validateFieldType('json', ['one', 'two'], 'object').valid).toEqual(false);
-		expect(validateFieldType('json', ['one', 'two'], 'object').valid).toEqual(false);
+		// eslint-disable-next-line prettier/prettier
+		expect(validateFieldType('json', ["one", "two"], 'object').valid).toEqual(false);
 		expect(validateFieldType('json', '1', 'object').valid).toEqual(false);
 		expect(validateFieldType('json', '[1]', 'object').valid).toEqual(false);
 		expect(validateFieldType('json', '1.1', 'object').valid).toEqual(false);
@@ -178,20 +175,16 @@ describe('Type Validation', () => {
 
 	it('should validate options properly', () => {
 		expect(
-			validateFieldType('options', 'oranges', 'options', {
-				valueOptions: [
-					{ name: 'apples', value: 'apples' },
-					{ name: 'oranges', value: 'oranges' },
-				],
-			}).valid,
+			validateFieldType('options', 'oranges', 'options', [
+				{ name: 'apples', value: 'apples' },
+				{ name: 'oranges', value: 'oranges' },
+			]).valid,
 		).toEqual(true);
 		expect(
-			validateFieldType('options', 'something else', 'options', {
-				valueOptions: [
-					{ name: 'apples', value: 'apples' },
-					{ name: 'oranges', value: 'oranges' },
-				],
-			}).valid,
+			validateFieldType('options', 'something else', 'options', [
+				{ name: 'apples', value: 'apples' },
+				{ name: 'oranges', value: 'oranges' },
+			]).valid,
 		).toEqual(false);
 	});
 
@@ -209,36 +202,5 @@ describe('Type Validation', () => {
 		expect(validateFieldType('time', 'foo', 'time').valid).toEqual(false);
 		expect(validateFieldType('time', '23:23:', 'time').valid).toEqual(false);
 		expect(validateFieldType('time', '23::23::23', 'time').valid).toEqual(false);
-	});
-
-	describe('options', () => {
-		describe('strict=true', () => {
-			it('should not convert/cast types', () => {
-				const options = { strict: true };
-				expect(validateFieldType('test', '42', 'number', options).valid).toBe(false);
-				expect(validateFieldType('test', 'true', 'boolean', options).valid).toBe(false);
-				expect(validateFieldType('test', [], 'object', options).valid).toBe(false);
-			});
-		});
-
-		describe('parseStrings=true', () => {
-			it('should parse strings from other types', () => {
-				const options = { parseStrings: true };
-				expect(validateFieldType('test', 42, 'string').newValue).toBe(42);
-				expect(validateFieldType('test', 42, 'string', options).newValue).toBe('42');
-				expect(validateFieldType('test', true, 'string', options).newValue).toBe('true');
-			});
-		});
-	});
-	describe('getValueDescription util function', () => {
-		it('should return correct description', () => {
-			expect(getValueDescription('foo')).toBe("'foo'");
-			expect(getValueDescription(42)).toBe("'42'");
-			expect(getValueDescription(true)).toBe("'true'");
-			expect(getValueDescription(null)).toBe("'null'");
-			expect(getValueDescription(undefined)).toBe("'undefined'");
-			expect(getValueDescription([{}])).toBe('array');
-			expect(getValueDescription({})).toBe('object');
-		});
 	});
 });

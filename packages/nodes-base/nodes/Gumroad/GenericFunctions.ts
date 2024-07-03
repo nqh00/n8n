@@ -1,18 +1,23 @@
+import type { OptionsWithUri } from 'request';
 import type {
 	IDataObject,
 	IExecuteFunctions,
+	IExecuteSingleFunctions,
 	IHookFunctions,
-	IHttpRequestMethods,
 	ILoadOptionsFunctions,
-	IRequestOptions,
 	IWebhookFunctions,
 	JsonObject,
 } from 'n8n-workflow';
 import { NodeApiError } from 'n8n-workflow';
 
 export async function gumroadApiRequest(
-	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions | IWebhookFunctions,
-	method: IHttpRequestMethods,
+	this:
+		| IHookFunctions
+		| IExecuteFunctions
+		| IExecuteSingleFunctions
+		| ILoadOptionsFunctions
+		| IWebhookFunctions,
+	method: string,
 	resource: string,
 
 	body: any = {},
@@ -23,7 +28,7 @@ export async function gumroadApiRequest(
 	const credentials = await this.getCredentials('gumroadApi');
 	body = Object.assign({ access_token: credentials.accessToken }, body);
 
-	let options: IRequestOptions = {
+	let options: OptionsWithUri = {
 		method,
 		qs,
 		body,

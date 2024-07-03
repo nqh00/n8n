@@ -1,16 +1,17 @@
+import type { OptionsWithUri } from 'request';
+
 import type {
 	IExecuteFunctions,
+	IExecuteSingleFunctions,
 	ILoadOptionsFunctions,
 	IDataObject,
 	JsonObject,
-	IHttpRequestMethods,
-	IRequestOptions,
 } from 'n8n-workflow';
 import { NodeApiError } from 'n8n-workflow';
 
 export async function wordpressApiRequest(
-	this: IExecuteFunctions | ILoadOptionsFunctions,
-	method: IHttpRequestMethods,
+	this: IExecuteFunctions | IExecuteSingleFunctions | ILoadOptionsFunctions,
+	method: string,
 	resource: string,
 
 	body: any = {},
@@ -20,7 +21,7 @@ export async function wordpressApiRequest(
 ): Promise<any> {
 	const credentials = await this.getCredentials('wordpressApi');
 
-	let options: IRequestOptions = {
+	let options: OptionsWithUri = {
 		headers: {
 			Accept: 'application/json',
 			'Content-Type': 'application/json',
@@ -30,7 +31,6 @@ export async function wordpressApiRequest(
 		qs,
 		body,
 		uri: uri || `${credentials.url}/wp-json/wp/v2${resource}`,
-		rejectUnauthorized: !credentials.allowUnauthorizedCerts,
 		json: true,
 	};
 	options = Object.assign({}, options, option);
@@ -47,7 +47,7 @@ export async function wordpressApiRequest(
 
 export async function wordpressApiRequestAllItems(
 	this: IExecuteFunctions | ILoadOptionsFunctions,
-	method: IHttpRequestMethods,
+	method: string,
 	endpoint: string,
 
 	body: any = {},

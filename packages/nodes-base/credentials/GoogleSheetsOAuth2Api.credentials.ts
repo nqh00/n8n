@@ -28,9 +28,6 @@ export class GoogleSheetsOAuth2Api implements ICredentialType {
 			name: 'notice',
 			type: 'notice',
 			default: '',
-			displayOptions: {
-				hideOnCloud: true,
-			},
 		},
 	];
 }

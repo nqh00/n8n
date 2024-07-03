@@ -20,7 +20,6 @@ export class BitwardenApi implements ICredentialType {
 			displayName: 'Client Secret',
 			name: 'clientSecret',
 			type: 'string',
-			typeOptions: { password: true },
 			default: '',
 		},
 		{

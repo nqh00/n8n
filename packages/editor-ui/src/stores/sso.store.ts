@@ -1,11 +1,12 @@
 import { computed, reactive } from 'vue';
 import { defineStore } from 'pinia';
 import { EnterpriseEditionFeature } from '@/constants';
-import { useRootStore } from '@/stores/root.store';
+import { useRootStore } from '@/stores/n8nRoot.store';
 import { useSettingsStore } from '@/stores/settings.store';
 import * as ssoApi from '@/api/sso';
-import type { SamlPreferences, SamlPreferencesExtractedData } from '@/Interface';
+import type { SamlPreferences } from '@/Interface';
 import { updateCurrentUser } from '@/api/users';
+import type { SamlPreferencesExtractedData } from '@/Interface';
 import { useUsersStore } from '@/stores/users.store';
 
 export const useSSOStore = defineStore('sso', () => {
@@ -53,23 +54,23 @@ export const useSSOStore = defineStore('sso', () => {
 			isDefaultAuthenticationSaml.value,
 	);
 
-	const getSSORedirectUrl = async () => await ssoApi.initSSO(rootStore.restApiContext);
+	const getSSORedirectUrl = async () => ssoApi.initSSO(rootStore.getRestApiContext);
 
 	const toggleLoginEnabled = async (enabled: boolean) =>
-		await ssoApi.toggleSamlConfig(rootStore.restApiContext, { loginEnabled: enabled });
+		ssoApi.toggleSamlConfig(rootStore.getRestApiContext, { loginEnabled: enabled });
 
-	const getSamlMetadata = async () => await ssoApi.getSamlMetadata(rootStore.restApiContext);
+	const getSamlMetadata = async () => ssoApi.getSamlMetadata(rootStore.getRestApiContext);
 	const getSamlConfig = async () => {
-		const samlConfig = await ssoApi.getSamlConfig(rootStore.restApiContext);
+		const samlConfig = await ssoApi.getSamlConfig(rootStore.getRestApiContext);
 		state.samlConfig = samlConfig;
 		return samlConfig;
 	};
 	const saveSamlConfig = async (config: SamlPreferences) =>
-		await ssoApi.saveSamlConfig(rootStore.restApiContext, config);
-	const testSamlConfig = async () => await ssoApi.testSamlConfig(rootStore.restApiContext);
+		ssoApi.saveSamlConfig(rootStore.getRestApiContext, config);
+	const testSamlConfig = async () => ssoApi.testSamlConfig(rootStore.getRestApiContext);
 
 	const updateUser = async (params: { firstName: string; lastName: string }) =>
-		await updateCurrentUser(rootStore.restApiContext, {
+		updateCurrentUser(rootStore.getRestApiContext, {
 			id: usersStore.currentUser!.id,
 			email: usersStore.currentUser!.email!,
 			...params,

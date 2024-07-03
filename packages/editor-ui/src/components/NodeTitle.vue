@@ -1,9 +1,7 @@
 <template>
 	<span :class="$style.container" data-test-id="node-title-container" @click="onEdit">
-		<span :class="$style.iconWrapper">
-			<NodeIcon :node-type="nodeType" :size="18" />
-		</span>
-		<n8n-popover placement="right" width="200" :visible="editName" :disabled="!editable">
+		<span :class="$style.iconWrapper"><NodeIcon :nodeType="nodeType" :size="18" /></span>
+		<n8n-popover placement="right" width="200" :value="editName" :disabled="!editable">
 			<div
 				:class="$style.editContainer"
 				@keydown.enter="onRename"
@@ -13,27 +11,27 @@
 				<n8n-text :bold="true" color="text-base" tag="div">{{
 					$locale.baseText('ndv.title.renameNode')
 				}}</n8n-text>
-				<n8n-input ref="input" v-model="newName" size="small" data-test-id="node-rename-input" />
+				<n8n-input ref="input" size="small" v-model="newName" data-test-id="node-rename-input" />
 				<div :class="$style.editButtons">
 					<n8n-button
 						type="secondary"
 						size="small"
-						:label="$locale.baseText('ndv.title.cancel')"
 						@click="editName = false"
+						:label="$locale.baseText('ndv.title.cancel')"
 					/>
 					<n8n-button
 						type="primary"
 						size="small"
-						:label="$locale.baseText('ndv.title.rename')"
 						@click="onRename"
+						:label="$locale.baseText('ndv.title.rename')"
 					/>
 				</div>
 			</div>
 			<template #reference>
-				<div :class="{ [$style.title]: true, [$style.hoverable]: editable }">
-					{{ modelValue }}
+				<div class="ph-no-capture" :class="{ [$style.title]: true, [$style.hoverable]: editable }">
+					{{ value }}
 					<div :class="$style.editIconContainer">
-						<font-awesome-icon v-if="editable" :class="$style.editIcon" icon="pencil-alt" />
+						<font-awesome-icon :class="$style.editIcon" icon="pencil-alt" v-if="editable" />
 					</div>
 				</div>
 			</template>
@@ -41,47 +39,56 @@
 	</span>
 </template>
 
-<script setup lang="ts">
+<script lang="ts">
+import { defineComponent } from 'vue';
 import NodeIcon from '@/components/NodeIcon.vue';
-import type { INodeTypeDescription } from 'n8n-workflow';
-import { computed, nextTick, ref } from 'vue';
 
-type Props = {
-	modelValue: string;
-	nodeType?: INodeTypeDescription | null;
-	readOnly?: boolean;
-};
+export default defineComponent({
+	name: 'NodeTitle',
+	components: {
+		NodeIcon,
+	},
+	props: {
+		value: {
+			type: String,
+		},
+		nodeType: {},
+		readOnly: {
+			type: Boolean,
+			default: false,
+		},
+	},
+	data() {
+		return {
+			editName: false,
+			newName: '',
+		};
+	},
+	computed: {
+		editable(): boolean {
+			return !this.readOnly && window === window.parent;
+		},
+	},
+	methods: {
+		onEdit() {
+			this.newName = this.value;
+			this.editName = true;
+			this.$nextTick(() => {
+				const inputRef = this.$refs.input as HTMLInputElement | undefined;
+				if (inputRef) {
+					inputRef.focus();
+				}
+			});
+		},
+		onRename() {
+			if (this.newName.trim() !== '') {
+				this.$emit('input', this.newName.trim());
+			}
 
-const props = withDefaults(defineProps<Props>(), {
-	modelValue: '',
-	nodeType: undefined,
-	readOnly: false,
+			this.editName = false;
+		},
+	},
 });
-const emit = defineEmits<{
-	(event: 'update:model-value', value: string): void;
-}>();
-const editName = ref(false);
-const newName = ref('');
-const input = ref<HTMLInputElement>();
-
-const editable = computed(() => !props.readOnly && window === window.parent);
-
-async function onEdit() {
-	newName.value = props.modelValue;
-	editName.value = true;
-	await nextTick();
-	if (input.value) {
-		input.value.focus();
-	}
-}
-
-function onRename() {
-	if (newName.value.trim() !== '') {
-		emit('update:model-value', newName.value.trim());
-	}
-
-	editName.value = false;
-}
 </script>
 
 <style lang="scss" module>

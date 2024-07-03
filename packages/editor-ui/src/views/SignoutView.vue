@@ -3,7 +3,7 @@ import { VIEWS } from '@/constants';
 import { mapStores } from 'pinia';
 import { useUsersStore } from '@/stores/users.store';
 import { defineComponent } from 'vue';
-import { useToast } from '@/composables/useToast';
+import { useToast } from '@/composables';
 
 export default defineComponent({
 	name: 'SignoutView',
@@ -15,18 +15,18 @@ export default defineComponent({
 	computed: {
 		...mapStores(useUsersStore),
 	},
-	mounted() {
-		void this.logout();
-	},
 	methods: {
 		async logout() {
 			try {
 				await this.usersStore.logout();
-				window.location.href = this.$router.resolve({ name: VIEWS.SIGNIN }).href;
+				void this.$router.replace({ name: VIEWS.SIGNIN });
 			} catch (e) {
 				this.showError(e, this.$locale.baseText('auth.signout.error'));
 			}
 		},
+	},
+	mounted() {
+		void this.logout();
 	},
 });
 </script>

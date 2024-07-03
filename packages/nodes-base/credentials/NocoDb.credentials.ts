@@ -12,7 +12,6 @@ export class NocoDb implements ICredentialType {
 			displayName: 'User Token',
 			name: 'apiToken',
 			type: 'string',
-			typeOptions: { password: true },
 			default: '',
 		},
 		{

@@ -583,6 +583,6 @@ export class WooCommerce implements INodeType {
 			);
 			returnData.push(...executionData);
 		}
-		return [returnData];
+		return this.prepareOutputData(returnData);
 	}
 }

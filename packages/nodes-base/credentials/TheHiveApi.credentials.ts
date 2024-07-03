@@ -17,7 +17,6 @@ export class TheHiveApi implements ICredentialType {
 			displayName: 'API Key',
 			name: 'ApiKey',
 			type: 'string',
-			typeOptions: { password: true },
 			default: '',
 		},
 		{
@@ -36,15 +35,14 @@ export class TheHiveApi implements ICredentialType {
 			description: 'The version of api to be used',
 			options: [
 				{
-					name: 'TheHive 4+ (api v1)',
+					name: 'Version 1',
 					value: 'v1',
-					description:
-						'API version with TheHive 4 support, also works with TheHive 5 but not all features are supported',
+					description: 'API version supported by TheHive 4',
 				},
 				{
-					name: 'TheHive 3 (api v0)',
+					name: 'Version 0',
 					value: '',
-					description: 'API version with TheHive 3 support',
+					description: 'API version supported by TheHive 3',
 				},
 			],
 		},

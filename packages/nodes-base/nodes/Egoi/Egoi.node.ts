@@ -8,17 +8,18 @@ import type {
 	INodeTypeDescription,
 } from 'n8n-workflow';
 
-import moment from 'moment-timezone';
 import { egoiApiRequest, egoiApiRequestAllItems, simplify } from './GenericFunctions';
 
 import type { ICreateMemberBody } from './Interfaces';
+
+import moment from 'moment-timezone';
 
 export class Egoi implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'E-goi',
 		name: 'egoi',
-
-		icon: 'file:egoi.svg',
+		// eslint-disable-next-line n8n-nodes-base/node-class-description-icon-not-svg
+		icon: 'file:egoi.png',
 		group: ['output'],
 		version: 1,
 		subtitle: '={{$parameter["operation"] + ": " + $parameter["resource"]}}',
@@ -630,6 +631,7 @@ export class Egoi implements INodeType {
 						}
 
 						if (simple) {
+							// eslint-disable-next-line @typescript-eslint/no-unsafe-argument
 							const data = (await simplify.call(this, [responseData], listId))[0];
 
 							responseData = {
@@ -673,6 +675,7 @@ export class Egoi implements INodeType {
 						}
 
 						if (simple) {
+							// eslint-disable-next-line @typescript-eslint/no-unsafe-argument
 							responseData = await simplify.call(this, responseData, listId);
 						}
 					}
@@ -733,7 +736,7 @@ export class Egoi implements INodeType {
 					}
 				}
 			} catch (error) {
-				if (!this.continueOnFail(error)) {
+				if (!this.continueOnFail()) {
 					throw error;
 				} else {
 					// Return the actual reason as error
@@ -752,6 +755,6 @@ export class Egoi implements INodeType {
 			);
 			returnData.push(...executionData);
 		}
-		return [returnData];
+		return this.prepareOutputData(returnData);
 	}
 }

@@ -17,42 +17,39 @@
 					placement="bottom-end"
 					size="small"
 					color="foreground-xdark"
-					icon-size="small"
+					iconSize="small"
 					:actions="actions"
-					:icon-orientation="iconOrientation"
-					@action="(action: string) => $emit('update:modelValue', action)"
+					:iconOrientation="iconOrientation"
+					@action="(action) => $emit('optionSelected', action)"
 					@visible-change="onMenuToggle"
 				/>
 			</div>
 			<n8n-radio-buttons
 				v-if="shouldShowExpressionSelector"
 				size="small"
-				:model-value="selectedView"
+				:value="selectedView"
 				:disabled="isReadOnly"
+				@input="onViewSelected"
 				:options="[
 					{ label: $locale.baseText('parameterInput.fixed'), value: 'fixed' },
 					{ label: $locale.baseText('parameterInput.expression'), value: 'expression' },
 				]"
-				@update:model-value="onViewSelected"
 			/>
 		</div>
 	</div>
 </template>
 
 <script lang="ts">
-import type { INodeProperties, NodeParameterValueType } from 'n8n-workflow';
+import type { NodeParameterValueType } from 'n8n-workflow';
 import { defineComponent } from 'vue';
 import type { PropType } from 'vue';
-import { isResourceLocatorValue } from '@/utils/typeGuards';
-import { isValueExpression } from '@/utils/nodeTypesUtils';
-import { i18n } from '@/plugins/i18n';
+import { isValueExpression, isResourceLocatorValue } from '@/utils';
 
 export default defineComponent({
-	name: 'ParameterOptions',
+	name: 'parameter-options',
 	props: {
 		parameter: {
-			type: Object as PropType<INodeProperties>,
-			required: true,
+			type: Object,
 		},
 		isReadOnly: {
 			type: Boolean,
@@ -84,11 +81,10 @@ export default defineComponent({
 		loadingMessage: {
 			type: String,
 			default() {
-				return i18n.baseText('genericHelpers.loading');
+				return this.$locale.baseText('genericHelpers.loading');
 			},
 		},
 	},
-	emits: ['update:modelValue', 'menu-expanded'],
 	computed: {
 		isDefault(): boolean {
 			return this.parameter.default === this.value;
@@ -103,7 +99,7 @@ export default defineComponent({
 			return this.parameter.noDataExpression !== true && this.showExpressionSelector;
 		},
 		shouldShowOptions(): boolean {
-			if (this.isReadOnly) {
+			if (this.isReadOnly === true) {
 				return false;
 			}
 
@@ -111,11 +107,11 @@ export default defineComponent({
 				return false;
 			}
 
-			if (['codeNodeEditor', 'sqlEditor'].includes(this.parameter.typeOptions?.editor ?? '')) {
+			if (this.parameter.typeOptions?.editor === 'codeNodeEditor') {
 				return false;
 			}
 
-			if (this.showOptions) {
+			if (this.showOptions === true) {
 				return true;
 			}
 
@@ -177,14 +173,11 @@ export default defineComponent({
 		},
 		onViewSelected(selected: string) {
 			if (selected === 'expression') {
-				this.$emit(
-					'update:modelValue',
-					this.isValueExpression ? 'openExpression' : 'addExpression',
-				);
+				this.$emit('optionSelected', this.isValueExpression ? 'openExpression' : 'addExpression');
 			}
 
 			if (selected === 'fixed' && this.isValueExpression) {
-				this.$emit('update:modelValue', 'removeExpression');
+				this.$emit('optionSelected', 'removeExpression');
 			}
 		},
 		getArgument(argumentName: string): string | number | boolean | undefined {
@@ -205,20 +198,13 @@ export default defineComponent({
 <style lang="scss" module>
 .container {
 	display: flex;
-	min-height: 22px;
+}
+.loader > span {
+	line-height: 1em;
 }
 
-.loader {
-	padding-bottom: var(--spacing-4xs);
-
-	& > span {
-		line-height: 1em;
-	}
-}
 .controlsContainer {
 	display: flex;
-	align-items: center;
-	flex-direction: row;
 }
 
 .noExpressionSelector {

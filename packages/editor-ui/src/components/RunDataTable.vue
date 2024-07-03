@@ -1,12 +1,12 @@
 <template>
-	<div :class="[$style.dataDisplay, { [$style.highlight]: highlight }]">
-		<table v-if="tableData.columns && tableData.columns.length === 0" :class="$style.table">
+	<div :class="$style.dataDisplay">
+		<table :class="$style.table" v-if="tableData.columns && tableData.columns.length === 0">
 			<tr>
 				<th :class="$style.emptyCell"></th>
 				<th :class="$style.tableRightMargin"></th>
 			</tr>
 			<tr
-				v-for="(_, index1) in tableData.data"
+				v-for="(row, index1) in tableData.data"
 				:key="index1"
 				:class="{ [$style.hoveringRow]: isHoveringRow(index1) }"
 			>
@@ -21,18 +21,18 @@
 				<td :class="$style.tableRightMargin"></td>
 			</tr>
 		</table>
-		<table v-else :class="$style.table">
+		<table :class="$style.table" v-else>
 			<thead>
 				<tr>
 					<th v-for="(column, i) in tableData.columns || []" :key="column">
-						<n8n-tooltip placement="bottom-start" :disabled="!mappingEnabled" :show-after="1000">
+						<n8n-tooltip placement="bottom-start" :disabled="!mappingEnabled" :open-delay="1000">
 							<template #content>
 								<div>
 									<img src="/static/data-mapping-gif.gif" />
 									{{ $locale.baseText('dataMapping.dragColumnToFieldHint') }}
 								</div>
 							</template>
-							<Draggable
+							<draggable
 								type="mapping"
 								:data="getExpression(column)"
 								:disabled="!mappingEnabled"
@@ -52,30 +52,27 @@
 											[$style.draggingHeader]: isDragging,
 										}"
 									>
-										<TextWithHighlights
-											:content="getValueToRender(column || '')"
-											:search="search"
-										/>
+										<span>{{ column || '&nbsp;' }}</span>
 										<div :class="$style.dragButton">
 											<font-awesome-icon icon="grip-vertical" />
 										</div>
 									</div>
 								</template>
-							</Draggable>
+							</draggable>
 						</n8n-tooltip>
 					</th>
 					<th v-if="columnLimitExceeded" :class="$style.header">
 						<n8n-tooltip placement="bottom-end">
 							<template #content>
 								<div>
-									<i18n-t tag="span" keypath="dataMapping.tableView.tableColumnsExceeded.tooltip">
+									<i18n path="dataMapping.tableView.tableColumnsExceeded.tooltip">
 										<template #columnLimit>{{ columnLimit }}</template>
 										<template #link>
 											<a @click="switchToJsonView">{{
 												$locale.baseText('dataMapping.tableView.tableColumnsExceeded.tooltip.link')
 											}}</a>
 										</template>
-									</i18n-t>
+									</i18n>
 								</div>
 							</template>
 							<span>
@@ -90,14 +87,14 @@
 					<th :class="$style.tableRightMargin"></th>
 				</tr>
 			</thead>
-			<Draggable
-				ref="draggable"
+			<draggable
 				tag="tbody"
 				type="mapping"
-				target-data-key="mappable"
+				targetDataKey="mappable"
 				:disabled="!mappingEnabled"
 				@dragstart="onCellDragStart"
 				@dragend="onCellDragEnd"
+				ref="draggable"
 			>
 				<template #preview="{ canDrop, el }">
 					<MappingPill
@@ -105,100 +102,100 @@
 						:can-drop="canDrop"
 					/>
 				</template>
-				<tr
-					v-for="(row, index1) in tableData.data"
-					:key="index1"
-					:class="{ [$style.hoveringRow]: isHoveringRow(index1) }"
-					:data-test-id="isHoveringRow(index1) ? 'hovering-item' : undefined"
-				>
-					<td
-						v-for="(data, index2) in row"
-						:key="index2"
-						:data-row="index1"
-						:data-col="index2"
-						:class="hasJsonInColumn(index2) ? $style.minColWidth : $style.limitColWidth"
-						@mouseenter="onMouseEnterCell"
-						@mouseleave="onMouseLeaveCell"
+				<template>
+					<tr
+						v-for="(row, index1) in tableData.data"
+						:key="index1"
+						:class="{ [$style.hoveringRow]: isHoveringRow(index1) }"
+						:data-test-id="isHoveringRow(index1) ? 'hovering-item' : undefined"
 					>
-						<TextWithHighlights
-							v-if="isSimple(data)"
-							:content="getValueToRender(data)"
-							:search="search"
-							:class="{ [$style.value]: true, [$style.empty]: isEmpty(data) }"
-						/>
-						<n8n-tree v-else :node-class="$style.nodeClass" :value="data">
-							<template #label="{ label, path }">
-								<span
-									:class="{
-										[$style.hoveringKey]: mappingEnabled && isHovering(path, index2),
-										[$style.draggingKey]: isDraggingKey(path, index2),
-										[$style.dataKey]: true,
-										[$style.mappable]: mappingEnabled,
-									}"
-									data-target="mappable"
-									:data-name="getCellPathName(path, index2)"
-									:data-value="getCellExpression(path, index2)"
-									:data-depth="path.length"
-									@mouseenter="() => onMouseEnterKey(path, index2)"
-									@mouseleave="onMouseLeaveKey"
-									>{{ label || $locale.baseText('runData.unnamedField') }}</span
-								>
-							</template>
-							<template #value="{ value }">
-								<TextWithHighlights
-									:content="getValueToRender(value)"
-									:search="search"
-									:class="{ [$style.nestedValue]: true, [$style.empty]: isEmpty(value) }"
-								/>
-							</template>
-						</n8n-tree>
-					</td>
-					<td v-if="columnLimitExceeded"></td>
-					<td :class="$style.tableRightMargin"></td>
-				</tr>
-			</Draggable>
+						<td
+							v-for="(data, index2) in row"
+							:key="index2"
+							:data-row="index1"
+							:data-col="index2"
+							@mouseenter="onMouseEnterCell"
+							@mouseleave="onMouseLeaveCell"
+							:class="hasJsonInColumn(index2) ? $style.minColWidth : $style.limitColWidth"
+						>
+							<span
+								v-if="isSimple(data)"
+								:class="{ [$style.value]: true, [$style.empty]: isEmpty(data) }"
+								class="ph-no-capture"
+								>{{ getValueToRender(data) }}</span
+							>
+							<n8n-tree :nodeClass="$style.nodeClass" v-else :value="data">
+								<template #label="{ label, path }">
+									<span
+										@mouseenter="() => onMouseEnterKey(path, index2)"
+										@mouseleave="onMouseLeaveKey"
+										:class="{
+											[$style.hoveringKey]: mappingEnabled && isHovering(path, index2),
+											[$style.draggingKey]: isDraggingKey(path, index2),
+											[$style.dataKey]: true,
+											[$style.mappable]: mappingEnabled,
+										}"
+										data-target="mappable"
+										:data-name="getCellPathName(path, index2)"
+										:data-value="getCellExpression(path, index2)"
+										:data-depth="path.length"
+										>{{ label || $locale.baseText('runData.unnamedField') }}</span
+									>
+								</template>
+								<template #value="{ value }">
+									<span
+										:class="{ [$style.nestedValue]: true, [$style.empty]: isEmpty(value) }"
+										class="ph-no-capture"
+										>{{ getValueToRender(value) }}</span
+									>
+								</template>
+							</n8n-tree>
+						</td>
+						<td v-if="columnLimitExceeded"></td>
+						<td :class="$style.tableRightMargin"></td>
+					</tr>
+				</template>
+			</draggable>
 		</table>
 	</div>
 </template>
 
 <script lang="ts">
+/* eslint-disable prefer-spread */
 import { defineComponent } from 'vue';
 import type { PropType } from 'vue';
 import { mapStores } from 'pinia';
 import type { INodeUi, ITableData, NDVState } from '@/Interface';
-import { shorten } from '@/utils/typesUtils';
-import { getPairedItemId } from '@/utils/pairedItemUtils';
+import { getPairedItemId } from '@/utils';
 import type { GenericValue, IDataObject, INodeExecutionData } from 'n8n-workflow';
 import Draggable from './Draggable.vue';
+import { shorten } from '@/utils';
+import { externalHooks } from '@/mixins/externalHooks';
 import { useWorkflowsStore } from '@/stores/workflows.store';
 import { useNDVStore } from '@/stores/ndv.store';
 import MappingPill from './MappingPill.vue';
 import { getMappedExpression } from '@/utils/mappingUtils';
-import { useExternalHooks } from '@/composables/useExternalHooks';
-import TextWithHighlights from './TextWithHighlights.vue';
 
 const MAX_COLUMNS_LIMIT = 40;
 
 type DraggableRef = InstanceType<typeof Draggable>;
 
 export default defineComponent({
-	name: 'RunDataTable',
-	components: { Draggable, MappingPill, TextWithHighlights },
+	name: 'run-data-table',
+	mixins: [externalHooks],
+	components: { Draggable, MappingPill },
 	props: {
 		node: {
 			type: Object as PropType<INodeUi>,
-			required: true,
 		},
 		inputData: {
 			type: Array as PropType<INodeExecutionData[]>,
-			required: true,
 		},
 		mappingEnabled: {
 			type: Boolean,
 		},
 		distanceFromActive: {
 			type: Number,
-			required: true,
 		},
 		runIndex: {
 			type: Number,
@@ -211,20 +208,10 @@ export default defineComponent({
 		},
 		pageOffset: {
 			type: Number,
-			required: true,
 		},
 		hasDefaultHoverState: {
 			type: Boolean,
 		},
-		search: {
-			type: String,
-		},
-	},
-	setup() {
-		const externalHooks = useExternalHooks();
-		return {
-			externalHooks,
-		};
 	},
 	data() {
 		return {
@@ -241,7 +228,7 @@ export default defineComponent({
 	},
 	mounted() {
 		if (this.tableData && this.tableData.columns && this.$refs.draggable) {
-			const tbody = (this.$refs.draggable as DraggableRef).$refs.wrapper as HTMLElement;
+			const tbody = (this.$refs.draggable as DraggableRef).$refs.wrapper;
 			if (tbody) {
 				this.$emit('mounted', {
 					avgRowHeight: tbody.offsetHeight / this.tableData.data.length,
@@ -263,9 +250,6 @@ export default defineComponent({
 		focusedMappableInput(): string {
 			return this.ndvStore.focusedMappableInput;
 		},
-		highlight(): boolean {
-			return this.ndvStore.highlightDraggables;
-		},
 	},
 	methods: {
 		shorten,
@@ -284,7 +268,7 @@ export default defineComponent({
 				return true;
 			}
 			const itemNodeId = getPairedItemId(
-				this.node?.name ?? '',
+				this.node.name,
 				this.runIndex || 0,
 				this.outputIndex || 0,
 				itemIndex,
@@ -383,12 +367,12 @@ export default defineComponent({
 				value === undefined
 			);
 		},
-		getValueToRender(value: unknown): string {
+		getValueToRender(value: unknown) {
 			if (value === '') {
 				return this.$locale.baseText('runData.emptyString');
 			}
 			if (typeof value === 'string') {
-				return value;
+				return value.replaceAll('\n', '\\n');
 			}
 			if (Array.isArray(value) && value.length === 0) {
 				return this.$locale.baseText('runData.emptyArray');
@@ -399,17 +383,14 @@ export default defineComponent({
 			if (value === null || value === undefined) {
 				return `[${value}]`;
 			}
-			if (value === true || value === false || typeof value === 'number') {
-				return value.toString();
-			}
-			return JSON.stringify(value);
+			return value;
 		},
 		onDragStart() {
 			this.draggedColumn = true;
 			this.ndvStore.resetMappingTelemetry();
 		},
 		onCellDragStart(el: HTMLElement) {
-			if (el?.dataset.value) {
+			if (el && el.dataset.value) {
 				this.draggingPath = el.dataset.value;
 			}
 
@@ -443,11 +424,9 @@ export default defineComponent({
 					...mappingTelemetry,
 				};
 
-				void this.externalHooks.run('runDataTable.onDragEnd', telemetryPayload);
+				void this.$externalHooks().run('runDataTable.onDragEnd', telemetryPayload);
 
-				this.$telemetry.track('User dragged data for mapping', telemetryPayload, {
-					withPostHog: true,
-				});
+				this.$telemetry.track('User dragged data for mapping', telemetryPayload);
 			}, 1000); // ensure dest data gets set if drop
 		},
 		isSimple(data: unknown): boolean {
@@ -588,7 +567,6 @@ export default defineComponent({
 		border-left: var(--border-base);
 		overflow-wrap: break-word;
 		white-space: pre-wrap;
-		vertical-align: top;
 	}
 
 	td:first-child,
@@ -652,12 +630,7 @@ export default defineComponent({
 	}
 }
 
-.highlight .draggableHeader {
-	color: var(--color-primary);
-}
-
 .draggingHeader {
-	color: var(--color-primary);
 	background-color: var(--color-primary-tint-2);
 }
 

@@ -7,71 +7,79 @@
 				<source :src="embedSource" :type="binaryData.mimeType" />
 				{{ $locale.baseText('binaryDataDisplay.yourBrowserDoesNotSupport') }}
 			</video>
-			<audio v-else-if="binaryData.fileType === 'audio'" controls autoplay>
-				<source :src="embedSource" :type="binaryData.mimeType" />
-				{{ $locale.baseText('binaryDataDisplay.yourBrowserDoesNotSupport') }}
-			</audio>
-			<VueJsonPretty
+			<vue-json-pretty
 				v-else-if="binaryData.fileType === 'json'"
-				:data="data"
+				:data="jsonData"
 				:deep="3"
-				:show-length="true"
+				:showLength="true"
 			/>
-			<RunDataHtml v-else-if="binaryData.fileType === 'html'" :input-html="data" />
-			<embed v-else :src="embedSource" class="binary-data" :class="embedClass" />
+			<embed v-else :src="embedSource" class="binary-data" :class="embedClass()" />
 		</span>
 	</span>
 </template>
 
-<script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
-import { useWorkflowsStore } from '@/stores/workflows.store';
+<script lang="ts">
+import { defineComponent } from 'vue';
+import { mapStores } from 'pinia';
 import type { IBinaryData } from 'n8n-workflow';
 import { jsonParse } from 'n8n-workflow';
+import type { PropType } from 'vue';
 import VueJsonPretty from 'vue-json-pretty';
-import RunDataHtml from '@/components/RunDataHtml.vue';
+import { useWorkflowsStore } from '@/stores';
 
-const props = defineProps<{
-	binaryData: IBinaryData;
-}>();
+export default defineComponent({
+	name: 'BinaryDataDisplayEmbed',
+	components: {
+		VueJsonPretty,
+	},
+	props: {
+		binaryData: {
+			type: Object as PropType<IBinaryData>,
+			required: true,
+		},
+	},
+	data() {
+		return {
+			isLoading: true,
+			embedSource: '',
+			error: false,
+			jsonData: '',
+		};
+	},
+	computed: {
+		...mapStores(useWorkflowsStore),
+	},
+	async mounted() {
+		const { id, data, fileName, fileType, mimeType } = (this.binaryData || {}) as IBinaryData;
+		const isJSONData = fileType === 'json';
 
-const isLoading = ref(true);
-const embedSource = ref('');
-const error = ref(false);
-const data = ref('');
-
-const workflowsStore = useWorkflowsStore();
-
-const embedClass = computed(() => {
-	return [props.binaryData.fileType ?? 'other'];
-});
-
-onMounted(async () => {
-	const { id, data: binaryData, fileName, fileType, mimeType } = props.binaryData;
-	const isJSONData = fileType === 'json';
-	const isHTMLData = fileType === 'html';
-
-	if (!id) {
-		if (isJSONData || isHTMLData) {
-			data.value = jsonParse(atob(binaryData));
-		} else {
-			embedSource.value = 'data:' + mimeType + ';base64,' + binaryData;
-		}
-	} else {
-		try {
-			const binaryUrl = workflowsStore.getBinaryUrl(id, 'view', fileName ?? '', mimeType);
-			if (isJSONData || isHTMLData) {
-				const fetchedData = await fetch(binaryUrl, { credentials: 'include' });
-				data.value = await (isJSONData ? fetchedData.json() : fetchedData.text());
+		if (!id) {
+			if (isJSONData) {
+				this.jsonData = jsonParse(atob(data));
 			} else {
-				embedSource.value = binaryUrl;
+				this.embedSource = 'data:' + mimeType + ';base64,' + data;
 			}
-		} catch (e) {
-			error.value = true;
+		} else {
+			try {
+				const binaryUrl = this.workflowsStore.getBinaryUrl(id, 'view', fileName, mimeType);
+				if (isJSONData) {
+					this.jsonData = await (await fetch(binaryUrl)).json();
+				} else {
+					this.embedSource = binaryUrl;
+				}
+			} catch (e) {
+				this.error = true;
+			}
 		}
-	}
 
-	isLoading.value = false;
+		this.isLoading = false;
+	},
+	methods: {
+		embedClass(): string[] {
+			const { fileType } = (this.binaryData || {}) as IBinaryData;
+			return [fileType ?? 'other'];
+		},
+	},
 });
 </script>
 
@@ -84,8 +92,7 @@ onMounted(async () => {
 		max-width: calc(100% - 1em);
 	}
 
-	&.other,
-	&.pdf {
+	&.other {
 		height: calc(100% - 1em);
 		width: calc(100% - 1em);
 	}

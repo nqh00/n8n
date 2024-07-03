@@ -1,5 +1,5 @@
 <template>
-	<div :class="$style.container" v-bind="$attrs" data-test-id="input-label">
+	<div :class="$style.container" v-on="$listeners">
 		<label
 			v-if="label || $slots.options"
 			:for="inputName"
@@ -12,22 +12,22 @@
 				[$style.overflow]: !!$slots.options,
 			}"
 		>
-			<div v-if="label" :class="$style.title">
-				<N8nText :bold="bold" :size="size" :compact="compact" :color="color">
+			<div :class="$style.title" v-if="label">
+				<n8n-text :bold="bold" :size="size" :compact="compact" :color="color">
 					{{ label }}
-					<N8nText v-if="required" color="primary" :bold="bold" :size="size">*</N8nText>
-				</N8nText>
+					<n8n-text color="primary" :bold="bold" :size="size" v-if="required">*</n8n-text>
+				</n8n-text>
 			</div>
 			<span
-				v-if="tooltipText && label"
 				:class="[$style.infoIcon, showTooltip ? $style.visible : $style.hidden]"
+				v-if="tooltipText && label"
 			>
-				<N8nTooltip placement="top" :popper-class="$style.tooltipPopper" :show-after="300">
-					<N8nIcon icon="question-circle" size="small" />
+				<n8n-tooltip placement="top" :popper-class="$style.tooltipPopper">
+					<n8n-icon icon="question-circle" size="small" />
 					<template #content>
 						<div v-html="addTargetBlank(tooltipText)" />
 					</template>
-				</N8nTooltip>
+				</n8n-tooltip>
 			</span>
 			<div
 				v-if="$slots.options && label"
@@ -36,7 +36,7 @@
 			<div
 				v-if="$slots.options"
 				:class="{ [$style.options]: true, [$style.visible]: showOptions }"
-				:data-test-id="`${inputName}-parameter-input-options-container`"
+				data-test-id="parameter-input-options-container"
 			>
 				<slot name="options" />
 			</div>
@@ -45,37 +45,65 @@
 	</div>
 </template>
 
-<script lang="ts" setup>
+<script lang="ts">
 import N8nText from '../N8nText';
-import N8nIcon from '../N8nIcon';
 import N8nTooltip from '../N8nTooltip';
-import type { TextColor } from 'n8n-design-system/types/text';
+import N8nIcon from '../N8nIcon';
 
-const SIZE = ['small', 'medium'] as const;
+import { addTargetBlank } from '../utils/helpers';
 
-interface InputLabelProps {
-	compact?: boolean;
-	color?: TextColor;
-	label?: string;
-	tooltipText?: string;
-	inputName?: string;
-	required?: boolean;
-	bold?: boolean;
-	size?: (typeof SIZE)[number];
-	underline?: boolean;
-	showTooltip?: boolean;
-	showOptions?: boolean;
-}
+import { defineComponent } from 'vue';
 
-defineOptions({ name: 'N8nInputLabel' });
-withDefaults(defineProps<InputLabelProps>(), {
-	compact: false,
-	bold: true,
-	size: 'medium',
+export default defineComponent({
+	name: 'n8n-input-label',
+	components: {
+		N8nText,
+		N8nIcon,
+		N8nTooltip,
+	},
+	props: {
+		compact: {
+			type: Boolean,
+			default: false,
+		},
+		color: {
+			type: String,
+		},
+		label: {
+			type: String,
+		},
+		tooltipText: {
+			type: String,
+		},
+		inputName: {
+			type: String,
+		},
+		required: {
+			type: Boolean,
+		},
+		bold: {
+			type: Boolean,
+			default: true,
+		},
+		size: {
+			type: String,
+			default: 'medium',
+			validator: (value: string): boolean => ['small', 'medium'].includes(value),
+		},
+		underline: {
+			type: Boolean,
+		},
+		showTooltip: {
+			type: Boolean,
+		},
+		showOptions: {
+			type: Boolean,
+		},
+	},
+	methods: {
+		addTargetBlank,
+	},
 });
-
-const addTargetBlank = (html: string) =>
-	html && html.includes('href=') ? html.replace(/href=/g, 'target="_blank" href=') : html;
 </script>
 
 <style lang="scss" module>
@@ -90,10 +118,6 @@ const addTargetBlank = (html: string) =>
 .inputLabel:hover {
 	.infoIcon {
 		opacity: 1;
-
-		&:hover {
-			color: var(--color-text-base);
-		}
 	}
 
 	.options {
@@ -121,12 +145,14 @@ const addTargetBlank = (html: string) =>
 	display: flex;
 	align-items: center;
 	color: var(--color-text-light);
-	margin-left: var(--spacing-4xs);
+	padding-left: var(--spacing-4xs);
+	background-color: var(--color-background-xlight);
 	z-index: 1;
 }
 
 .options {
 	opacity: 0;
+	background-color: var(--color-background-xlight);
 	transition: opacity 250ms cubic-bezier(0.98, -0.06, 0.49, -0.2); // transition on hover out
 
 	> * {
@@ -164,20 +190,21 @@ const addTargetBlank = (html: string) =>
 	opacity: 1;
 }
 
+.heading {
+	display: flex;
+}
+
 .overflow {
 	overflow-x: hidden;
 	overflow-y: clip;
 }
 
-.heading {
-	display: flex;
+.small {
+	margin-bottom: var(--spacing-5xs);
+}
 
-	&.small {
-		margin-bottom: var(--spacing-5xs);
-	}
-	&.medium {
-		margin-bottom: var(--spacing-2xs);
-	}
+.medium {
+	margin-bottom: var(--spacing-2xs);
 }
 
 .underline {

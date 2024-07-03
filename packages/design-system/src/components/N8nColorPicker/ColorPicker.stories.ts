@@ -1,5 +1,5 @@
 import { action } from '@storybook/addon-actions';
-import type { StoryFn } from '@storybook/vue3';
+import type { StoryFn } from '@storybook/vue';
 import N8nColorPicker from './ColorPicker.vue';
 
 export default {
@@ -11,7 +11,7 @@ export default {
 		},
 		size: {
 			control: 'select',
-			options: ['small', 'large'],
+			options: ['mini', 'small', 'medium', 'large'],
 		},
 		showAlpha: {
 			control: 'boolean',
@@ -32,11 +32,10 @@ export default {
 const methods = {
 	onChange: action('change'),
 	onActiveChange: action('active-change'),
-	onInput: action('update:modelValue'),
+	onInput: action('input'),
 };
 
 const DefaultTemplate: StoryFn = (args, { argTypes }) => ({
-	setup: () => ({ args }),
 	props: Object.keys(argTypes),
 	components: {
 		N8nColorPicker,
@@ -45,14 +44,14 @@ const DefaultTemplate: StoryFn = (args, { argTypes }) => ({
 		color: null,
 	}),
 	template:
-		'<n8n-color-picker v-model="color" v-bind="args" @update:modelValue="onInput" @change="onChange" @active-change="onActiveChange" />',
+		'<n8n-color-picker v-model="color" v-bind="$props" @input="onInput" @change="onChange" @active-change="onActiveChange" />',
 	methods,
 });
 
 export const Default = DefaultTemplate.bind({});
 Default.args = {
 	disabled: false,
-	size: 'small',
+	size: 'medium',
 	showAlpha: false,
 	colorFormat: '',
 	popperClass: '',

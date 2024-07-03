@@ -1,5 +1,3 @@
-import { randomInt } from './utils';
-
 interface BaseTriggerTime<T extends string> {
 	mode: T;
 }
@@ -49,7 +47,7 @@ export type TriggerTime =
 	| EveryWeek
 	| EveryMonth;
 
-const randomSecond = () => randomInt(60).toString();
+const randomSecond = () => Math.floor(Math.random() * 60).toString();
 
 export const toCronExpression = (item: TriggerTime): CronExpression => {
 	if (item.mode === 'everyMinute') return `${randomSecond()} * * * * *`;

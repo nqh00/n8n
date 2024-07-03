@@ -8,8 +8,6 @@ import type {
 	INodeTypeDescription,
 } from 'n8n-workflow';
 
-import { snakeCase } from 'change-case';
-import moment from 'moment-timezone';
 import {
 	keysToSnakeCase,
 	pagerDutyApiRequest,
@@ -25,6 +23,10 @@ import { logEntryFields, logEntryOperations } from './LogEntryDescription';
 import { userFields, userOperations } from './UserDescription';
 
 import type { IIncident } from './IncidentInterface';
+
+import { snakeCase } from 'change-case';
+
+import moment from 'moment-timezone';
 
 export class PagerDuty implements INodeType {
 	description: INodeTypeDescription = {
@@ -459,7 +461,7 @@ export class PagerDuty implements INodeType {
 
 				returnData.push(...executionData);
 			} catch (error) {
-				if (this.continueOnFail(error)) {
+				if (this.continueOnFail()) {
 					const executionErrorData = this.helpers.constructExecutionMetaData(
 						this.helpers.returnJsonArray({ error: error.message }),
 						{ itemData: { item: i } },
@@ -470,6 +472,6 @@ export class PagerDuty implements INodeType {
 				throw error;
 			}
 		}
-		return [returnData];
+		return this.prepareOutputData(returnData);
 	}
 }

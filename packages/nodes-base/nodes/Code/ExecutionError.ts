@@ -1,6 +1,4 @@
-import { ApplicationError } from 'n8n-workflow';
-
-export class ExecutionError extends ApplicationError {
+export class ExecutionError extends Error {
 	description: string | null = null;
 
 	itemIndex: number | undefined = undefined;
@@ -12,7 +10,7 @@ export class ExecutionError extends ApplicationError {
 	lineNumber: number | undefined = undefined;
 
 	constructor(error: Error & { stack: string }, itemIndex?: number) {
-		super(error.message);
+		super();
 		this.itemIndex = itemIndex;
 
 		if (this.itemIndex !== undefined) {

@@ -1,17 +1,17 @@
+import type { OptionsWithUri } from 'request';
+
 import type {
-	IDataObject,
 	IExecuteFunctions,
-	IHookFunctions,
-	IHttpRequestMethods,
 	ILoadOptionsFunctions,
-	IRequestOptions,
+	IDataObject,
+	IHookFunctions,
 	JsonObject,
 } from 'n8n-workflow';
 import { NodeApiError } from 'n8n-workflow';
 
 export async function pushcutApiRequest(
 	this: IExecuteFunctions | ILoadOptionsFunctions | IHookFunctions,
-	method: IHttpRequestMethods,
+	method: string,
 	path: string,
 
 	body: any = {},
@@ -21,7 +21,7 @@ export async function pushcutApiRequest(
 ): Promise<any> {
 	const credentials = await this.getCredentials('pushcutApi');
 
-	const options: IRequestOptions = {
+	const options: OptionsWithUri = {
 		headers: {
 			'API-Key': credentials.apiKey,
 		},

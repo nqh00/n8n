@@ -59,7 +59,6 @@ export const query = {
 				success
 					issue {
 						id,
-						identifier,
 						title,
 						priority
 						archivedAt
@@ -97,7 +96,6 @@ export const query = {
 		return `query Issue($issueId: String!) {
 			issue(id: $issueId) {
 				id,
-				identifier,
 				title,
 				priority,
 				archivedAt,
@@ -137,7 +135,6 @@ export const query = {
 					issues (first: $first, after: $after){
 						nodes {
 						id,
-						identifier,
 						title,
 						priority
 						archivedAt
@@ -191,7 +188,6 @@ export const query = {
 			success
 				issue {
 					id,
-					identifier,
 					title,
 					priority
 					archivedAt

@@ -16,7 +16,7 @@ export class DeepL implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'DeepL',
 		name: 'deepL',
-		icon: { light: 'file:deepl.svg', dark: 'file:deepL.dark.svg' },
+		icon: 'file:deepl.svg',
 		group: ['input', 'output'],
 		version: 1,
 		description: 'Translate data using DeepL',
@@ -137,7 +137,7 @@ export class DeepL implements INodeType {
 					}
 				}
 			} catch (error) {
-				if (this.continueOnFail(error)) {
+				if (this.continueOnFail()) {
 					const executionErrorData = {
 						json: {} as IDataObject,
 						error: error.message,

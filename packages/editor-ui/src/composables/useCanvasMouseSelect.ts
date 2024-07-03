@@ -1,12 +1,17 @@
 import type { INodeUi, XYPosition } from '@/Interface';
 
-import { useDeviceSupport } from 'n8n-design-system';
+import useDeviceSupport from './useDeviceSupport';
 import { useUIStore } from '@/stores/ui.store';
 import { useWorkflowsStore } from '@/stores/workflows.store';
-import { getMousePosition, getRelativePosition } from '@/utils/nodeViewUtils';
-import { ref, computed } from 'vue';
+import {
+	getMousePosition,
+	getRelativePosition,
+	HEADER_HEIGHT,
+	SIDEBAR_WIDTH,
+	SIDEBAR_WIDTH_EXPANDED,
+} from '@/utils/nodeViewUtils';
+import { ref, onMounted, computed } from 'vue';
 import { useCanvasStore } from '@/stores/canvas.store';
-import { useContextMenu } from './useContextMenu';
 
 interface ExtendedHTMLSpanElement extends HTMLSpanElement {
 	x: number;
@@ -21,7 +26,6 @@ export default function useCanvasMouseSelect() {
 	const uiStore = useUIStore();
 	const canvasStore = useCanvasStore();
 	const workflowsStore = useWorkflowsStore();
-	const { isOpen: isContextMenuOpen } = useContextMenu();
 
 	function _setSelectBoxStyle(styles: Record<string, string>) {
 		Object.assign(selectBox.value.style, styles);
@@ -64,7 +68,7 @@ export default function useCanvasMouseSelect() {
 		selectActive.value = false;
 	}
 
-	function _getSelectionBox(event: MouseEvent | TouchEvent) {
+	function _getSelectionBox(event: MouseEvent) {
 		const [x, y] = getMousePositionWithinNodeView(event);
 		return {
 			x: Math.min(x, selectBox.value.x),
@@ -74,7 +78,7 @@ export default function useCanvasMouseSelect() {
 		};
 	}
 
-	function _getNodesInSelection(event: MouseEvent | TouchEvent): INodeUi[] {
+	function _getNodesInSelection(event: MouseEvent): INodeUi[] {
 		const returnNodes: INodeUi[] = [];
 		const selectionBox = _getSelectionBox(event);
 
@@ -128,12 +132,9 @@ export default function useCanvasMouseSelect() {
 		_updateSelectBox(e);
 	}
 
-	function mouseUpMouseSelect(e: MouseEvent | TouchEvent) {
-		// Ignore right-click
-		if (('button' in e && e.button === 2) || isContextMenuOpen.value) return;
-
-		if (!selectActive.value) {
-			if (isTouchDevice && e.target instanceof HTMLElement) {
+	function mouseUpMouseSelect(e: MouseEvent) {
+		if (selectActive.value === false) {
+			if (isTouchDevice === true && e.target instanceof HTMLElement) {
 				if (e.target && e.target.id.includes('node-view')) {
 					// Deselect all nodes
 					deselectAllNodes();
@@ -161,7 +162,7 @@ export default function useCanvasMouseSelect() {
 		_hideSelectBox();
 	}
 	function mouseDownMouseSelect(e: MouseEvent, moveButtonPressed: boolean) {
-		if (isCtrlKeyPressed(e) || moveButtonPressed || e.button === 2) {
+		if (isCtrlKeyPressed(e) === true || moveButtonPressed) {
 			// We only care about it when the ctrl key is not pressed at the same time.
 			// So we exit when it is pressed.
 			return;
@@ -179,9 +180,17 @@ export default function useCanvasMouseSelect() {
 	}
 
 	function getMousePositionWithinNodeView(event: MouseEvent | TouchEvent): XYPosition {
-		const mousePosition = getMousePosition(event);
+		const [mouseX, mouseY] = getMousePosition(event);
 
-		const [relativeX, relativeY] = canvasStore.canvasPositionFromPagePosition(mousePosition);
+		const sidebarWidth = canvasStore.isDemo
+			? 0
+			: uiStore.sidebarMenuCollapsed
+			? SIDEBAR_WIDTH
+			: SIDEBAR_WIDTH_EXPANDED;
+		const headerHeight = canvasStore.isDemo ? 0 : HEADER_HEIGHT;
+
+		const relativeX = mouseX - sidebarWidth;
+		const relativeY = mouseY - headerHeight;
 		const nodeViewScale = canvasStore.nodeViewScale;
 		const nodeViewOffsetPosition = uiStore.nodeViewOffsetPosition;
 
@@ -204,24 +213,22 @@ export default function useCanvasMouseSelect() {
 		uiStore.lastSelectedNode = null;
 		uiStore.lastSelectedNodeOutputIndex = null;
 
+		canvasStore.lastSelectedConnection = null;
 		canvasStore.newNodeInsertPosition = null;
-		canvasStore.setLastSelectedConnection(undefined);
 	}
 
 	const instance = computed(() => canvasStore.jsPlumbInstance);
 
-	function initializeCanvasMouseSelect() {
+	onMounted(() => {
 		_createSelectBox();
-	}
+	});
 
 	return {
-		selectActive,
 		getMousePositionWithinNodeView,
 		mouseUpMouseSelect,
 		mouseDownMouseSelect,
 		nodeDeselected,
 		nodeSelected,
 		deselectAllNodes,
-		initializeCanvasMouseSelect,
 	};
 }

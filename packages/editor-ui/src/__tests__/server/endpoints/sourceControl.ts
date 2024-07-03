@@ -9,25 +9,16 @@ export function routesForSourceControl(server: Server) {
 	const defaultSourceControlPreferences: SourceControlPreferences = {
 		branchName: '',
 		branches: [],
+		authorName: '',
+		authorEmail: '',
 		repositoryUrl: '',
 		branchReadOnly: false,
 		branchColor: '#1d6acb',
 		connected: false,
 		publicKey: 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHEX+25m',
-		keyGeneratorType: 'ed25519',
 	};
 
-	server.get(`${sourceControlApiRoot}/preferences`, () => {
-		return new Response(
-			200,
-			{},
-			{
-				data: defaultSourceControlPreferences,
-			},
-		);
-	});
-
-	server.post(`${sourceControlApiRoot}/preferences`, (_schema: AppSchema, request: Request) => {
+	server.post(`${sourceControlApiRoot}/preferences`, (schema: AppSchema, request: Request) => {
 		const requestBody: Partial<SourceControlPreferences> = jsonParse(request.requestBody);
 
 		return new Response(
@@ -42,7 +33,7 @@ export function routesForSourceControl(server: Server) {
 		);
 	});
 
-	server.patch(`${sourceControlApiRoot}/preferences`, (_schema: AppSchema, request: Request) => {
+	server.patch(`${sourceControlApiRoot}/preferences`, (schema: AppSchema, request: Request) => {
 		const requestBody: Partial<SourceControlPreferences> = jsonParse(request.requestBody);
 
 		return new Response(

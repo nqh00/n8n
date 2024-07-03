@@ -1,4 +1,4 @@
-import { hasExpressionMapping } from '@/utils/nodeTypesUtils';
+import { hasExpressionMapping } from '@/utils';
 
 import type { Resolvable, Segment } from '@/types/expressions';
 
@@ -6,7 +6,7 @@ export function createExpressionTelemetryPayload(
 	segments: Segment[],
 	value: string,
 	workflowId: string,
-	pushRef: string,
+	sessionId: string,
 	activeNodeType: string,
 	eventSource = 'ndv',
 ) {
@@ -17,7 +17,7 @@ export function createExpressionTelemetryPayload(
 		empty_expression: value === '=' || value === '={{}}' || !value,
 		workflow_id: workflowId,
 		source: eventSource,
-		push_ref: pushRef,
+		session_id: sessionId,
 		is_transforming_data: resolvables.some((r) => isTransformingData(r.resolvable)),
 		has_parameter: value.includes('$parameter'),
 		has_mapping: hasExpressionMapping(value),
@@ -26,14 +26,12 @@ export function createExpressionTelemetryPayload(
 		handlebar_error_count: erroringResolvables.length,
 		short_errors: erroringResolvables.map((r) => r.resolved ?? null),
 		full_errors: erroringResolvables.map((erroringResolvable) => {
-			if (erroringResolvable.fullError) {
-				return {
-					...exposeErrorProperties(erroringResolvable.fullError),
-					stack: erroringResolvable.fullError.stack,
-				};
-			}
+			if (!erroringResolvable.fullError) return null;
 
-			return null;
+			return {
+				...exposeErrorProperties(erroringResolvable.fullError),
+				stack: erroringResolvable.fullError.stack,
+			};
 		}),
 	};
 }

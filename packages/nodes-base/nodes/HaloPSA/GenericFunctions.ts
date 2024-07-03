@@ -4,13 +4,14 @@ import type {
 	IDataObject,
 	IExecuteFunctions,
 	IHookFunctions,
-	IHttpRequestMethods,
+	IExecuteSingleFunctions,
 	ILoadOptionsFunctions,
 	IPollFunctions,
-	IRequestOptions,
 	JsonObject,
 } from 'n8n-workflow';
 import { NodeApiError } from 'n8n-workflow';
+
+import type { OptionsWithUri } from 'request';
 
 // Interfaces and Types -------------------------------------------------------------
 interface IHaloPSATokens {
@@ -35,7 +36,7 @@ export async function getAccessTokens(
 ): Promise<IHaloPSATokens> {
 	const credentials = await this.getCredentials('haloPSAApi');
 
-	const options: IRequestOptions = {
+	const options: OptionsWithUri = {
 		headers: {
 			'Content-Type': 'application/x-www-form-urlencoded',
 		},
@@ -59,8 +60,13 @@ export async function getAccessTokens(
 }
 
 export async function haloPSAApiRequest(
-	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions | IPollFunctions,
-	method: IHttpRequestMethods,
+	this:
+		| IHookFunctions
+		| IExecuteFunctions
+		| IExecuteSingleFunctions
+		| ILoadOptionsFunctions
+		| IPollFunctions,
+	method: string,
 	resource: string,
 	accessToken: string,
 	body: IDataObject | IDataObject[] = {},
@@ -70,7 +76,7 @@ export async function haloPSAApiRequest(
 	const resourceApiUrl = (await this.getCredentials('haloPSAApi')).resourceApiUrl as string;
 
 	try {
-		let options: IRequestOptions = {
+		let options: OptionsWithUri = {
 			headers: {
 				Authorization: `Bearer ${accessToken}`,
 				'User-Agent': 'https://n8n.io',
@@ -96,7 +102,7 @@ export async function haloPSAApiRequest(
 		return result;
 	} catch (error) {
 		const message = (error as JsonObject).message as string;
-		if (method === 'DELETE' || method === 'GET' || (method === 'POST' && message)) {
+		if (method === 'DELETE' || 'GET' || ('UPDATE' && message)) {
 			let newErrorMessage;
 			if (message.includes('400')) {
 				console.log(message);
@@ -106,10 +112,11 @@ export async function haloPSAApiRequest(
 				}`;
 			}
 			if (message.includes('403')) {
-				(error as JsonObject).message =
-					`You don\'t have permissions to ${method.toLowerCase()} ${resource
-						.split('/')[1]
-						.toLowerCase()}.`;
+				(
+					error as JsonObject
+				).message = `You don\'t have permissions to ${method.toLowerCase()} ${resource
+					.split('/')[1]
+					.toLowerCase()}.`;
 			}
 		}
 		throw new NodeApiError(this.getNode(), error as JsonObject);
@@ -120,6 +127,7 @@ export async function haloPSAApiRequest(
 // 	this:
 // 		| IHookFunctions
 // 		| IExecuteFunctions
+// 		| IExecuteSingleFunctions
 // 		| ILoadOptionsFunctions
 // 		| IPollFunctions,
 // 	clientId: string,
@@ -151,7 +159,7 @@ export async function haloPSAApiRequest(
 export async function haloPSAApiRequestAllItems(
 	this: IExecuteFunctions | ILoadOptionsFunctions | IHookFunctions,
 	propertyName: string,
-	method: IHttpRequestMethods,
+	method: string,
 	endpoint: string,
 	accessToken: string,
 	body = {},
@@ -224,7 +232,7 @@ export async function validateCredentials(
 ): Promise<IHaloPSATokens> {
 	const credentials = decryptedCredentials;
 
-	const options: IRequestOptions = {
+	const options: OptionsWithUri = {
 		headers: {
 			'Content-Type': 'application/x-www-form-urlencoded',
 		},

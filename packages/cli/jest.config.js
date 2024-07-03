@@ -6,12 +6,10 @@ module.exports = {
 	},
 	globalSetup: '<rootDir>/test/setup.ts',
 	globalTeardown: '<rootDir>/test/teardown.ts',
-	setupFilesAfterEnv: [
-		'n8n-workflow/test/setup.ts',
-		'<rootDir>/test/setup-test-folder.ts',
-		'<rootDir>/test/setup-mocks.ts',
-		'<rootDir>/test/extend-expect.ts',
-	],
+	setupFilesAfterEnv: ['<rootDir>/test/setup-mocks.ts', '<rootDir>/test/extend-expect.ts'],
+	moduleNameMapper: {
+		'^@/(.*)$': '<rootDir>/src/$1',
+		'^@db/(.*)$': '<rootDir>/src/databases/$1',
+	},
 	coveragePathIgnorePatterns: ['/src/databases/migrations/'],
-	testTimeout: 10_000,
 };

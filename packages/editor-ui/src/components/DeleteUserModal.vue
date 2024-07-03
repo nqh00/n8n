@@ -1,11 +1,11 @@
 <template>
 	<Modal
 		:name="modalName"
+		@enter="onSubmit"
 		:title="title"
 		:center="true"
 		width="460px"
-		:event-bus="modalBus"
-		@enter="onSubmit"
+		:eventBus="modalBus"
 	>
 		<template #content>
 			<div>
@@ -14,48 +14,43 @@
 						$locale.baseText('settings.users.confirmUserDeletion')
 					}}</n8n-text>
 				</div>
-				<div v-else :class="$style.content">
+				<div :class="$style.content" v-else>
 					<div>
 						<n8n-text color="text-base">{{
 							$locale.baseText('settings.users.confirmDataHandlingAfterDeletion')
 						}}</n8n-text>
 					</div>
-					<el-radio
-						v-model="operation"
-						label="transfer"
-						@update:model-value="operation = 'transfer'"
-					>
+					<el-radio :value="operation" label="transfer" @change="() => setOperation('transfer')">
 						<n8n-text color="text-dark">{{
 							$locale.baseText('settings.users.transferWorkflowsAndCredentials')
 						}}</n8n-text>
 					</el-radio>
-					<div v-if="operation === 'transfer'" :class="$style.optionInput">
-						<n8n-text color="text-dark">{{
-							$locale.baseText('settings.users.transferWorkflowsAndCredentials.user')
-						}}</n8n-text>
-						<ProjectSharing
-							v-model="selectedProject"
-							class="pt-2xs"
-							:projects="projects"
-							:placeholder="
-								$locale.baseText('settings.users.transferWorkflowsAndCredentials.placeholder')
-							"
-						/>
+					<div :class="$style.optionInput" v-if="operation === 'transfer'">
+						<n8n-input-label :label="$locale.baseText('settings.users.userToTransferTo')">
+							<n8n-user-select
+								:users="usersStore.allUsers"
+								:value="transferId"
+								:ignoreIds="ignoreIds"
+								:currentUserId="usersStore.currentUserId"
+								@input="setTransferId"
+							/>
+						</n8n-input-label>
 					</div>
-					<el-radio v-model="operation" label="delete" @update:model-value="operation = 'delete'">
+					<el-radio :value="operation" label="delete" @change="() => setOperation('delete')">
 						<n8n-text color="text-dark">{{
 							$locale.baseText('settings.users.deleteWorkflowsAndCredentials')
 						}}</n8n-text>
 					</el-radio>
 					<div
-						v-if="operation === 'delete'"
 						:class="$style.optionInput"
+						v-if="operation === 'delete'"
 						data-test-id="delete-data-input"
 					>
 						<n8n-input-label :label="$locale.baseText('settings.users.deleteConfirmationMessage')">
 							<n8n-input
-								v-model="deleteConfirmText"
+								:value="deleteConfirmText"
 								:placeholder="$locale.baseText('settings.users.deleteConfirmationText')"
+								@input="setConfirmText"
 							/>
 						</n8n-input-label>
 					</div>
@@ -67,9 +62,8 @@
 				:loading="loading"
 				:disabled="!enabled"
 				:label="$locale.baseText('settings.users.delete')"
-				float="right"
-				data-test-id="confirm-delete-user-button"
 				@click="onSubmit"
+				float="right"
 			/>
 		</template>
 	</Modal>
@@ -77,21 +71,17 @@
 
 <script lang="ts">
 import { defineComponent } from 'vue';
-import { useToast } from '@/composables/useToast';
+import { useToast } from '@/composables';
 import Modal from '@/components/Modal.vue';
 import type { IUser } from '@/Interface';
 import { mapStores } from 'pinia';
 import { useUsersStore } from '@/stores/users.store';
-import { createEventBus } from 'n8n-design-system/utils';
-import { useProjectsStore } from '@/stores/projects.store';
-import type { ProjectListItem, ProjectSharingData } from '@/types/projects.types';
-import ProjectSharing from '@/components/Projects/ProjectSharing.vue';
+import { createEventBus } from 'n8n-design-system';
 
 export default defineComponent({
 	name: 'DeleteUserModal',
 	components: {
 		Modal,
-		ProjectSharing,
 	},
 	props: {
 		modalName: {
@@ -112,13 +102,13 @@ export default defineComponent({
 			loading: false,
 			operation: '',
 			deleteConfirmText: '',
-			selectedProject: null as ProjectSharingData | null,
+			transferId: '',
+			ignoreIds: [this.activeId],
 		};
 	},
 	computed: {
-		...mapStores(useUsersStore, useProjectsStore),
+		...mapStores(useUsersStore),
 		userToDelete(): IUser | null {
-			if (!this.activeId) return null;
 			return this.usersStore.getUserById(this.activeId);
 		},
 		isPending(): boolean {
@@ -140,24 +130,24 @@ export default defineComponent({
 				return true;
 			}
 
-			if (this.operation === 'transfer' && this.selectedProject) {
+			if (this.operation === 'transfer' && this.transferId) {
 				return true;
 			}
 
 			return false;
 		},
-		projects(): ProjectListItem[] {
-			return this.projectsStore.personalProjects.filter(
-				(project) =>
-					project.name !==
-					`${this.userToDelete?.firstName} ${this.userToDelete?.lastName} <${this.userToDelete?.email}>`,
-			);
-		},
-	},
-	async beforeMount() {
-		await this.projectsStore.getAllProjects();
 	},
 	methods: {
+		setOperation(operation: string) {
+			this.operation = operation;
+			this.transferId = '';
+		},
+		setConfirmText(text: string) {
+			this.deleteConfirmText = text;
+		},
+		setTransferId(id: string) {
+			this.transferId = id;
+		},
 		async onSubmit() {
 			try {
 				if (!this.enabled) {
@@ -167,18 +157,18 @@ export default defineComponent({
 				this.loading = true;
 
 				const params = { id: this.activeId } as { id: string; transferId?: string };
-				if (this.operation === 'transfer' && this.selectedProject) {
-					params.transferId = this.selectedProject.id;
+				if (this.operation === 'transfer') {
+					params.transferId = this.transferId;
 				}
 
 				await this.usersStore.deleteUser(params);
 
 				let message = '';
-				if (params.transferId) {
-					const transferProject = this.projects.find((project) => project.id === params.transferId);
-					if (transferProject) {
+				if (this.transferId) {
+					const transferUser: IUser | null = this.usersStore.getUserById(this.transferId);
+					if (transferUser) {
 						message = this.$locale.baseText('settings.users.transferredToUser', {
-							interpolate: { projectName: transferProject.name ?? '' },
+							interpolate: { user: transferUser.fullName || '' },
 						});
 					}
 				}

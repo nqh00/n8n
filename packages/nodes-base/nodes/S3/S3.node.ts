@@ -1,5 +1,6 @@
-import { createHash } from 'crypto';
 import { paramCase, snakeCase } from 'change-case';
+
+import { createHash } from 'crypto';
 
 import { Builder } from 'xml2js';
 
@@ -883,7 +884,7 @@ export class S3 implements INodeType {
 					}
 				}
 			} catch (error) {
-				if (this.continueOnFail(error)) {
+				if (this.continueOnFail()) {
 					if (resource === 'file' && operation === 'download') {
 						items[i].json = { error: error.message };
 					} else {
@@ -901,9 +902,9 @@ export class S3 implements INodeType {
 		}
 		if (resource === 'file' && operation === 'download') {
 			// For file downloads the files get attached to the existing items
-			return [items];
+			return this.prepareOutputData(items);
 		}
 
-		return [returnData];
+		return this.prepareOutputData(returnData);
 	}
 }

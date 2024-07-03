@@ -1,4 +1,4 @@
-import type { StoryFn } from '@storybook/vue3';
+import type { StoryFn } from '@storybook/vue';
 import N8nBlockUi from './BlockUi.vue';
 
 export default {
@@ -7,13 +7,12 @@ export default {
 };
 
 const Template: StoryFn = (args, { argTypes }) => ({
-	setup: () => ({ args }),
 	props: Object.keys(argTypes),
 	components: {
 		N8nBlockUi,
 	},
 	template:
-		'<div style="position: relative; width: 100%; height: 300px;"><n8n-block-ui v-bind="args" /></div>',
+		'<div style="position: relative; width: 100%; height: 300px;"><n8n-block-ui v-bind="$props" /></div>',
 });
 
 export const BlockUi = Template.bind({});

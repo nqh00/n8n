@@ -450,7 +450,7 @@ export class AwsElb implements INodeType {
 					),
 				);
 			} catch (error) {
-				if (this.continueOnFail(error)) {
+				if (this.continueOnFail()) {
 					returnData.push({ error: (error as JsonObject).toString() });
 					continue;
 				}

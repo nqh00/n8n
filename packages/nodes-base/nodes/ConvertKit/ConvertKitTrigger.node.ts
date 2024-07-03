@@ -9,8 +9,9 @@ import type {
 	IWebhookResponseData,
 } from 'n8n-workflow';
 
-import { snakeCase } from 'change-case';
 import { convertKitApiRequest } from './GenericFunctions';
+
+import { snakeCase } from 'change-case';
 
 export class ConvertKitTrigger implements INodeType {
 	description: INodeTypeDescription = {

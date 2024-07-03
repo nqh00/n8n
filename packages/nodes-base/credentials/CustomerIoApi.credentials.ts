@@ -1,4 +1,3 @@
-import { ApplicationError } from 'n8n-workflow';
 import type {
 	ICredentialDataDecryptedObject,
 	ICredentialType,
@@ -18,7 +17,6 @@ export class CustomerIoApi implements ICredentialType {
 			displayName: 'Tracking API Key',
 			name: 'trackingApiKey',
 			type: 'string',
-			typeOptions: { password: true },
 			default: '',
 			description: 'Required for tracking API',
 			required: true,
@@ -39,7 +37,7 @@ export class CustomerIoApi implements ICredentialType {
 			],
 			default: 'track.customer.io',
 			description: 'Should be set based on your account region',
-			hint: 'The region will be omitted when being used with the HTTP node',
+			hint: 'The region will be omited when being used with the HTTP node',
 			required: true,
 		},
 		{
@@ -53,7 +51,6 @@ export class CustomerIoApi implements ICredentialType {
 			displayName: 'App API Key',
 			name: 'appApiKey',
 			type: 'string',
-			typeOptions: { password: true },
 			default: '',
 			description: 'Required for App API',
 		},
@@ -77,7 +74,7 @@ export class CustomerIoApi implements ICredentialType {
 				Authorization: `Bearer ${credentials.appApiKey as string}`,
 			});
 		} else {
-			throw new ApplicationError('Unknown way of authenticating', { level: 'warning' });
+			throw new Error('Unknown way of authenticating');
 		}
 
 		return requestOptions;

@@ -6,8 +6,6 @@ import { routesForVariables } from './variable';
 import { routesForSettings } from './settings';
 import { routesForSSO } from './sso';
 import { routesForSourceControl } from './sourceControl';
-import { routesForWorkflows } from './workflow';
-import { routesForTags } from './tag';
 
 const endpoints: Array<(server: Server) => void> = [
 	routesForCredentials,
@@ -17,8 +15,6 @@ const endpoints: Array<(server: Server) => void> = [
 	routesForSettings,
 	routesForSSO,
 	routesForSourceControl,
-	routesForWorkflows,
-	routesForTags,
 ];
 
 export { endpoints };

@@ -1,5 +1,5 @@
 import { jsonParse } from 'n8n-workflow';
-import type { ValueTransformer, FindOperator } from '@n8n/typeorm';
+import type { ValueTransformer, FindOperator } from 'typeorm';
 import config from '@/config';
 
 export const idStringifier = {

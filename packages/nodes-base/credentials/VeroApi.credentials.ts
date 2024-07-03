@@ -12,7 +12,6 @@ export class VeroApi implements ICredentialType {
 			displayName: 'Auth Token',
 			name: 'authToken',
 			type: 'string',
-			typeOptions: { password: true },
 			default: '',
 		},
 	];

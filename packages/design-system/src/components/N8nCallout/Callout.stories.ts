@@ -1,7 +1,7 @@
 import N8nCallout from './Callout.vue';
 import N8nLink from '../N8nLink';
 import N8nText from '../N8nText';
-import type { StoryFn } from '@storybook/vue3';
+import type { StoryFn } from '@storybook/vue';
 
 export default {
 	title: 'Atoms/Callout',
@@ -10,8 +10,8 @@ export default {
 		theme: {
 			control: {
 				type: 'select',
+				options: ['info', 'secondary', 'success', 'warning', 'danger', 'custom'],
 			},
-			options: ['info', 'secondary', 'success', 'warning', 'danger', 'custom'],
 		},
 		message: {
 			control: {
@@ -41,7 +41,6 @@ interface Args {
 }
 
 const template: StoryFn<Args> = (args, { argTypes }) => ({
-	setup: () => ({ args }),
 	props: Object.keys(argTypes),
 	components: {
 		N8nLink,
@@ -49,12 +48,12 @@ const template: StoryFn<Args> = (args, { argTypes }) => ({
 		N8nCallout,
 	},
 	template: `
-		<n8n-callout v-bind="args">
+		<n8n-callout v-bind="$props">
 			${args.default}
-			<template #actions v-if="args.actions">
+			<template #actions v-if="actions">
 				${args.actions}
 			</template>
-			<template #trailingContent v-if="args.trailingContent">
+			<template #trailingContent v-if="trailingContent">
 				${args.trailingContent}
 			</template>
 		</n8n-callout>

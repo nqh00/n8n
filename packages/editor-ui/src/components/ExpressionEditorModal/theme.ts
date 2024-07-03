@@ -18,7 +18,6 @@ const commonThemeProps = {
 		height: '220px',
 		padding: 'var(--spacing-xs)',
 		color: 'var(--input-font-color, var(--color-text-dark))',
-		caretColor: 'var(--color-code-caret)',
 	},
 	'.cm-line': {
 		padding: '0',

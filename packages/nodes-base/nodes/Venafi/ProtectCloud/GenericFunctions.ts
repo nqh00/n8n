@@ -1,11 +1,12 @@
+import type { OptionsWithUri } from 'request';
+
 import type {
 	IExecuteFunctions,
+	IExecuteSingleFunctions,
 	ILoadOptionsFunctions,
 	IDataObject,
 	IHookFunctions,
 	JsonObject,
-	IHttpRequestMethods,
-	IRequestOptions,
 } from 'n8n-workflow';
 import { NodeApiError } from 'n8n-workflow';
 
@@ -14,19 +15,17 @@ import get from 'lodash/get';
 import * as nacl_factory from 'js-nacl';
 
 export async function venafiApiRequest(
-	this: IExecuteFunctions | ILoadOptionsFunctions | IHookFunctions,
-	method: IHttpRequestMethods,
+	this: IExecuteFunctions | IExecuteSingleFunctions | ILoadOptionsFunctions | IHookFunctions,
+	method: string,
 	resource: string,
 	body = {},
 	qs: IDataObject = {},
+	uri?: string,
 	option: IDataObject = {},
 ): Promise<any> {
 	const operation = this.getNodeParameter('operation', 0);
-	const credentials = await this.getCredentials('venafiTlsProtectCloudApi');
 
-	const region = credentials.region ?? 'cloud';
-
-	const options: IRequestOptions = {
+	const options: OptionsWithUri = {
 		headers: {
 			Accept: 'application/json',
 			'content-type': 'application/json',
@@ -34,7 +33,7 @@ export async function venafiApiRequest(
 		method,
 		body,
 		qs,
-		uri: `https://api.venafi.${region}${resource}`,
+		uri: `https://api.venafi.cloud${resource}`,
 		json: true,
 	};
 
@@ -69,7 +68,7 @@ export async function venafiApiRequest(
 export async function venafiApiRequestAllItems(
 	this: IExecuteFunctions | ILoadOptionsFunctions,
 	propertyName: string,
-	method: IHttpRequestMethods,
+	method: string,
 	endpoint: string,
 
 	body: IDataObject = {},
@@ -120,7 +119,7 @@ export async function encryptPassphrase(
 	let encryptedKeyStorePass = '';
 
 	const promise = async () => {
-		return await new Promise((resolve, reject) => {
+		return new Promise((resolve, reject) => {
 			nacl_factory.instantiate((nacl: any) => {
 				try {
 					const passphraseUTF8 = nacl.encode_utf8(passphrase) as string;
@@ -141,5 +140,5 @@ export async function encryptPassphrase(
 			});
 		});
 	};
-	return await promise();
+	return promise();
 }

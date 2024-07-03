@@ -1,33 +1,23 @@
-import type { Plugin } from 'vue';
+import type _Vue from 'vue';
 import type { ITelemetrySettings, ITelemetryTrackProperties, IDataObject } from 'n8n-workflow';
-import type { RouteLocation } from 'vue-router';
+import type { Route } from 'vue-router';
 
-import type { INodeCreateElement, IUpdateInformation } from '@/Interface';
-import type { IUserNodesPanelSession, RudderStack } from './telemetry.types';
-import {
-	APPEND_ATTRIBUTION_DEFAULT_PATH,
-	MICROSOFT_TEAMS_NODE_TYPE,
-	SLACK_NODE_TYPE,
-	TELEGRAM_NODE_TYPE,
-} from '@/constants';
-import { useRootStore } from '@/stores/root.store';
-import { useNDVStore } from '@/stores/ndv.store';
-import { usePostHog } from '@/stores/posthog.store';
+import type { INodeCreateElement } from '@/Interface';
+import type { IUserNodesPanelSession } from './telemetry.types';
 import { useSettingsStore } from '@/stores/settings.store';
+import { useRootStore } from '@/stores/n8nRoot.store';
 import { useTelemetryStore } from '@/stores/telemetry.store';
-import { useUIStore } from '@/stores/ui.store';
 
 export class Telemetry {
-	private pageEventQueue: Array<{ route: RouteLocation }>;
-
+	private pageEventQueue: Array<{ route: Route }>;
 	private previousPath: string;
 
-	private get rudderStack(): RudderStack | undefined {
+	private get rudderStack() {
 		return window.rudderanalytics;
 	}
 
 	private userNodesPanelSession: IUserNodesPanelSession = {
-		pushRef: '',
+		sessionId: '',
 		data: {
 			nodeFilter: '',
 			resultsNodes: [],
@@ -45,12 +35,10 @@ export class Telemetry {
 		{
 			instanceId,
 			userId,
-			projectId,
 			versionCli,
 		}: {
 			instanceId: string;
 			userId?: string;
-			projectId?: string;
 			versionCli: string;
 		},
 	) {
@@ -75,37 +63,22 @@ export class Telemetry {
 		});
 		useTelemetryStore().init(this);
 
-		this.identify(instanceId, userId, versionCli, projectId);
+		this.identify(instanceId, userId, versionCli);
 
 		this.flushPageEvents();
-		this.track('Session started', { session_id: rootStore.pushRef });
+		this.track('Session started', { session_id: rootStore.sessionId });
 	}
 
-	identify(instanceId: string, userId?: string, versionCli?: string, projectId?: string) {
-		const settingsStore = useSettingsStore();
-		const traits: { instance_id: string; version_cli?: string; user_cloud_id?: string } = {
-			instance_id: instanceId,
-			version_cli: versionCli,
-		};
-
-		if (settingsStore.isCloudDeployment) {
-			traits.user_cloud_id = settingsStore.settings?.n8nMetadata?.userId ?? '';
-		}
+	identify(instanceId: string, userId?: string, versionCli?: string) {
+		const traits = { instance_id: instanceId, version_cli: versionCli };
 		if (userId) {
-			this.rudderStack?.identify(
-				`${instanceId}#${userId}${projectId ? '#' + projectId : ''}`,
-				traits,
-			);
+			this.rudderStack.identify(`${instanceId}#${userId}`, traits);
 		} else {
-			this.rudderStack?.reset();
+			this.rudderStack.reset();
 		}
 	}
 
-	track(
-		event: string,
-		properties?: ITelemetryTrackProperties,
-		options: { withPostHog?: boolean } = {},
-	) {
+	track(event: string, properties?: ITelemetryTrackProperties) {
 		if (!this.rudderStack) return;
 
 		const updatedProperties = {
@@ -114,13 +87,9 @@ export class Telemetry {
 		};
 
 		this.rudderStack.track(event, updatedProperties);
-
-		if (options.withPostHog) {
-			usePostHog().capture(event, updatedProperties);
-		}
 	}
 
-	page(route: RouteLocation) {
+	page(route: Route) {
 		if (this.rudderStack) {
 			if (route.path === this.previousPath) {
 				// avoid duplicate requests query is changed for example on search page
@@ -128,16 +97,19 @@ export class Telemetry {
 			}
 			this.previousPath = route.path;
 
-			const pageName = String(route.name);
-			let properties: Record<string, unknown> = {};
-			if (route.meta?.telemetry && typeof route.meta.telemetry.getProperties === 'function') {
+			const pageName = route.name;
+			let properties: { [key: string]: string } = {};
+			if (
+				route.meta &&
+				route.meta.telemetry &&
+				typeof route.meta.telemetry.getProperties === 'function'
+			) {
 				properties = route.meta.telemetry.getProperties(route);
 			}
 
-			properties.theme = useUIStore().appliedTheme;
-
-			const category = route.meta?.telemetry?.pageCategory || 'Editor';
-			this.rudderStack.page(category, pageName, properties);
+			const category =
+				(route.meta && route.meta.telemetry && route.meta.telemetry.pageCategory) || 'Editor';
+			this.rudderStack.page(category, pageName!, properties);
 		} else {
 			this.pageEventQueue.push({
 				route,
@@ -153,28 +125,14 @@ export class Telemetry {
 		});
 	}
 
-	trackAskAI(event: string, properties: IDataObject = {}) {
-		if (this.rudderStack) {
-			properties.session_id = useRootStore().pushRef;
-			properties.ndv_session_id = useNDVStore().pushRef;
-
-			switch (event) {
-				case 'askAi.generationFinished':
-					this.track('Ai code generation finished', properties, { withPostHog: true });
-				default:
-					break;
-			}
-		}
-	}
-
 	trackNodesPanel(event: string, properties: IDataObject = {}) {
 		if (this.rudderStack) {
-			properties.nodes_panel_session_id = this.userNodesPanelSession.pushRef;
+			properties.nodes_panel_session_id = this.userNodesPanelSession.sessionId;
 			switch (event) {
 				case 'nodeView.createNodeActiveChanged':
 					if (properties.createNodeActive !== false) {
 						this.resetNodesPanelSession();
-						properties.nodes_panel_session_id = this.userNodesPanelSession.pushRef;
+						properties.nodes_panel_session_id = this.userNodesPanelSession.sessionId;
 						this.track('User opened nodes panel', properties);
 					}
 					break;
@@ -205,30 +163,30 @@ export class Telemetry {
 					break;
 				case 'nodeCreateList.onCategoryExpanded':
 					properties.is_subcategory = false;
-					properties.nodes_panel_session_id = this.userNodesPanelSession.pushRef;
+					properties.nodes_panel_session_id = this.userNodesPanelSession.sessionId;
 					this.track('User viewed node category', properties);
 					break;
 				case 'nodeCreateList.onViewActions':
-					properties.nodes_panel_session_id = this.userNodesPanelSession.pushRef;
+					properties.nodes_panel_session_id = this.userNodesPanelSession.sessionId;
 					this.track('User viewed node actions', properties);
 					break;
 				case 'nodeCreateList.onActionsCustmAPIClicked':
-					properties.nodes_panel_session_id = this.userNodesPanelSession.pushRef;
+					properties.nodes_panel_session_id = this.userNodesPanelSession.sessionId;
 					this.track('User clicked custom API from node actions', properties);
 					break;
 				case 'nodeCreateList.addAction':
-					properties.nodes_panel_session_id = this.userNodesPanelSession.pushRef;
+					properties.nodes_panel_session_id = this.userNodesPanelSession.sessionId;
 					this.track('User added action', properties);
 					break;
 				case 'nodeCreateList.onSubcategorySelected':
 					properties.category_name = properties.subcategory;
 					properties.is_subcategory = true;
-					properties.nodes_panel_session_id = this.userNodesPanelSession.pushRef;
+					properties.nodes_panel_session_id = this.userNodesPanelSession.sessionId;
 					delete properties.selected;
 					this.track('User viewed node category', properties);
 					break;
 				case 'nodeView.addNodeButton':
-					this.track('User added node to workflow canvas', properties, { withPostHog: true });
+					this.track('User added node to workflow canvas', properties);
 					break;
 				case 'nodeView.addSticky':
 					this.track('User inserted workflow note', properties);
@@ -239,31 +197,8 @@ export class Telemetry {
 		}
 	}
 
-	// We currently do not support tracking directly from within node implementation
-	// so we are using this method as centralized way to track node parameters changes
-	trackNodeParametersValuesChange(nodeType: string, change: IUpdateInformation) {
-		if (this.rudderStack) {
-			const changeNameMap: { [key: string]: string } = {
-				[SLACK_NODE_TYPE]: 'parameters.otherOptions.includeLinkToWorkflow',
-				[MICROSOFT_TEAMS_NODE_TYPE]: 'parameters.options.includeLinkToWorkflow',
-				[TELEGRAM_NODE_TYPE]: 'parameters.additionalFields.appendAttribution',
-			};
-			const changeName = changeNameMap[nodeType] || APPEND_ATTRIBUTION_DEFAULT_PATH;
-			if (change.name === changeName) {
-				this.track(
-					'User toggled n8n reference option',
-					{
-						node: nodeType,
-						toValue: change.value,
-					},
-					{ withPostHog: true },
-				);
-			}
-		}
-	}
-
 	private resetNodesPanelSession() {
-		this.userNodesPanelSession.pushRef = `nodes_panel_session_${new Date().valueOf()}`;
+		this.userNodesPanelSession.sessionId = `nodes_panel_session_${new Date().valueOf()}`;
 		this.userNodesPanelSession.data = {
 			nodeFilter: '',
 			resultsNodes: [],
@@ -276,15 +211,12 @@ export class Telemetry {
 			search_string: this.userNodesPanelSession.data.nodeFilter,
 			results_count: this.userNodesPanelSession.data.resultsNodes.length,
 			filter_mode: this.userNodesPanelSession.data.filterMode,
-			nodes_panel_session_id: this.userNodesPanelSession.pushRef,
+			nodes_panel_session_id: this.userNodesPanelSession.sessionId,
 		};
 	}
 
 	private initRudderStack(key: string, url: string, options: IDataObject) {
 		window.rudderanalytics = window.rudderanalytics || [];
-		if (!this.rudderStack) {
-			return;
-		}
 
 		this.rudderStack.methods = [
 			'load',
@@ -301,10 +233,6 @@ export class Telemetry {
 
 		this.rudderStack.factory = (method: string) => {
 			return (...args: unknown[]) => {
-				if (!this.rudderStack) {
-					throw new Error('RudderStack not initialized');
-				}
-
 				const argsCopy = [method, ...args];
 				this.rudderStack.push(argsCopy);
 
@@ -337,8 +265,15 @@ export class Telemetry {
 
 export const telemetry = new Telemetry();
 
-export const TelemetryPlugin: Plugin = {
-	install(app) {
-		app.config.globalProperties.$telemetry = telemetry;
-	},
-};
+export function TelemetryPlugin(vue: typeof _Vue): void {
+	Object.defineProperty(vue, '$telemetry', {
+		get() {
+			return telemetry;
+		},
+	});
+	Object.defineProperty(vue.prototype, '$telemetry', {
+		get() {
+			return telemetry;
+		},
+	});
+}

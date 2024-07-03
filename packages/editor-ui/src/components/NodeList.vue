@@ -1,11 +1,11 @@
 <template>
 	<div :class="$style.list">
-		<div v-for="node in slicedNodes" :key="node.name" :class="[$style.container, $style[size]]">
-			<NodeIcon :node-type="node" :size="size === 'md' ? 24 : 18" :show-tooltip="true" />
+		<div v-for="node in slicedNodes" :class="[$style.container, $style[size]]" :key="node.name">
+			<NodeIcon :nodeType="node" :size="size === 'md' ? 24 : 18" :showTooltip="true" />
 		</div>
 		<div
-			v-if="filteredCoreNodes.length > limit + 1"
 			:class="[$style.button, size === 'md' ? $style.buttonMd : $style.buttonSm]"
+			v-if="filteredCoreNodes.length > limit + 1"
 		>
 			+{{ hiddenNodes }}
 		</div>
@@ -15,14 +15,13 @@
 <script lang="ts">
 import { defineComponent } from 'vue';
 import NodeIcon from '@/components/NodeIcon.vue';
+import { genericHelpers } from '@/mixins/genericHelpers';
 import type { ITemplatesNode } from '@/Interface';
-import { filterTemplateNodes } from '@/utils/nodeTypesUtils';
+import { filterTemplateNodes } from '@/utils';
 
 export default defineComponent({
 	name: 'NodeList',
-	components: {
-		NodeIcon,
-	},
+	mixins: [genericHelpers],
 	props: {
 		nodes: {
 			type: Array,
@@ -35,6 +34,9 @@ export default defineComponent({
 			type: String,
 			default: 'sm',
 		},
+	},
+	components: {
+		NodeIcon,
 	},
 	computed: {
 		filteredCoreNodes() {

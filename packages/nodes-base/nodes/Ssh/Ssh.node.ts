@@ -1,5 +1,3 @@
-import { rm, writeFile } from 'fs/promises';
-import type { Readable } from 'stream';
 import type {
 	ICredentialTestFunctions,
 	ICredentialsDecrypted,
@@ -12,11 +10,13 @@ import type {
 } from 'n8n-workflow';
 import { BINARY_ENCODING, NodeOperationError } from 'n8n-workflow';
 
+import { rm, writeFile } from 'fs/promises';
+
 import { file as tmpFile } from 'tmp-promise';
 
 import type { Config } from 'node-ssh';
 import { NodeSSH } from 'node-ssh';
-import { formatPrivateKey } from '@utils/utilities';
+import type { Readable } from 'stream';
 
 async function resolveHomeDir(
 	this: IExecuteFunctions,
@@ -47,12 +47,19 @@ async function resolveHomeDir(
 	return path;
 }
 
+function sanitizePrivateKey(privateKey: string) {
+	const [openSshKey, bodySshKey, endSshKey] = privateKey
+		.split('-----')
+		.filter((item) => item !== '');
+
+	return `-----${openSshKey}-----\n${bodySshKey.replace(/ /g, '\n')}\n-----${endSshKey}-----`;
+}
+
 export class Ssh implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'SSH',
 		name: 'ssh',
 		icon: 'fa:terminal',
-		iconColor: 'black',
 		group: ['input'],
 		version: 1,
 		subtitle: '={{$parameter["operation"] + ": " + $parameter["resource"]}}',
@@ -192,7 +199,7 @@ export class Ssh implements INodeType {
 				default: 'upload',
 			},
 			{
-				displayName: 'Input Binary Field',
+				displayName: 'Binary Property',
 				name: 'binaryPropertyName',
 				type: 'string',
 				default: 'data',
@@ -204,7 +211,8 @@ export class Ssh implements INodeType {
 					},
 				},
 				placeholder: '',
-				hint: 'The name of the input binary field containing the file to be uploaded',
+				description:
+					'Name of the binary property which contains the data for the file to be uploaded',
 			},
 			{
 				displayName: 'Target Directory',
@@ -239,7 +247,7 @@ export class Ssh implements INodeType {
 				required: true,
 			},
 			{
-				displayName: 'File Property',
+				displayName: 'Binary Property',
 				displayOptions: {
 					show: {
 						resource: ['file'],
@@ -296,11 +304,15 @@ export class Ssh implements INodeType {
 							password: credentials.password as string,
 						});
 					} else {
+						const { path } = await tmpFile({ prefix: 'n8n-ssh-' });
+						temporaryFiles.push(path);
+						await writeFile(path, sanitizePrivateKey(credentials.privateKey as string));
+
 						const options: Config = {
 							host: credentials.host as string,
 							username: credentials.username as string,
 							port: credentials.port as number,
-							privateKey: formatPrivateKey(credentials.privateKey as string),
+							privateKey: path,
 						};
 
 						if (credentials.passphrase) {
@@ -352,11 +364,16 @@ export class Ssh implements INodeType {
 				});
 			} else if (authentication === 'privateKey') {
 				const credentials = await this.getCredentials('sshPrivateKey');
+
+				const { path } = await tmpFile({ prefix: 'n8n-ssh-' });
+				temporaryFiles.push(path);
+				await writeFile(path, sanitizePrivateKey(credentials.privateKey as string));
+
 				const options: Config = {
 					host: credentials.host as string,
 					username: credentials.username as string,
 					port: credentials.port as number,
-					privateKey: formatPrivateKey(credentials.privateKey as string),
+					privateKey: path,
 				};
 
 				if (credentials.passphrase) {
@@ -439,7 +456,7 @@ export class Ssh implements INodeType {
 
 							let uploadData: Buffer | Readable;
 							if (binaryData.id) {
-								uploadData = await this.helpers.getBinaryStream(binaryData.id);
+								uploadData = this.helpers.getBinaryStream(binaryData.id);
 							} else {
 								uploadData = Buffer.from(binaryData.data, BINARY_ENCODING);
 							}
@@ -466,7 +483,7 @@ export class Ssh implements INodeType {
 						}
 					}
 				} catch (error) {
-					if (this.continueOnFail(error)) {
+					if (this.continueOnFail()) {
 						if (resource === 'file' && operation === 'download') {
 							items[i] = {
 								json: {
@@ -500,9 +517,9 @@ export class Ssh implements INodeType {
 
 		if (resource === 'file' && operation === 'download') {
 			// For file downloads the files get attached to the existing items
-			return [items];
+			return this.prepareOutputData(items);
 		} else {
-			return [returnItems];
+			return this.prepareOutputData(returnItems);
 		}
 	}
 }

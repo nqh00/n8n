@@ -17,16 +17,16 @@
 			<n8n-action-box
 				:heading="$locale.baseText('settings.communityNodes.empty.title')"
 				:description="getEmptyStateDescription"
-				:callout-text="actionBoxConfig.calloutText"
-				:callout-theme="actionBoxConfig.calloutTheme"
+				:calloutText="actionBoxConfig.calloutText"
+				:calloutTheme="actionBoxConfig.calloutTheme"
 			/>
 		</div>
-		<div v-else-if="loading" :class="$style.cardsContainer">
-			<CommunityPackageCard
+		<div :class="$style.cardsContainer" v-else-if="loading">
+			<community-package-card
 				v-for="n in 2"
 				:key="'index-' + n"
 				:loading="true"
-			></CommunityPackageCard>
+			></community-package-card>
 		</div>
 		<div
 			v-else-if="communityNodesStore.getInstalledPackages.length === 0"
@@ -35,18 +35,18 @@
 			<n8n-action-box
 				:heading="$locale.baseText('settings.communityNodes.empty.title')"
 				:description="getEmptyStateDescription"
-				:button-text="getEmptyStateButtonText"
-				:callout-text="actionBoxConfig.calloutText"
-				:callout-theme="actionBoxConfig.calloutTheme"
-				@click:button="onClickEmptyStateButton"
+				:buttonText="getEmptyStateButtonText"
+				:calloutText="actionBoxConfig.calloutText"
+				:calloutTheme="actionBoxConfig.calloutTheme"
+				@click="onClickEmptyStateButton"
 			/>
 		</div>
-		<div v-else :class="$style.cardsContainer">
-			<CommunityPackageCard
+		<div :class="$style.cardsContainer" v-else>
+			<community-package-card
 				v-for="communityPackage in communityNodesStore.getInstalledPackages"
 				:key="communityPackage.packageName"
-				:community-package="communityPackage"
-			></CommunityPackageCard>
+				:communityPackage="communityPackage"
+			></community-package-card>
 		</div>
 	</div>
 </template>
@@ -55,11 +55,11 @@
 import {
 	COMMUNITY_PACKAGE_INSTALL_MODAL_KEY,
 	COMMUNITY_NODES_INSTALLATION_DOCS_URL,
-	COMMUNITY_NODES_MANUAL_INSTALLATION_DOCS_URL,
 	COMMUNITY_NODES_NPM_INSTALLATION_URL,
 } from '@/constants';
 import CommunityPackageCard from '@/components/CommunityPackageCard.vue';
-import { useToast } from '@/composables/useToast';
+import { useToast } from '@/composables';
+import { pushConnection } from '@/mixins/pushConnection';
 import type { PublicInstalledPackage } from 'n8n-workflow';
 
 import { useCommunityNodesStore } from '@/stores/communityNodes.store';
@@ -67,27 +67,19 @@ import { useUIStore } from '@/stores/ui.store';
 import { mapStores } from 'pinia';
 import { useSettingsStore } from '@/stores/settings.store';
 import { defineComponent } from 'vue';
-import { useExternalHooks } from '@/composables/useExternalHooks';
-import { useRouter } from 'vue-router';
-import { usePushConnection } from '@/composables/usePushConnection';
-import { usePushConnectionStore } from '@/stores/pushConnection.store';
 
 const PACKAGE_COUNT_THRESHOLD = 31;
 
 export default defineComponent({
 	name: 'SettingsCommunityNodesView',
+	mixins: [pushConnection],
 	components: {
 		CommunityPackageCard,
 	},
-	setup() {
-		const router = useRouter();
-		const pushConnection = usePushConnection({ router });
-		const externalHooks = useExternalHooks();
-
+	setup(props) {
 		return {
-			externalHooks,
 			...useToast(),
-			pushConnection,
+			...pushConnection.setup?.(props),
 		};
 	},
 	data() {
@@ -95,80 +87,12 @@ export default defineComponent({
 			loading: false,
 		};
 	},
-	computed: {
-		...mapStores(useCommunityNodesStore, useSettingsStore, useUIStore, usePushConnectionStore),
-		getEmptyStateDescription(): string {
-			const packageCount = this.communityNodesStore.availablePackageCount;
-
-			if (this.settingsStore.isDesktopDeployment) {
-				return this.$locale.baseText('contextual.communityNodes.unavailable.description.desktop');
-			}
-
-			return packageCount < PACKAGE_COUNT_THRESHOLD
-				? this.$locale.baseText('settings.communityNodes.empty.description.no-packages', {
-						interpolate: {
-							docURL: COMMUNITY_NODES_INSTALLATION_DOCS_URL,
-						},
-					})
-				: this.$locale.baseText('settings.communityNodes.empty.description', {
-						interpolate: {
-							docURL: COMMUNITY_NODES_INSTALLATION_DOCS_URL,
-							count: (Math.floor(packageCount / 10) * 10).toString(),
-						},
-					});
-		},
-		getEmptyStateButtonText(): string {
-			if (this.settingsStore.isDesktopDeployment) {
-				return this.$locale.baseText('contextual.communityNodes.unavailable.button.desktop');
-			}
-
-			return this.shouldShowInstallButton
-				? this.$locale.baseText('settings.communityNodes.empty.installPackageLabel')
-				: '';
-		},
-		shouldShowInstallButton(): boolean {
-			return this.settingsStore.isDesktopDeployment || this.settingsStore.isNpmAvailable;
-		},
-		actionBoxConfig(): {
-			calloutText: string;
-			calloutTheme: 'warning' | string;
-			hideButton: boolean;
-		} {
-			if (!this.settingsStore.isNpmAvailable) {
-				return {
-					calloutText: this.$locale.baseText('settings.communityNodes.npmUnavailable.warning', {
-						interpolate: { npmUrl: COMMUNITY_NODES_NPM_INSTALLATION_URL },
-					}),
-					calloutTheme: 'warning',
-					hideButton: true,
-				};
-			}
-
-			if (this.settingsStore.isQueueModeEnabled) {
-				return {
-					calloutText: this.$locale.baseText('settings.communityNodes.queueMode.warning', {
-						interpolate: { docURL: COMMUNITY_NODES_MANUAL_INSTALLATION_DOCS_URL },
-					}),
-					calloutTheme: 'warning',
-					hideButton: true,
-				};
-			}
-
-			return {
-				calloutText: '',
-				calloutTheme: '',
-				hideButton: false,
-			};
-		},
-	},
-	beforeMount() {
-		this.pushConnection.initialize();
-		// The push connection is needed here to receive `reloadNodeType` and `removeNodeType` events when community nodes are installed, updated, or removed.
-		this.pushStore.pushConnect();
-	},
 	async mounted() {
+		// The push connection is needed here to receive `reloadNodeType` and `removeNodeType` events when community nodes are installed, updated, or removed.
+		this.pushConnect();
+
 		try {
-			this.loading = true;
+			this.$data.loading = true;
 			await this.communityNodesStore.fetchInstalledPackages();
 
 			const installedPackages: PublicInstalledPackage[] =
@@ -202,17 +126,82 @@ export default defineComponent({
 				this.$locale.baseText('settings.communityNodes.fetchError.message'),
 			);
 		} finally {
-			this.loading = false;
+			this.$data.loading = false;
 		}
 		try {
 			await this.communityNodesStore.fetchAvailableCommunityPackageCount();
 		} finally {
-			this.loading = false;
+			this.$data.loading = false;
 		}
 	},
-	beforeUnmount() {
-		this.pushStore.pushDisconnect();
-		this.pushConnection.terminate();
+	beforeDestroy() {
+		this.pushDisconnect();
+	},
+	computed: {
+		...mapStores(useCommunityNodesStore, useSettingsStore, useUIStore),
+		getEmptyStateDescription(): string {
+			const packageCount = this.communityNodesStore.availablePackageCount;
+
+			if (this.settingsStore.isDesktopDeployment) {
+				return this.$locale.baseText('contextual.communityNodes.unavailable.description.desktop');
+			}
+
+			return packageCount < PACKAGE_COUNT_THRESHOLD
+				? this.$locale.baseText('settings.communityNodes.empty.description.no-packages', {
+						interpolate: {
+							docURL: COMMUNITY_NODES_INSTALLATION_DOCS_URL,
+						},
+				  })
+				: this.$locale.baseText('settings.communityNodes.empty.description', {
+						interpolate: {
+							docURL: COMMUNITY_NODES_INSTALLATION_DOCS_URL,
+							count: (Math.floor(packageCount / 10) * 10).toString(),
+						},
+				  });
+		},
+		getEmptyStateButtonText(): string {
+			if (this.settingsStore.isDesktopDeployment) {
+				return this.$locale.baseText('contextual.communityNodes.unavailable.button.desktop');
+			}
+
+			return this.shouldShowInstallButton
+				? this.$locale.baseText('settings.communityNodes.empty.installPackageLabel')
+				: '';
+		},
+		shouldShowInstallButton(): boolean {
+			return this.settingsStore.isDesktopDeployment || this.settingsStore.isNpmAvailable;
+		},
+		actionBoxConfig(): {
+			calloutText: string;
+			calloutTheme: 'warning' | string;
+			hideButton: boolean;
+		} {
+			if (!this.settingsStore.isNpmAvailable) {
+				return {
+					calloutText: this.$locale.baseText('settings.communityNodes.npmUnavailable.warning', {
+						interpolate: { npmUrl: COMMUNITY_NODES_NPM_INSTALLATION_URL },
+					}),
+					calloutTheme: 'warning',
+					hideButton: true,
+				};
+			}
+
+			if (this.settingsStore.isQueueModeEnabled) {
+				return {
+					calloutText: this.$locale.baseText('settings.communityNodes.queueMode.warning', {
+						interpolate: { docURL: COMMUNITY_NODES_INSTALLATION_DOCS_URL },
+					}),
+					calloutTheme: 'warning',
+					hideButton: true,
+				};
+			}
+
+			return {
+				calloutText: '',
+				calloutTheme: '',
+				hideButton: false,
+			};
+		},
 	},
 	methods: {
 		onClickEmptyStateButton(): void {
@@ -223,7 +212,11 @@ export default defineComponent({
 			this.openInstallModal();
 		},
 		goToUpgrade(): void {
-			void this.uiStore.goToUpgrade('community-nodes', 'upgrade-community-nodes');
+			const linkUrl = `${this.$locale.baseText(
+				'contextual.upgradeLinkUrl.desktop',
+			)}&utm_campaign=upgrade-community-nodes&selfHosted=true`;
+
+			window.open(linkUrl, '_blank');
 		},
 		openInstallModal(): void {
 			const telemetryPayload = {
@@ -231,7 +224,10 @@ export default defineComponent({
 			};
 			this.$telemetry.track('user clicked cnr install button', telemetryPayload);
 
-			void this.externalHooks.run('settingsCommunityNodesView.openInstallModal', telemetryPayload);
+			void this.$externalHooks().run(
+				'settingsCommunityNodesView.openInstallModal',
+				telemetryPayload,
+			);
 			this.uiStore.openModal(COMMUNITY_PACKAGE_INSTALL_MODAL_KEY);
 		},
 	},

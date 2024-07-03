@@ -3,7 +3,6 @@ import Chainable = Cypress.Chainable;
 
 export class VariablesPage extends BasePage {
 	url = '/variables';
-
 	getters = {
 		unavailableResourcesList: () => cy.getByTestId('unavailable-resources-list'),
 		emptyResourcesList: () => cy.getByTestId('empty-resources-list'),
@@ -11,11 +10,11 @@ export class VariablesPage extends BasePage {
 		goToUpgrade: () => cy.getByTestId('go-to-upgrade'),
 		actionBox: () => cy.getByTestId('action-box'),
 		emptyResourcesListNewVariableButton: () => this.getters.emptyResourcesList().find('button'),
-		searchBar: () => cy.getByTestId('resources-list-search'),
+		searchBar: () => cy.getByTestId('resources-list-search').find('input'),
 		createVariableButton: () => cy.getByTestId('resources-list-add'),
 		variablesRows: () => cy.getByTestId('variables-row'),
 		variablesEditableRows: () =>
-			cy.getByTestId('variables-row').filter((_, row) => !!row.querySelector('input')),
+			cy.getByTestId('variables-row').filter((index, row) => !!row.querySelector('input')),
 		variableRow: (key: string) =>
 			this.getters.variablesRows().contains(key).parents('[data-test-id="variables-row"]'),
 		editableRowCancelButton: (row: Chainable<JQuery<HTMLElement>>) =>
@@ -36,7 +35,7 @@ export class VariablesPage extends BasePage {
 		deleteVariable: (key: string) => {
 			const row = this.getters.variableRow(key);
 			row.within(() => {
-				cy.getByTestId('variable-row-delete-button').should('not.be.disabled').click();
+				cy.getByTestId('variable-row-delete-button').click();
 			});
 
 			const modal = cy.get('[role="dialog"]');
@@ -54,7 +53,7 @@ export class VariablesPage extends BasePage {
 		editRow: (key: string) => {
 			const row = this.getters.variableRow(key);
 			row.within(() => {
-				cy.getByTestId('variable-row-edit-button').should('not.be.disabled').click();
+				cy.getByTestId('variable-row-edit-button').click();
 			});
 		},
 		setRowValue: (row: Chainable<JQuery<HTMLElement>>, field: 'key' | 'value', value: string) => {

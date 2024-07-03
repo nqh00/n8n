@@ -1,3 +1,5 @@
+import type { OptionsWithUri } from 'request';
+
 import type {
 	IExecuteFunctions,
 	ILoadOptionsFunctions,
@@ -5,20 +7,18 @@ import type {
 	IHookFunctions,
 	IWebhookFunctions,
 	JsonObject,
-	IHttpRequestMethods,
-	IRequestOptions,
 } from 'n8n-workflow';
 import { NodeApiError } from 'n8n-workflow';
 
 export async function postmarkApiRequest(
 	this: IExecuteFunctions | IWebhookFunctions | IHookFunctions | ILoadOptionsFunctions,
-	method: IHttpRequestMethods,
+	method: string,
 	endpoint: string,
 
 	body: any = {},
 	option: IDataObject = {},
 ): Promise<any> {
-	let options: IRequestOptions = {
+	let options: OptionsWithUri = {
 		headers: {
 			'Content-Type': 'application/json',
 			Accept: 'application/json',

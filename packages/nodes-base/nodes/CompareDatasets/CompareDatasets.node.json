@@ -41,7 +41,7 @@
 			}
 		]
 	},
-	"alias": ["Join", "Concatenate", "Compare", "Dataset", "Split", "Sync", "Syncing"],
+	"alias": ["Join", "Concatenate", "Compare", "Dataset", "Split"],
 	"subcategories": {
 		"Core Nodes": ["Flow"]
 	}

@@ -30,7 +30,7 @@ export class Marketstack implements INodeType {
 		displayName: 'Marketstack',
 		name: 'marketstack',
 		subtitle: '={{$parameter["operation"] + ": " + $parameter["resource"]}}',
-		icon: { light: 'file:marketstack.svg', dark: 'file:marketstack.dark.svg' },
+		icon: 'file:marketstack.svg',
 		group: ['transform'],
 		version: 1,
 		description: 'Consume Marketstack API',
@@ -161,7 +161,7 @@ export class Marketstack implements INodeType {
 					}
 				}
 			} catch (error) {
-				if (this.continueOnFail(error)) {
+				if (this.continueOnFail()) {
 					const executionErrorData = this.helpers.constructExecutionMetaData(
 						this.helpers.returnJsonArray({ error: error.message }),
 						{ itemData: { item: i } },
@@ -180,6 +180,6 @@ export class Marketstack implements INodeType {
 			returnData.push(...executionData);
 		}
 
-		return [returnData];
+		return this.prepareOutputData(returnData);
 	}
 }

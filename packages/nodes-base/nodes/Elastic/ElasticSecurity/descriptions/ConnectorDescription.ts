@@ -104,7 +104,6 @@ export const connectorFields: INodeProperties[] = [
 		name: 'apiToken',
 		description: 'Jira API token',
 		type: 'string',
-		typeOptions: { password: true },
 		required: true,
 		default: '',
 		displayOptions: {
@@ -166,7 +165,6 @@ export const connectorFields: INodeProperties[] = [
 		name: 'apiKeyId',
 		description: 'IBM Resilient API key ID',
 		type: 'string',
-		typeOptions: { password: true },
 		required: true,
 		default: '',
 		displayOptions: {
@@ -182,7 +180,6 @@ export const connectorFields: INodeProperties[] = [
 		name: 'apiKeySecret',
 		description: 'IBM Resilient API key secret',
 		type: 'string',
-		typeOptions: { password: true },
 		required: true,
 		default: '',
 		displayOptions: {

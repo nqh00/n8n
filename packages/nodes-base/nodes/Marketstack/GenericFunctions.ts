@@ -1,15 +1,11 @@
-import type {
-	IExecuteFunctions,
-	IDataObject,
-	JsonObject,
-	IHttpRequestMethods,
-	IRequestOptions,
-} from 'n8n-workflow';
+import type { OptionsWithUri } from 'request';
+
+import type { IExecuteFunctions, IDataObject, JsonObject } from 'n8n-workflow';
 import { NodeApiError, NodeOperationError } from 'n8n-workflow';
 
 export async function marketstackApiRequest(
 	this: IExecuteFunctions,
-	method: IHttpRequestMethods,
+	method: string,
 	endpoint: string,
 	body: IDataObject = {},
 	qs: IDataObject = {},
@@ -17,7 +13,7 @@ export async function marketstackApiRequest(
 	const credentials = await this.getCredentials('marketstackApi');
 	const protocol = credentials.useHttps ? 'https' : 'http'; // Free API does not support HTTPS
 
-	const options: IRequestOptions = {
+	const options: OptionsWithUri = {
 		method,
 		uri: `${protocol}://api.marketstack.com/v1${endpoint}`,
 		qs: {
@@ -40,7 +36,7 @@ export async function marketstackApiRequest(
 
 export async function marketstackApiRequestAllItems(
 	this: IExecuteFunctions,
-	method: IHttpRequestMethods,
+	method: string,
 	endpoint: string,
 	body: IDataObject = {},
 	qs: IDataObject = {},

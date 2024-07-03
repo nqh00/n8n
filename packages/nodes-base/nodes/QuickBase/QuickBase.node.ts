@@ -10,7 +10,6 @@ import type {
 } from 'n8n-workflow';
 import { NodeOperationError } from 'n8n-workflow';
 
-import { generatePairedItemData } from '../../utils/utilities';
 import {
 	getFieldsObject,
 	quickbaseApiRequest,
@@ -117,7 +116,6 @@ export class QuickBase implements INodeType {
 
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
 		const items = this.getInputData();
-		const itemData = generatePairedItemData(items.length);
 		const returnData: INodeExecutionData[] = [];
 		const length = items.length;
 		const qs: IDataObject = {};
@@ -231,7 +229,7 @@ export class QuickBase implements INodeType {
 					);
 				}
 
-				return [items];
+				return this.prepareOutputData(items);
 			}
 		}
 
@@ -297,7 +295,7 @@ export class QuickBase implements INodeType {
 
 				const executionData = this.helpers.constructExecutionMetaData(
 					this.helpers.returnJsonArray(responseData as IDataObject[]),
-					{ itemData },
+					{ itemData: { item: 0 } },
 				);
 
 				returnData.push(...executionData);
@@ -467,7 +465,7 @@ export class QuickBase implements INodeType {
 
 				const executionData = this.helpers.constructExecutionMetaData(
 					this.helpers.returnJsonArray(responseData as IDataObject[]),
-					{ itemData },
+					{ itemData: { item: 0 } },
 				);
 
 				returnData.push(...executionData);
@@ -550,7 +548,7 @@ export class QuickBase implements INodeType {
 
 				const executionData = this.helpers.constructExecutionMetaData(
 					this.helpers.returnJsonArray(responseData as IDataObject[]),
-					{ itemData },
+					{ itemData: { item: 0 } },
 				);
 
 				returnData.push(...executionData);
@@ -640,6 +638,6 @@ export class QuickBase implements INodeType {
 			}
 		}
 
-		return [returnData];
+		return this.prepareOutputData(returnData);
 	}
 }

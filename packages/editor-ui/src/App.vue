@@ -9,25 +9,16 @@
 				[$style.sidebarCollapsed]: uiStore.sidebarMenuCollapsed,
 			}"
 		>
-			<div id="banners" :class="$style.banners">
-				<BannerStack v-if="!isDemoMode" />
-			</div>
 			<div id="header" :class="$style.header">
 				<router-view name="header"></router-view>
 			</div>
-			<div v-if="usersStore.currentUser" id="sidebar" :class="$style.sidebar">
+			<div id="sidebar" :class="$style.sidebar">
 				<router-view name="sidebar"></router-view>
 			</div>
 			<div id="content" :class="$style.content">
-				<router-view v-slot="{ Component }">
-					<keep-alive v-if="$route.meta.keepWorkflowAlive" include="NodeView" :max="1">
-						<component :is="Component" />
-					</keep-alive>
-					<component :is="Component" v-else />
-				</router-view>
-			</div>
-			<div id="chat" :class="{ [$style.chat]: true, [$style.open]: aiStore.assistantChatOpen }">
-				<AIAssistantChat v-if="aiStore.assistantChatOpen" />
+				<keep-alive include="NodeView" :max="1">
+					<router-view />
+				</keep-alive>
 			</div>
 			<Modals />
 			<Telemetry />
@@ -39,45 +30,45 @@
 import { defineComponent } from 'vue';
 import { mapStores } from 'pinia';
 
-import BannerStack from '@/components/banners/BannerStack.vue';
 import Modals from '@/components/Modals.vue';
 import LoadingView from '@/views/LoadingView.vue';
 import Telemetry from '@/components/Telemetry.vue';
-import { HIRING_BANNER, VIEWS } from '@/constants';
+import { CLOUD_TRIAL_CHECK_INTERVAL, HIRING_BANNER, LOCAL_STORAGE_THEME, VIEWS } from '@/constants';
 
+import { userHelpers } from '@/mixins/userHelpers';
 import { loadLanguage } from '@/plugins/i18n';
-import useGlobalLinkActions from '@/composables/useGlobalLinkActions';
-import { useExternalHooks } from '@/composables/useExternalHooks';
-import { useToast } from '@/composables/useToast';
-import { useCloudPlanStore } from '@/stores/cloudPlan.store';
-import { useNodeTypesStore } from '@/stores/nodeTypes.store';
-import { useRootStore } from '@/stores/root.store';
-import { useSettingsStore } from '@/stores/settings.store';
-import { useSourceControlStore } from '@/stores/sourceControl.store';
-import { useTemplatesStore } from '@/stores/templates.store';
-import { useUIStore } from '@/stores/ui.store';
-import { useUsageStore } from '@/stores/usage.store';
-import { useUsersStore } from '@/stores/users.store';
+import { useGlobalLinkActions, useToast } from '@/composables';
+import {
+	useUIStore,
+	useSettingsStore,
+	useUsersStore,
+	useRootStore,
+	useTemplatesStore,
+	useNodeTypesStore,
+	useCloudPlanStore,
+	useSourceControlStore,
+	useUsageStore,
+} from '@/stores';
 import { useHistoryHelper } from '@/composables/useHistoryHelper';
-import { useRoute } from 'vue-router';
-import { useAIStore } from './stores/ai.store';
-import AIAssistantChat from './components/AIAssistantChat/AIAssistantChat.vue';
+import { newVersions } from '@/mixins/newVersions';
+import { useRoute } from 'vue-router/composables';
+import { useExternalHooks } from '@/composables';
 
 export default defineComponent({
 	name: 'App',
 	components: {
-		BannerStack,
 		LoadingView,
 		Telemetry,
 		Modals,
-		AIAssistantChat,
 	},
-	setup() {
+	mixins: [newVersions, userHelpers],
+	setup(props) {
 		return {
 			...useGlobalLinkActions(),
 			...useHistoryHelper(useRoute()),
 			...useToast(),
 			externalHooks: useExternalHooks(),
+			...newVersions.setup?.(props),
 		};
 	},
 	computed: {
@@ -91,13 +82,9 @@ export default defineComponent({
 			useSourceControlStore,
 			useCloudPlanStore,
 			useUsageStore,
-			useAIStore,
 		),
 		defaultLocale(): string {
 			return this.rootStore.defaultLocale;
-		},
-		isDemoMode(): boolean {
-			return this.$route.name === VIEWS.DEMO;
 		},
 	},
 	data() {
@@ -105,21 +92,161 @@ export default defineComponent({
 			loading: true,
 		};
 	},
-	watch: {
-		defaultLocale(newLocale) {
-			void loadLanguage(newLocale);
+	methods: {
+		async initSettings(): Promise<void> {
+			try {
+				await this.settingsStore.getSettings();
+			} catch (e) {
+				this.showToast({
+					title: this.$locale.baseText('startupError'),
+					message: this.$locale.baseText('startupError.message'),
+					type: 'error',
+					duration: 0,
+					dangerouslyUseHTMLString: true,
+				});
+
+				throw e;
+			}
+		},
+		async loginWithCookie(): Promise<void> {
+			try {
+				await this.usersStore.loginWithCookie();
+			} catch (e) {}
+		},
+		async initTemplates(): Promise<void> {
+			if (!this.settingsStore.isTemplatesEnabled) {
+				return;
+			}
+			try {
+				await this.settingsStore.testTemplatesEndpoint();
+			} catch (e) {}
+		},
+		logHiringBanner() {
+			if (this.settingsStore.isHiringBannerEnabled && this.$route.name !== VIEWS.DEMO) {
+				console.log(HIRING_BANNER); // eslint-disable-line no-console
+			}
+		},
+		async initialize(): Promise<void> {
+			await this.initSettings();
+			await Promise.all([this.loginWithCookie(), this.initTemplates()]);
+		},
+		trackPage(): void {
+			this.uiStore.currentView = this.$route.name || '';
+			if (this.$route && this.$route.meta && this.$route.meta.templatesEnabled) {
+				this.templatesStore.setSessionId();
+			} else {
+				this.templatesStore.resetSessionId(); // reset telemetry session id when user leaves template pages
+			}
+
+			this.$telemetry.page(this.$route);
+		},
+		authenticate() {
+			// redirect to setup page. user should be redirected to this only once
+			if (this.settingsStore.isUserManagementEnabled && this.settingsStore.showSetupPage) {
+				if (this.$route.name === VIEWS.SETUP) {
+					return;
+				}
+
+				void this.$router.replace({ name: VIEWS.SETUP });
+				return;
+			}
+
+			if (this.canUserAccessCurrentRoute()) {
+				return;
+			}
+
+			// if cannot access page and not logged in, ask to sign in
+			const user = this.usersStore.currentUser;
+			if (!user) {
+				const redirect =
+					this.$route.query.redirect ||
+					encodeURIComponent(`${window.location.pathname}${window.location.search}`);
+				void this.$router.replace({ name: VIEWS.SIGNIN, query: { redirect } });
+				return;
+			}
+
+			// if cannot access page and is logged in, respect signin redirect
+			if (this.$route.name === VIEWS.SIGNIN && typeof this.$route.query.redirect === 'string') {
+				const redirect = decodeURIComponent(this.$route.query.redirect);
+				if (redirect.startsWith('/')) {
+					// protect against phishing
+					void this.$router.replace(redirect);
+					return;
+				}
+			}
+
+			// if cannot access page and is logged in
+			void this.$router.replace({ name: VIEWS.HOMEPAGE });
+		},
+		redirectIfNecessary() {
+			const redirect =
+				this.$route.meta &&
+				typeof this.$route.meta.getRedirect === 'function' &&
+				this.$route.meta.getRedirect();
+			if (redirect) {
+				void this.$router.replace(redirect);
+			}
+		},
+		setTheme() {
+			const theme = window.localStorage.getItem(LOCAL_STORAGE_THEME);
+			if (theme) {
+				window.document.body.classList.add(`theme-${theme}`);
+			}
+		},
+		async checkForCloudPlanData(): Promise<void> {
+			try {
+				await this.cloudPlanStore.getOwnerCurrentPlan();
+				if (!this.cloudPlanStore.userIsTrialing) return;
+				await this.cloudPlanStore.getInstanceCurrentUsage();
+				this.startPollingInstanceUsageData();
+			} catch {}
+		},
+		startPollingInstanceUsageData() {
+			const interval = setInterval(async () => {
+				try {
+					await this.cloudPlanStore.getInstanceCurrentUsage();
+					if (this.cloudPlanStore.trialExpired || this.cloudPlanStore.allExecutionsUsed) {
+						clearTimeout(interval);
+						return;
+					}
+				} catch {}
+			}, CLOUD_TRIAL_CHECK_INTERVAL);
 		},
 	},
 	async mounted() {
+		this.setTheme();
+		await this.initialize();
 		this.logHiringBanner();
-		void useExternalHooks().run('app.mount');
+		this.authenticate();
+		this.redirectIfNecessary();
+		void this.checkForNewVersions();
+		void this.checkForCloudPlanData();
+
+		if (
+			this.sourceControlStore.isEnterpriseSourceControlEnabled &&
+			this.usersStore.isInstanceOwner
+		) {
+			await this.sourceControlStore.getPreferences();
+		}
+
 		this.loading = false;
+
+		this.trackPage();
+		void this.externalHooks.run('app.mount');
+
+		if (this.defaultLocale !== 'en') {
+			await this.nodeTypesStore.getNodeTranslationHeaders();
+		}
 	},
-	methods: {
-		logHiringBanner() {
-			if (this.settingsStore.isHiringBannerEnabled && !this.isDemoMode) {
-				console.log(HIRING_BANNER);
-			}
+	watch: {
+		$route(route) {
+			this.authenticate();
+			this.redirectIfNecessary();
+
+			this.trackPage();
+		},
+		defaultLocale(newLocale) {
+			void loadLanguage(newLocale);
 		},
 	},
 });
@@ -134,52 +261,29 @@ export default defineComponent({
 .container {
 	display: grid;
 	grid-template-areas:
-		'banners banners banners'
-		'sidebar header chat'
-		'sidebar content chat';
-	grid-auto-columns: fit-content($sidebar-expanded-width) 1fr fit-content($chat-width);
-	grid-template-rows: auto fit-content($header-height) 1fr;
-	height: 100vh;
-}
-
-.banners {
-	grid-area: banners;
-	z-index: 999;
+		'sidebar header'
+		'sidebar content';
+	grid-auto-columns: fit-content($sidebar-expanded-width) 1fr;
+	grid-template-rows: fit-content($sidebar-width) 1fr;
 }
 
 .content {
 	display: flex;
 	grid-area: content;
 	overflow: auto;
-	height: 100%;
+	height: 100vh;
 	width: 100%;
 	justify-content: center;
-
-	main {
-		width: 100%;
-		height: 100%;
-	}
 }
 
 .header {
 	grid-area: header;
-	z-index: 99;
+	z-index: 999;
 }
 
 .sidebar {
 	grid-area: sidebar;
-	height: 100%;
+	height: 100vh;
 	z-index: 999;
-}
-.chat {
-	grid-area: chat;
-	z-index: 999;
-	height: 100%;
-	width: 0;
-	transition: all 0.2s ease-in-out;
-
-	&.open {
-		width: $chat-width;
-	}
 }
 </style>

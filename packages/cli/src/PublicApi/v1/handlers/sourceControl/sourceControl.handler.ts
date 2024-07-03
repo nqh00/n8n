@@ -1,20 +1,16 @@
 import type express from 'express';
-import { Container } from 'typedi';
 import type { StatusResult } from 'simple-git';
 import type { PublicSourceControlRequest } from '../../../types';
-import { globalScope } from '../../shared/middlewares/global.middleware';
+import { authorize } from '../../shared/middlewares/global.middleware';
 import type { ImportResult } from '@/environments/sourceControl/types/importResult';
+import Container from 'typedi';
 import { SourceControlService } from '@/environments/sourceControl/sourceControl.service.ee';
 import { SourceControlPreferencesService } from '@/environments/sourceControl/sourceControlPreferences.service.ee';
-import {
-	getTrackingInformationFromPullResult,
-	isSourceControlLicensed,
-} from '@/environments/sourceControl/sourceControlHelper.ee';
-import { InternalHooks } from '@/InternalHooks';
+import { isSourceControlLicensed } from '@/environments/sourceControl/sourceControlHelper.ee';
 
 export = {
 	pull: [
-		globalScope('sourceControl:pull'),
+		authorize(['owner', 'member']),
 		async (
 			req: PublicSourceControlRequest.Pull,
 			res: express.Response,
@@ -36,16 +32,12 @@ export = {
 					force: req.body.force,
 					variables: req.body.variables,
 					userId: req.user.id,
+					importAfterPull: true,
 				});
-
-				if (result.statusCode === 200) {
-					void Container.get(InternalHooks).onSourceControlUserPulledAPI({
-						...getTrackingInformationFromPullResult(result.statusResult),
-						forced: req.body.force ?? false,
-					});
-					return res.status(200).send(result.statusResult);
+				if ((result as ImportResult)?.workflows) {
+					return res.status(200).send(result as ImportResult);
 				} else {
-					return res.status(409).send(result.statusResult);
+					return res.status(409).send(result);
 				}
 			} catch (error) {
 				return res.status(400).send((error as { message: string }).message);

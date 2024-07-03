@@ -1,5 +1,6 @@
 import type { Registry } from 'miragejs';
 
+// eslint-disable-next-line import/no-unresolved
 import type Schema from 'miragejs/orm/schema';
 
 import type { models } from './models';

@@ -1,82 +1,96 @@
 <template>
-	<div :class="$style.container">
+	<div class="ph-no-capture" :class="$style.container">
 		<span v-if="readonly" :class="$style.headline">
-			{{ modelValue }}
+			{{ name }}
 		</span>
 		<div
 			v-else
 			:class="[$style.headline, $style['headline-editable']]"
 			@keydown.stop
 			@click="enableNameEdit"
+			v-click-outside="disableNameEdit"
 		>
 			<div v-if="!isNameEdit">
-				<span>{{ modelValue }}</span>
+				<span>{{ name }}</span>
 				<i><font-awesome-icon icon="pen" /></i>
 			</div>
 			<div v-else :class="$style.nameInput">
 				<n8n-input
-					ref="nameInput"
-					:model-value="modelValue"
+					:value="name"
 					size="xlarge"
-					:maxlength="64"
-					@update:model-value="onNameEdit"
+					ref="nameInput"
+					@input="onNameEdit"
 					@change="disableNameEdit"
+					:maxlength="64"
 				/>
 			</div>
 		</div>
-		<div v-if="!isNameEdit && subtitle" :class="$style.subtitle">
+		<div :class="$style.subtitle" v-if="!isNameEdit && subtitle">
 			{{ subtitle }}
 		</div>
 	</div>
 </template>
 
-<script setup lang="ts">
-import { nextTick, ref } from 'vue';
-import { useToast } from '@/composables/useToast';
-import { onClickOutside } from '@vueuse/core';
+<script lang="ts">
+import { defineComponent } from 'vue';
+import { useToast } from '@/composables';
 
-interface Props {
-	modelValue: string;
-	subtitle: string;
-	type: string;
-	readonly: boolean;
-}
-const props = defineProps<Props>();
+export default defineComponent({
+	name: 'InlineNameEdit',
+	props: {
+		name: {
+			type: String,
+		},
+		subtitle: {
+			type: String,
+		},
+		type: {
+			type: String,
+		},
+		readonly: {
+			type: Boolean,
+			default: false,
+		},
+	},
+	setup() {
+		return {
+			...useToast(),
+		};
+	},
+	data() {
+		return {
+			isNameEdit: false,
+		};
+	},
+	methods: {
+		onNameEdit(value: string) {
+			this.$emit('input', value);
+		},
+		enableNameEdit() {
+			this.isNameEdit = true;
 
-const emit = defineEmits<{
-	(event: 'update:modelValue', value: string): void;
-}>();
+			setTimeout(() => {
+				const inputRef = this.$refs.nameInput as HTMLInputElement | undefined;
+				if (inputRef) {
+					inputRef.focus();
+				}
+			}, 0);
+		},
+		disableNameEdit() {
+			if (!this.name) {
+				this.$emit('input', `Untitled ${this.type}`);
 
-const isNameEdit = ref(false);
-const nameInput = ref<HTMLInputElement | null>(null);
-const { showToast } = useToast();
+				this.showToast({
+					title: 'Error',
+					message: `${this.type} name cannot be empty`,
+					type: 'warning',
+				});
+			}
 
-const onNameEdit = (value: string) => {
-	emit('update:modelValue', value);
-};
-
-const enableNameEdit = () => {
-	isNameEdit.value = true;
-	void nextTick(() => {
-		if (nameInput.value) {
-			nameInput.value.focus();
-		}
-	});
-};
-
-const disableNameEdit = () => {
-	if (!props.modelValue) {
-		emit('update:modelValue', `Untitled ${props.type}`);
-		showToast({
-			title: 'Error',
-			message: `${props.type} name cannot be empty`,
-			type: 'warning',
-		});
-	}
-	isNameEdit.value = false;
-};
-
-onClickOutside(nameInput, disableNameEdit);
+			this.isNameEdit = false;
+		},
+	},
+});
 </script>
 
 <style module lang="scss">

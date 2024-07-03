@@ -15,7 +15,7 @@ export class Bubble implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Bubble',
 		name: 'bubble',
-		icon: { light: 'file:bubble.svg', dark: 'file:bubble.dark.svg' },
+		icon: 'file:bubble.svg',
 		group: ['transform'],
 		version: 1,
 		subtitle: '={{$parameter["operation"] + ": " + $parameter["resource"]}}',
@@ -179,6 +179,6 @@ export class Bubble implements INodeType {
 			returnData.push(...executionData);
 		}
 
-		return [returnData];
+		return this.prepareOutputData(returnData);
 	}
 }

@@ -1,17 +1,14 @@
-import type {
-	IDataObject,
-	IExecuteFunctions,
-	INodeExecutionData,
-	INodeProperties,
-} from 'n8n-workflow';
+import type { IExecuteFunctions } from 'n8n-core';
+import type { IDataObject, INodeExecutionData, INodeProperties } from 'n8n-workflow';
 import { NodeOperationError } from 'n8n-workflow';
 
 import type { QueryRunner, QueryWithValues } from '../../helpers/interfaces';
 
+import { updateDisplayOptions } from '../../../../../utils/utilities';
+
 import { prepareQueryAndReplacements, replaceEmptyStringsByNulls } from '../../helpers/utils';
 
 import { optionsCollection } from '../common.descriptions';
-import { getResolvables, updateDisplayOptions } from '@utils/utilities';
 
 const properties: INodeProperties[] = [
 	{
@@ -23,12 +20,19 @@ const properties: INodeProperties[] = [
 		required: true,
 		description:
 			"The SQL query to execute. You can use n8n expressions and $1, $2, $3, etc to refer to the 'Query Parameters' set in options below.",
-		noDataExpression: true,
 		typeOptions: {
 			editor: 'sqlEditor',
-			sqlDialect: 'MySQL',
+			sqlDialect: 'mysql',
 		},
-		hint: 'Consider using query parameters to prevent SQL injection attacks. Add them in the options below',
+		hint: 'Prefer using query parameters over n8n expressions to avoid SQL injection attacks',
+	},
+	{
+		displayName: `
+		To use query parameters in your SQL query, reference them as $1, $2, $3, etc in the corresponding order. <a target="_blank" href="https://docs.n8n.io/integrations/builtin/app-nodes/n8n-nodes-base.mysql/">More info</a>.
+		`,
+		name: 'notice',
+		type: 'notice',
+		default: '',
 	},
 	optionsCollection,
 ];
@@ -54,11 +58,7 @@ export async function execute(
 	const queries: QueryWithValues[] = [];
 
 	for (let i = 0; i < items.length; i++) {
-		let rawQuery = this.getNodeParameter('query', i) as string;
-
-		for (const resolvable of getResolvables(rawQuery)) {
-			rawQuery = rawQuery.replace(resolvable, this.evaluateExpression(resolvable, i) as string);
-		}
+		const rawQuery = this.getNodeParameter('query', i) as string;
 
 		const options = this.getNodeParameter('options', i, {});
 
@@ -80,13 +80,6 @@ export async function execute(
 		}
 
 		const preparedQuery = prepareQueryAndReplacements(rawQuery, values);
-
-		if ((nodeOptions.nodeVersion as number) >= 2.3) {
-			const parsedNumbers = preparedQuery.values.map((value) => {
-				return Number(value) ? Number(value) : value;
-			});
-			preparedQuery.values = parsedNumbers;
-		}
 
 		queries.push(preparedQuery);
 	}

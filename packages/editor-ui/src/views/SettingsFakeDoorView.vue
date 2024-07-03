@@ -1,5 +1,5 @@
 <template>
-	<FeatureComingSoon :feature-id="featureId" show-title />
+	<feature-coming-soon :featureId="featureId" showTitle />
 </template>
 
 <script lang="ts">

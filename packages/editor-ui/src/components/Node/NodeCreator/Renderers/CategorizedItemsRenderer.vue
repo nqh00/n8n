@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, watch, ref } from 'vue';
+import { computed, watch, ref, getCurrentInstance } from 'vue';
 import type { INodeCreateElement } from '@/Interface';
 
 import { useWorkflowsStore } from '@/stores/workflows.store';
@@ -8,7 +8,6 @@ import { useKeyboardNavigation } from '../composables/useKeyboardNavigation';
 import { useViewStacks } from '../composables/useViewStacks';
 import ItemsRenderer from './ItemsRenderer.vue';
 import CategoryItem from '../ItemTypes/CategoryItem.vue';
-import { useTelemetry } from '@/composables/useTelemetry';
 
 export interface Props {
 	elements: INodeCreateElement[];
@@ -24,7 +23,8 @@ const props = withDefaults(defineProps<Props>(), {
 	elements: () => [],
 });
 
-const telemetry = useTelemetry();
+const instance = getCurrentInstance();
+
 const { popViewStack } = useViewStacks();
 const { registerKeyHook } = useKeyboardNavigation();
 const { workflowId } = useWorkflowsStore();
@@ -41,7 +41,7 @@ function setExpanded(isExpanded: boolean) {
 	expanded.value = isExpanded;
 
 	if (expanded.value) {
-		telemetry.trackNodesPanel('nodeCreateList.onCategoryExpanded', {
+		instance?.proxy.$telemetry.trackNodesPanel('nodeCreateList.onCategoryExpanded', {
 			category_name: props.category,
 			workflow_id: workflowId,
 		});
@@ -97,12 +97,12 @@ registerKeyHook(`CategoryLeft_${props.category}`, {
 			:active="activeItemId === category"
 			:count="actionCount"
 			:expanded="expanded"
-			:is-trigger="isTriggerCategory"
+			:isTrigger="isTriggerCategory"
 			data-keyboard-nav-type="category"
 			:data-keyboard-nav-id="category"
 			@click="toggleExpanded"
 		>
-			<span v-if="mouseOverTooltip" :class="$style.mouseOverTooltip">
+			<span :class="$style.mouseOverTooltip" v-if="mouseOverTooltip">
 				<n8n-tooltip placement="top" :popper-class="$style.tooltipPopper">
 					<n8n-icon icon="question-circle" size="small" />
 					<template #content>
@@ -111,15 +111,15 @@ registerKeyHook(`CategoryLeft_${props.category}`, {
 				</n8n-tooltip>
 			</span>
 		</CategoryItem>
-		<div v-if="expanded && actionCount > 0 && $slots.default" :class="$style.contentSlot">
+		<div :class="$style.contentSlot" v-if="expanded && actionCount > 0 && $slots.default">
 			<slot />
 		</div>
 		<!-- Pass through listeners & empty slot to ItemsRenderer -->
 		<ItemsRenderer
 			v-if="expanded"
-			v-bind="$attrs"
 			:elements="elements"
-			:is-trigger="isTriggerCategory"
+			v-on="$listeners"
+			:isTrigger="isTriggerCategory"
 		>
 			<template #default> </template>
 			<template #empty>
@@ -133,7 +133,6 @@ registerKeyHook(`CategoryLeft_${props.category}`, {
 .mouseOverTooltip {
 	opacity: 0;
 	margin-left: var(--spacing-3xs);
-	color: var(--color-foreground-xdark);
 	&:hover {
 		color: var(--color-primary);
 	}

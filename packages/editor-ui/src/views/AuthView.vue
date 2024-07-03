@@ -10,10 +10,10 @@
 			<n8n-form-box
 				v-bind="form"
 				data-test-id="auth-form"
-				:button-loading="formLoading"
-				@secondary-click="onSecondaryClick"
+				:buttonLoading="formLoading"
+				@secondaryClick="onSecondaryClick"
 				@submit="onSubmit"
-				@update="onUpdate"
+				@input="onInput"
 			>
 				<SSOLogin v-if="withSso" />
 			</n8n-form-box>
@@ -22,11 +22,10 @@
 </template>
 
 <script lang="ts">
-import { type PropType, defineComponent } from 'vue';
+import { defineComponent } from 'vue';
 
 import Logo from '@/components/Logo.vue';
 import SSOLogin from '@/components/SSOLogin.vue';
-import type { IFormBoxConfig } from '@/Interface';
 
 export default defineComponent({
 	name: 'AuthView',
@@ -35,9 +34,7 @@ export default defineComponent({
 		SSOLogin,
 	},
 	props: {
-		form: {
-			type: Object as PropType<IFormBoxConfig>,
-		},
+		form: {},
 		formLoading: {
 			type: Boolean,
 			default: false,
@@ -51,8 +48,8 @@ export default defineComponent({
 		},
 	},
 	methods: {
-		onUpdate(e: { name: string; value: string }) {
-			this.$emit('update', e);
+		onInput(e: { name: string; value: string }) {
+			this.$emit('input', e);
 		},
 		onSubmit(values: { [key: string]: string }) {
 			this.$emit('submit', values);

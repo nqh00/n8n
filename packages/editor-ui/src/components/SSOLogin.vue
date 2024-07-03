@@ -1,17 +1,18 @@
 <script lang="ts" setup>
+import { Notification } from 'element-ui';
 import { useSSOStore } from '@/stores/sso.store';
-import { useI18n } from '@/composables/useI18n';
-import { useToast } from '@/composables/useToast';
 
-const i18n = useI18n();
 const ssoStore = useSSOStore();
-const toast = useToast();
 
 const onSSOLogin = async () => {
 	try {
 		window.location.href = await ssoStore.getSSORedirectUrl();
 	} catch (error) {
-		toast.showError(error, 'Error', error.message);
+		Notification.error({
+			title: 'Error',
+			message: error.message,
+			position: 'bottom-right',
+		});
 	}
 };
 </script>
@@ -19,14 +20,14 @@ const onSSOLogin = async () => {
 <template>
 	<div v-if="ssoStore.showSsoLoginButton" :class="$style.ssoLogin">
 		<div :class="$style.divider">
-			<span>{{ i18n.baseText('sso.login.divider') }}</span>
+			<span>{{ $locale.baseText('sso.login.divider') }}</span>
 		</div>
 		<n8n-button
+			@click="onSSOLogin"
 			size="large"
 			type="primary"
 			outline
-			:label="i18n.baseText('sso.login.button')"
-			@click="onSSOLogin"
+			:label="$locale.baseText('sso.login.button')"
 		/>
 	</div>
 </template>
@@ -54,7 +55,7 @@ const onSSOLogin = async () => {
 		position: relative;
 		display: inline-block;
 		padding: var(--spacing-xl) var(--spacing-l);
-		background: var(--color-background-xlight);
+		background: var(--color-foreground-xlight);
 	}
 }
 </style>

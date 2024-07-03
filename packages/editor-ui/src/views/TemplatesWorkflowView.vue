@@ -1,5 +1,5 @@
 <template>
-	<TemplatesView :go-back-enabled="true">
+	<TemplatesView :goBackEnabled="true">
 		<template #header>
 			<div v-if="!notFoundError" :class="$style.wrapper">
 				<div :class="$style.title">
@@ -14,15 +14,14 @@
 				<div :class="$style.button">
 					<n8n-button
 						v-if="template"
-						data-test-id="use-template-button"
 						:label="$locale.baseText('template.buttons.useThisWorkflowButton')"
 						size="large"
-						@click="openTemplateSetup(templateId, $event)"
+						@click="openWorkflow(template.id, $event)"
 					/>
 					<n8n-loading :loading="!template" :rows="1" variant="button" />
 				</div>
 			</div>
-			<div v-else :class="$style.notFound">
+			<div :class="$style.notFound" v-else>
 				<n8n-text color="text-base">{{ $locale.baseText('templates.workflowsNotFound') }}</n8n-text>
 			</div>
 		</template>
@@ -31,15 +30,15 @@
 				<WorkflowPreview
 					v-if="showPreview"
 					:loading="loading"
-					:workflow="template?.workflow"
+					:workflow="template && template.workflow"
 					@close="onHidePreview"
 				/>
 			</div>
 			<div :class="$style.content">
-				<div :class="$style.markdown" data-test-id="template-description">
+				<div :class="$style.markdown">
 					<n8n-markdown
-						:content="template?.description"
-						:images="template?.image"
+						:content="template && template.description"
+						:images="template && template.image"
 						:loading="loading"
 					/>
 				</div>
@@ -63,37 +62,27 @@ import TemplateDetails from '@/components/TemplateDetails.vue';
 import TemplatesView from './TemplatesView.vue';
 import WorkflowPreview from '@/components/WorkflowPreview.vue';
 
-import type { ITemplatesWorkflowFull } from '@/Interface';
-import { setPageTitle } from '@/utils/htmlUtils';
+import type { ITemplatesWorkflow, ITemplatesWorkflowFull } from '@/Interface';
+import { workflowHelpers } from '@/mixins/workflowHelpers';
+import { setPageTitle } from '@/utils';
+import { VIEWS } from '@/constants';
 import { useTemplatesStore } from '@/stores/templates.store';
-import { usePostHog } from '@/stores/posthog.store';
-import { useTemplateWorkflow } from '@/utils/templates/templateActions';
-import { useExternalHooks } from '@/composables/useExternalHooks';
-import { useNodeTypesStore } from '@/stores/nodeTypes.store';
 
 export default defineComponent({
 	name: 'TemplatesWorkflowView',
+	mixins: [workflowHelpers],
 	components: {
 		TemplateDetails,
 		TemplatesView,
 		WorkflowPreview,
 	},
-	setup() {
-		const externalHooks = useExternalHooks();
-
-		return {
-			externalHooks,
-		};
-	},
 	computed: {
-		...mapStores(useTemplatesStore, usePostHog),
-		template(): ITemplatesWorkflowFull | null {
-			return this.templatesStore.getFullTemplateById(this.templateId);
+		...mapStores(useTemplatesStore),
+		template(): ITemplatesWorkflow | ITemplatesWorkflowFull {
+			return this.templatesStore.getTemplateById(this.templateId);
 		},
 		templateId() {
-			return Array.isArray(this.$route.params.id)
-				? this.$route.params.id[0]
-				: this.$route.params.id;
+			return this.$route.params.id;
 		},
 	},
 	data() {
@@ -103,44 +92,24 @@ export default defineComponent({
 			notFoundError: false,
 		};
 	},
-	watch: {
-		template(template: ITemplatesWorkflowFull) {
-			if (template) {
-				setPageTitle(`n8n - Template template: ${template.name}`);
-			} else {
-				setPageTitle('n8n - Templates');
-			}
-		},
-	},
-	async mounted() {
-		this.scrollToTop();
-
-		if (this.template && this.template.full) {
-			this.loading = false;
-			return;
-		}
-
-		try {
-			await this.templatesStore.fetchTemplateById(this.templateId);
-		} catch (e) {
-			this.notFoundError = true;
-		}
-
-		this.loading = false;
-	},
 	methods: {
-		async openTemplateSetup(id: string, e: PointerEvent) {
-			await useTemplateWorkflow({
-				posthogStore: this.posthogStore,
-				router: this.$router,
-				templateId: id,
-				inNewBrowserTab: e.metaKey || e.ctrlKey,
-				externalHooks: this.externalHooks,
-				nodeTypesStore: useNodeTypesStore(),
-				telemetry: this.$telemetry,
-				templatesStore: useTemplatesStore(),
-				source: 'template_preview',
-			});
+		openWorkflow(id: string, e: PointerEvent) {
+			const telemetryPayload = {
+				source: 'workflow',
+				template_id: id,
+				wf_template_repo_session_id: this.templatesStore.currentSessionId,
+			};
+
+			void this.$externalHooks().run('templatesWorkflowView.openWorkflow', telemetryPayload);
+			this.$telemetry.track('User inserted workflow template', telemetryPayload);
+
+			if (e.metaKey || e.ctrlKey) {
+				const route = this.$router.resolve({ name: VIEWS.TEMPLATE_IMPORT, params: { id } });
+				window.open(route.href, '_blank');
+				return;
+			} else {
+				void this.$router.push({ name: VIEWS.TEMPLATE_IMPORT, params: { id } });
+			}
 		},
 		onHidePreview() {
 			this.showPreview = false;
@@ -154,6 +123,31 @@ export default defineComponent({
 				});
 			}
 		},
+	},
+	watch: {
+		template(template: ITemplatesWorkflowFull) {
+			if (template) {
+				setPageTitle(`n8n - Template template: ${template.name}`);
+			} else {
+				setPageTitle('n8n - Templates');
+			}
+		},
+	},
+	async mounted() {
+		this.scrollToTop();
+
+		if (this.template && (this.template as ITemplatesWorkflowFull).full) {
+			this.loading = false;
+			return;
+		}
+
+		try {
+			await this.templatesStore.fetchTemplateById(this.templateId);
+		} catch (e) {
+			this.notFoundError = true;
+		}
+
+		this.loading = false;
 	},
 });
 </script>

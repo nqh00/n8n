@@ -362,6 +362,6 @@ export class Automizy implements INodeType {
 
 		returnData.push(...(responseData as NodeExecutionWithMetadata[]));
 
-		return [returnData];
+		return this.prepareOutputData(returnData);
 	}
 }

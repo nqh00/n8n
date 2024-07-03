@@ -26,6 +26,7 @@ export class StickyNote implements INodeType {
 				displayName: 'Content',
 				name: 'content',
 				type: 'string',
+				required: true,
 				default:
 					"## I'm a note \n**Double click** to edit me. [Guide](https://docs.n8n.io/workflows/sticky-notes/)",
 			},
@@ -43,19 +44,11 @@ export class StickyNote implements INodeType {
 				required: true,
 				default: 240,
 			},
-			{
-				displayName: 'Color',
-				name: 'color',
-
-				type: 'number',
-				required: true,
-				default: 1,
-			},
 		],
 	};
 
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
 		const items = this.getInputData();
-		return [items];
+		return this.prepareOutputData(items);
 	}
 }

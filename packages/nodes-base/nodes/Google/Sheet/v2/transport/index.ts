@@ -1,19 +1,18 @@
+import type { OptionsWithUri } from 'request';
 import type {
 	IDataObject,
 	IExecuteFunctions,
-	IHttpRequestMethods,
+	IExecuteSingleFunctions,
 	ILoadOptionsFunctions,
 	IPollFunctions,
-	IRequestOptions,
 	JsonObject,
 } from 'n8n-workflow';
 import { NodeApiError } from 'n8n-workflow';
-import set from 'lodash/set';
 import { getGoogleAccessToken } from '../../../GenericFunctions';
 
 export async function apiRequest(
-	this: IExecuteFunctions | ILoadOptionsFunctions | IPollFunctions,
-	method: IHttpRequestMethods,
+	this: IExecuteFunctions | IExecuteSingleFunctions | ILoadOptionsFunctions | IPollFunctions,
+	method: string,
 	resource: string,
 	body: IDataObject = {},
 	qs: IDataObject = {},
@@ -26,7 +25,7 @@ export async function apiRequest(
 		0,
 		'serviceAccount',
 	) as string;
-	const options: IRequestOptions = {
+	const options: OptionsWithUri = {
 		headers: {
 			'Content-Type': 'application/json',
 		},
@@ -63,15 +62,11 @@ export async function apiRequest(
 			error.statusCode = '401';
 		}
 
-		if (error instanceof NodeApiError) {
-			if (error.message.includes('PERMISSION_DENIED')) {
-				const details = error.description ? ` Details of the error: ${error.description}.` : '';
-				const description = `Please check that the account you're using has the right permissions. (If you're trying to modify the sheet, you'll need edit access.)${details}`;
-
-				set(error, 'description', description);
-			}
-
-			throw error;
+		if (error.message.includes('PERMISSION_DENIED')) {
+			const message = `Missing permissions for Google Sheet, ${error.message}}`;
+			const details = error.description ? ` Details of the error: ${error.description}.` : '';
+			const description = `Please check that the account you're using has the right permissions. (If you're trying to modify the sheet, you'll need edit access.)${details}`;
+			throw new NodeApiError(this.getNode(), error as JsonObject, { message, description });
 		}
 
 		throw new NodeApiError(this.getNode(), error as JsonObject);
@@ -81,7 +76,7 @@ export async function apiRequest(
 export async function apiRequestAllItems(
 	this: IExecuteFunctions | ILoadOptionsFunctions,
 	propertyName: string,
-	method: IHttpRequestMethods,
+	method: string,
 	endpoint: string,
 	body: IDataObject = {},
 	query: IDataObject = {},

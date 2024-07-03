@@ -1,5 +1,4 @@
 import type { INodeProperties } from 'n8n-workflow';
-import { includeInputFields } from './common.descriptions';
 
 export const GetTimeBetweenDatesDescription: INodeProperties[] = [
 	{
@@ -94,7 +93,6 @@ export const GetTimeBetweenDatesDescription: INodeProperties[] = [
 		},
 		default: {},
 		options: [
-			includeInputFields,
 			{
 				displayName: 'Output as ISO String',
 				name: 'isoString',

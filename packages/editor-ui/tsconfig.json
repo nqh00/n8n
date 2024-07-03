@@ -1,30 +1,26 @@
 {
 	"extends": "../../tsconfig.json",
 	"compilerOptions": {
-		"rootDirs": [".", "../design-system/src", "../@n8n/chat/src"],
+		"rootDir": ".",
 		"outDir": "dist",
 		"target": "esnext",
 		"module": "esnext",
+		"skipLibCheck": true,
 		"allowJs": true,
 		"importHelpers": true,
 		"incremental": false,
 		"allowSyntheticDefaultImports": true,
 		"resolveJsonModule": true,
 		"baseUrl": ".",
-		"types": [
-			"vitest/globals",
-			"unplugin-icons/types/vue",
-			"../design-system/src/shims-modules.d.ts"
-		],
+		"types": ["vitest/globals"],
 		"paths": {
-			"@/*": ["./src/*"],
-			"n8n-design-system": ["../design-system/src/main.ts"],
-			"n8n-design-system/*": ["../design-system/src/*"],
-			"@n8n/chat/*": ["../@n8n/chat/src/*"]
+			"@/*": ["src/*"],
+			"n8n-design-system/*": ["../design-system/src/*"]
 		},
 		"lib": ["esnext", "dom", "dom.iterable", "scripthost"],
 		// TODO: remove all options below this line
+		"noUnusedLocals": false,
 		"useUnknownInCatchVariables": false
 	},
-	"include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.vue"]
+	"include": ["src/**/*.ts", "src/**/*.vue"]
 }

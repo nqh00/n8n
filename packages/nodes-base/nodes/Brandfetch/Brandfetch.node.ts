@@ -275,7 +275,7 @@ export class Brandfetch implements INodeType {
 					responseData.push(...executionData);
 				}
 			} catch (error) {
-				if (this.continueOnFail(error)) {
+				if (this.continueOnFail()) {
 					responseData.push({ error: error.message, json: {}, itemIndex: i });
 					continue;
 				}
@@ -285,7 +285,7 @@ export class Brandfetch implements INodeType {
 
 		if (operation === 'logo' && this.getNodeParameter('download', 0)) {
 			// For file downloads the files get attached to the existing items
-			return [items];
+			return this.prepareOutputData(items);
 		} else {
 			return [responseData];
 		}

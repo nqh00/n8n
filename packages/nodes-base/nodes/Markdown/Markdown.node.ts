@@ -19,7 +19,7 @@ export class Markdown implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Markdown',
 		name: 'markdown',
-		icon: { light: 'file:markdown.svg', dark: 'file:markdown.dark.svg' },
+		icon: 'file:markdown.svg',
 		group: ['output'],
 		version: 1,
 		subtitle:
@@ -608,7 +608,7 @@ export class Markdown implements INodeType {
 					returnData.push(newItem);
 				}
 			} catch (error) {
-				if (this.continueOnFail(error)) {
+				if (this.continueOnFail()) {
 					returnData.push({ error: (error as JsonObject).message });
 					continue;
 				}

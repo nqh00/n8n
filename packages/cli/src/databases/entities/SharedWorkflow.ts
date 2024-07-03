@@ -1,24 +1,26 @@
-import { Column, Entity, ManyToOne, PrimaryColumn } from '@n8n/typeorm';
+import { Column, Entity, ManyToOne, PrimaryColumn } from 'typeorm';
 import { WorkflowEntity } from './WorkflowEntity';
-import { WithTimestamps } from './AbstractEntity';
-import { Project } from './Project';
-
-export type WorkflowSharingRole = 'workflow:owner' | 'workflow:editor';
+import { User } from './User';
+import { Role } from './Role';
+import { AbstractEntity } from './AbstractEntity';
 
 @Entity()
-export class SharedWorkflow extends WithTimestamps {
+export class SharedWorkflow extends AbstractEntity {
+	@ManyToOne('Role', 'sharedWorkflows', { nullable: false })
+	role: Role;
+
 	@Column()
-	role: WorkflowSharingRole;
+	roleId: string;
+
+	@ManyToOne('User', 'sharedWorkflows')
+	user: User;
+
+	@PrimaryColumn()
+	userId: string;
 
 	@ManyToOne('WorkflowEntity', 'shared')
 	workflow: WorkflowEntity;
 
 	@PrimaryColumn()
 	workflowId: string;
-
-	@ManyToOne('Project', 'sharedWorkflows')
-	project: Project;
-
-	@PrimaryColumn()
-	projectId: string;
 }

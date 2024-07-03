@@ -1,11 +1,12 @@
+import type { OptionsWithUri } from 'request';
+
 import type {
 	IDataObject,
 	IExecuteFunctions,
+	IExecuteSingleFunctions,
 	IHookFunctions,
 	ILoadOptionsFunctions,
 	JsonObject,
-	IRequestOptions,
-	IHttpRequestMethods,
 } from 'n8n-workflow';
 import { NodeApiError, NodeOperationError } from 'n8n-workflow';
 
@@ -20,8 +21,8 @@ export const eventID: { [key: string]: string } = {
 };
 
 export async function invoiceNinjaApiRequest(
-	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions,
-	method: IHttpRequestMethods,
+	this: IHookFunctions | IExecuteFunctions | IExecuteSingleFunctions | ILoadOptionsFunctions,
+	method: string,
 	endpoint: string,
 	body: IDataObject = {},
 	query?: IDataObject,
@@ -38,7 +39,7 @@ export async function invoiceNinjaApiRequest(
 	const defaultUrl = version === 'v4' ? 'https://app.invoiceninja.com' : 'https://invoicing.co';
 	const baseUrl = credentials.url || defaultUrl;
 
-	const options: IRequestOptions = {
+	const options: OptionsWithUri = {
 		method,
 		qs: query,
 		uri: uri || `${baseUrl}/api/v1${endpoint}`,
@@ -56,7 +57,7 @@ export async function invoiceNinjaApiRequest(
 export async function invoiceNinjaApiRequestAllItems(
 	this: IExecuteFunctions | ILoadOptionsFunctions | IHookFunctions,
 	propertyName: string,
-	method: IHttpRequestMethods,
+	method: string,
 	endpoint: string,
 	body: IDataObject = {},
 	query: IDataObject = {},

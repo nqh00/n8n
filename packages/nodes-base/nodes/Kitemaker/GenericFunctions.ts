@@ -4,7 +4,6 @@ import type {
 	IDataObject,
 	IHookFunctions,
 	JsonObject,
-	IRequestOptions,
 } from 'n8n-workflow';
 import { NodeApiError } from 'n8n-workflow';
 
@@ -24,7 +23,7 @@ export async function kitemakerRequest(
 		body,
 		uri: 'https://toil.kitemaker.co/developers/graphql',
 		json: true,
-	} satisfies IRequestOptions;
+	};
 
 	const responseData = await this.helpers.request.call(this, options);
 

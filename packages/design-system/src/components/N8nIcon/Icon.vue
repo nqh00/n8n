@@ -1,26 +1,37 @@
 <template>
-	<N8nText :size="size" :color="color" :compact="true" class="n8n-icon" v-bind="$attrs">
-		<FontAwesomeIcon :icon="icon" :spin="spin" :class="$style[size]" />
-	</N8nText>
+	<n8n-text :size="size" :color="color" :compact="true" class="n8n-icon" v-on="$listeners">
+		<font-awesome-icon :icon="icon" :spin="spin" :class="$style[size]" />
+	</n8n-text>
 </template>
 
-<script lang="ts" setup>
-import type { FontAwesomeIconProps } from '@fortawesome/vue-fontawesome';
+<script lang="ts">
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome';
-import type { IconSize, IconColor } from 'n8n-design-system/types/icon';
 import N8nText from '../N8nText';
 
-interface IconProps {
-	icon: FontAwesomeIconProps['icon'];
-	size?: IconSize;
-	spin?: FontAwesomeIconProps['spin'];
-	color?: IconColor;
-}
+import { defineComponent } from 'vue';
 
-defineOptions({ name: 'N8nIcon' });
-withDefaults(defineProps<IconProps>(), {
-	size: 'medium',
-	spin: false,
+export default defineComponent({
+	name: 'n8n-icon',
+	components: {
+		FontAwesomeIcon,
+		N8nText,
+	},
+	props: {
+		icon: {
+			required: true,
+		},
+		size: {
+			type: String,
+			default: 'medium',
+		},
+		spin: {
+			type: Boolean,
+			default: false,
+		},
+		color: {
+			type: String,
+		},
+	},
 });
 </script>
 

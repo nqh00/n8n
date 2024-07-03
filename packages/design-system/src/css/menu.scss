@@ -13,10 +13,7 @@
 	list-style: none;
 	cursor: pointer;
 	position: relative;
-	transition:
-		border-color 0.3s,
-		background-color 0.3s,
-		color 0.3s;
+	transition: border-color 0.3s, background-color 0.3s, color 0.3s;
 	box-sizing: border-box;
 	white-space: nowrap;
 	border-radius: var.$menu-item-border-radius;
@@ -74,25 +71,25 @@
 				background-color: var(--color-foreground-xlight);
 			}
 		}
-		& > .el-sub-menu {
+		& > .el-submenu {
 			float: left;
 
 			&:focus,
 			&:hover {
 				outline: none;
-				.el-sub-menu__title {
+				.el-submenu__title {
 					color: var(--color-text-dark);
 				}
 			}
 
 			&.is-active {
-				.el-sub-menu__title {
+				.el-submenu__title {
 					border-bottom: 2px solid var(--color-primary);
 					color: var(--color-text-dark);
 				}
 			}
 
-			& .el-sub-menu__title {
+			& .el-submenu__title {
 				height: 60px;
 				line-height: 60px;
 				border-bottom: 2px solid transparent;
@@ -102,7 +99,7 @@
 					background-color: var(--color-foreground-xlight);
 				}
 			}
-			& .el-sub-menu__icon-arrow {
+			& .el-submenu__icon-arrow {
 				position: static;
 				vertical-align: middle;
 				margin-left: 8px;
@@ -111,7 +108,7 @@
 		}
 		& .el-menu {
 			& .el-menu-item,
-			& .el-sub-menu__title {
+			& .el-submenu__title {
 				background-color: var.$color-white;
 				float: none;
 				height: 36px;
@@ -120,7 +117,7 @@
 				color: var(--color-text-light);
 			}
 			& .el-menu-item.is-active,
-			& .el-sub-menu.is-active > .el-sub-menu__title {
+			& .el-submenu.is-active > .el-submenu__title {
 				color: var(--color-text-dark);
 			}
 		}
@@ -138,14 +135,14 @@
 		width: 64px;
 
 		> .el-menu-item,
-		> .el-sub-menu > .el-sub-menu__title {
+		> .el-submenu > .el-submenu__title {
 			[class^='el-icon-'] {
 				margin: 0;
 				vertical-align: middle;
 				width: 24px;
 				text-align: center;
 			}
-			.el-sub-menu__icon-arrow {
+			.el-submenu__icon-arrow {
 				display: none;
 			}
 			span {
@@ -161,11 +158,11 @@
 			color: inherit;
 		}
 
-		.el-menu .el-sub-menu {
+		.el-menu .el-submenu {
 			min-width: 200px;
 		}
 
-		.el-sub-menu {
+		.el-submenu {
 			position: relative;
 			& .el-menu {
 				position: absolute;
@@ -179,7 +176,7 @@
 			}
 
 			&.is-opened {
-				> .el-sub-menu__title .el-sub-menu__icon-arrow {
+				> .el-submenu__title .el-submenu__icon-arrow {
 					transform: none;
 				}
 			}
@@ -226,7 +223,7 @@
 	}
 }
 
-@include mixins.b(sub-menu) {
+@include mixins.b(submenu) {
 	list-style: none;
 	margin: 0;
 	padding-left: 0;
@@ -248,36 +245,25 @@
 		min-width: 200px;
 	}
 	@include mixins.e(icon-arrow) {
-		right: 20px;
 		position: absolute;
 		top: 50%;
-		margin-top: -6px;
+		right: 20px;
+		margin-top: -7px;
 		transition: transform 0.3s;
-		margin-right: 0;
 		font-size: 12px;
-		width: 12px;
-		height: 12px;
-
-		svg {
-			width: 12px;
-			height: 12px;
-			position: relative;
-			display: block;
-			margin-top: -2px;
-		}
 	}
 	@include mixins.when(active) {
-		.el-sub-menu__title {
+		.el-submenu__title {
 			border-bottom-color: var(--color-primary);
 		}
 	}
 	@include mixins.when(opened) {
-		> .el-sub-menu__title .el-sub-menu__icon-arrow {
+		> .el-submenu__title .el-submenu__icon-arrow {
 			transform: rotateZ(180deg);
 		}
 	}
 	@include mixins.when(disabled) {
-		.el-sub-menu__title,
+		.el-submenu__title,
 		.el-menu-item {
 			opacity: 0.25;
 			cursor: not-allowed;
@@ -305,7 +291,7 @@
 	}
 }
 
-.horizontal-collapse-transition .el-sub-menu__title .el-sub-menu__icon-arrow {
+.horizontal-collapse-transition .el-submenu__title .el-submenu__icon-arrow {
 	transition: 0.2s;
 	opacity: 0;
 }

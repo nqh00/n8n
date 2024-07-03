@@ -1,25 +1,26 @@
+import type { OptionsWithUri } from 'request';
+
 import type {
 	IExecuteFunctions,
+	IExecuteSingleFunctions,
 	ILoadOptionsFunctions,
 	IDataObject,
 	JsonObject,
-	IHttpRequestMethods,
-	IRequestOptions,
 } from 'n8n-workflow';
 import { NodeApiError } from 'n8n-workflow';
 
 export async function zoomApiRequest(
-	this: IExecuteFunctions | ILoadOptionsFunctions,
-	method: IHttpRequestMethods,
+	this: IExecuteFunctions | IExecuteSingleFunctions | ILoadOptionsFunctions,
+	method: string,
 	resource: string,
 	body: object = {},
-	query: IDataObject = {},
+	query: object = {},
 	headers: IDataObject | undefined = undefined,
 	option: IDataObject = {},
 ) {
 	const authenticationMethod = this.getNodeParameter('authentication', 0, 'accessToken') as string;
 
-	let options: IRequestOptions = {
+	let options: OptionsWithUri = {
 		method,
 		headers: headers || {
 			'Content-Type': 'application/json',
@@ -49,7 +50,7 @@ export async function zoomApiRequest(
 }
 
 async function wait() {
-	return await new Promise((resolve, _reject) => {
+	return new Promise((resolve, _reject) => {
 		setTimeout(() => {
 			resolve(true);
 		}, 1000);
@@ -59,7 +60,7 @@ async function wait() {
 export async function zoomApiRequestAllItems(
 	this: IExecuteFunctions | ILoadOptionsFunctions,
 	propertyName: string,
-	method: IHttpRequestMethods,
+	method: string,
 	endpoint: string,
 	body: IDataObject = {},
 	query: IDataObject = {},

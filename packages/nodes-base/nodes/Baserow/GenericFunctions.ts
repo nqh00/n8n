@@ -1,9 +1,9 @@
+import type { OptionsWithUri } from 'request';
+
 import type {
 	IDataObject,
 	IExecuteFunctions,
-	IHttpRequestMethods,
 	ILoadOptionsFunctions,
-	IRequestOptions,
 	JsonObject,
 } from 'n8n-workflow';
 import { NodeApiError } from 'n8n-workflow';
@@ -15,7 +15,7 @@ import type { Accumulator, BaserowCredentials, LoadedResource } from './types';
  */
 export async function baserowApiRequest(
 	this: IExecuteFunctions | ILoadOptionsFunctions,
-	method: IHttpRequestMethods,
+	method: string,
 	endpoint: string,
 	jwtToken: string,
 	body: IDataObject = {},
@@ -23,7 +23,7 @@ export async function baserowApiRequest(
 ) {
 	const credentials = (await this.getCredentials('baserowApi')) as BaserowCredentials;
 
-	const options: IRequestOptions = {
+	const options: OptionsWithUri = {
 		headers: {
 			Authorization: `JWT ${jwtToken}`,
 		},
@@ -54,7 +54,7 @@ export async function baserowApiRequest(
  */
 export async function baserowApiRequestAllItems(
 	this: IExecuteFunctions,
-	method: IHttpRequestMethods,
+	method: string,
 	endpoint: string,
 	jwtToken: string,
 	body: IDataObject,
@@ -90,7 +90,7 @@ export async function getJwtToken(
 	this: IExecuteFunctions | ILoadOptionsFunctions,
 	{ username, password, host }: BaserowCredentials,
 ) {
-	const options: IRequestOptions = {
+	const options: OptionsWithUri = {
 		method: 'POST',
 		body: {
 			username,
@@ -146,7 +146,7 @@ export class TableFieldMapper {
 		jwtToken: string,
 	): Promise<LoadedResource[]> {
 		const endpoint = `/api/database/fields/table/${table}/`;
-		return await baserowApiRequest.call(this, 'GET', endpoint, jwtToken);
+		return baserowApiRequest.call(this, 'GET', endpoint, jwtToken);
 	}
 
 	createMappings(tableFields: LoadedResource[]) {

@@ -9,8 +9,9 @@ import type {
 	IWebhookResponseData,
 } from 'n8n-workflow';
 
-import { capitalCase } from 'change-case';
 import { keapApiRequest } from './GenericFunctions';
+
+import { capitalCase } from 'change-case';
 
 export class KeapTrigger implements INodeType {
 	description: INodeTypeDescription = {

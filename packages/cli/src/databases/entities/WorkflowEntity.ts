@@ -1,9 +1,19 @@
 import { Length } from 'class-validator';
 
-import { IConnections, IDataObject, IWorkflowSettings, WorkflowFEMeta } from 'n8n-workflow';
+import { IConnections, IDataObject, IWorkflowSettings } from 'n8n-workflow';
 import type { IBinaryKeyData, INode, IPairedItemData } from 'n8n-workflow';
 
-import { Column, Entity, Index, JoinColumn, JoinTable, ManyToMany, OneToMany } from '@n8n/typeorm';
+import {
+	BeforeInsert,
+	Column,
+	Entity,
+	Index,
+	JoinColumn,
+	JoinTable,
+	ManyToMany,
+	OneToMany,
+	PrimaryColumn,
+} from 'typeorm';
 
 import config from '@/config';
 import type { TagEntity } from './TagEntity';
@@ -11,11 +21,30 @@ import type { SharedWorkflow } from './SharedWorkflow';
 import type { WorkflowStatistics } from './WorkflowStatistics';
 import type { WorkflowTagMapping } from './WorkflowTagMapping';
 import { objectRetriever, sqlite } from '../utils/transformers';
-import { WithTimestampsAndStringId, jsonColumnType } from './AbstractEntity';
+import { AbstractEntity, jsonColumnType } from './AbstractEntity';
 import type { IWorkflowDb } from '@/Interfaces';
+import { generateNanoId } from '../utils/generators';
 
 @Entity()
-export class WorkflowEntity extends WithTimestampsAndStringId implements IWorkflowDb {
+export class WorkflowEntity extends AbstractEntity implements IWorkflowDb {
+	constructor(data?: Partial<WorkflowEntity>) {
+		super();
+		Object.assign(this, data);
+		if (!this.id) {
+			this.id = generateNanoId();
+		}
+	}
+
+	@BeforeInsert()
+	nanoId() {
+		if (!this.id) {
+			this.id = generateNanoId();
+		}
+	}
+
+	@PrimaryColumn('varchar')
+	id: string;
+
 	// TODO: Add XSS check
 	@Index({ unique: true })
 	@Length(1, 128, {
@@ -45,13 +74,6 @@ export class WorkflowEntity extends WithTimestampsAndStringId implements IWorkfl
 		transformer: objectRetriever,
 	})
 	staticData?: IDataObject;
-
-	@Column({
-		type: jsonColumnType,
-		nullable: true,
-		transformer: objectRetriever,
-	})
-	meta?: WorkflowFEMeta;
 
 	@ManyToMany('TagEntity', 'workflows')
 	@JoinTable({
@@ -89,10 +111,6 @@ export class WorkflowEntity extends WithTimestampsAndStringId implements IWorkfl
 
 	@Column({ default: 0 })
 	triggerCount: number;
-
-	display() {
-		return `"${this.name}" (ID: ${this.id})`;
-	}
 }
 
 /**

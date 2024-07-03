@@ -1,4 +1,3 @@
-import { createHmac } from 'crypto';
 import type {
 	IHookFunctions,
 	IWebhookFunctions,
@@ -11,6 +10,8 @@ import type {
 } from 'n8n-workflow';
 
 import { clickupApiRequest } from './GenericFunctions';
+
+import { createHmac } from 'crypto';
 
 export class ClickUpTrigger implements INodeType {
 	description: INodeTypeDescription = {

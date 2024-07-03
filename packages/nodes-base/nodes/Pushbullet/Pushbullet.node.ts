@@ -8,8 +8,9 @@ import type {
 	INodeTypeDescription,
 } from 'n8n-workflow';
 
-import moment from 'moment-timezone';
 import { pushbulletApiRequest, pushbulletApiRequestAllItems } from './GenericFunctions';
+
+import moment from 'moment-timezone';
 
 export class Pushbullet implements INodeType {
 	description: INodeTypeDescription = {
@@ -156,7 +157,7 @@ export class Pushbullet implements INodeType {
 				description: 'URL of the push',
 			},
 			{
-				displayName: 'Input Binary Field',
+				displayName: 'Binary Property',
 				name: 'binaryPropertyName',
 				type: 'string',
 				default: 'data',
@@ -169,7 +170,8 @@ export class Pushbullet implements INodeType {
 					},
 				},
 				placeholder: '',
-				hint: 'The name of the input binary field containing the file to be written',
+				description:
+					'Name of the binary property which contains the data for the file to be created',
 			},
 			{
 				displayName: 'Target',
@@ -492,7 +494,7 @@ export class Pushbullet implements INodeType {
 
 				returnData.push(...executionData);
 			} catch (error) {
-				if (this.continueOnFail(error)) {
+				if (this.continueOnFail()) {
 					const executionErrorData = this.helpers.constructExecutionMetaData(
 						this.helpers.returnJsonArray({ error: error.message }),
 						{ itemData: { item: i } },
@@ -504,6 +506,6 @@ export class Pushbullet implements INodeType {
 			}
 		}
 
-		return [returnData];
+		return this.prepareOutputData(returnData);
 	}
 }

@@ -4,9 +4,16 @@ import { readdirSync, readFileSync } from 'fs';
 const BASE_DIR = path.resolve(__dirname, '../../..');
 
 import type {
+	ICredentialDataDecryptedObject,
 	IDataObject,
 	IDeferredPromise,
+	IExecuteWorkflowInfo,
+	IHttpRequestHelper,
+	IHttpRequestOptions,
+	INode,
+	INodeCredentialsDetails,
 	INodeType,
+	INodeTypeData,
 	INodeTypes,
 	IRun,
 	ITaskData,
@@ -15,16 +22,67 @@ import type {
 	IWorkflowExecuteAdditionalData,
 	NodeLoadingDetails,
 	WorkflowTestData,
-	INodeTypeData,
 } from 'n8n-workflow';
 
-import { ApplicationError, NodeHelpers, WorkflowHooks } from 'n8n-workflow';
+import { ICredentialsHelper, NodeHelpers, WorkflowHooks } from 'n8n-workflow';
+import { Credentials } from '@/Credentials';
 
 import { predefinedNodesTypes } from './constants';
-import { mock } from 'jest-mock-extended';
+
+export class CredentialsHelper extends ICredentialsHelper {
+	async authenticate(
+		credentials: ICredentialDataDecryptedObject,
+		typeName: string,
+		requestParams: IHttpRequestOptions,
+	): Promise<IHttpRequestOptions> {
+		return requestParams;
+	}
+
+	async preAuthentication(
+		helpers: IHttpRequestHelper,
+		credentials: ICredentialDataDecryptedObject,
+		typeName: string,
+		node: INode,
+		credentialsExpired: boolean,
+	): Promise<ICredentialDataDecryptedObject | undefined> {
+		return undefined;
+	}
+
+	getParentTypes(name: string): string[] {
+		return [];
+	}
+
+	async getDecrypted(
+		nodeCredentials: INodeCredentialsDetails,
+		type: string,
+	): Promise<ICredentialDataDecryptedObject> {
+		return {};
+	}
+
+	async getCredentials(
+		nodeCredentials: INodeCredentialsDetails,
+		type: string,
+	): Promise<Credentials> {
+		return new Credentials({ id: null, name: '' }, '', [], '');
+	}
+
+	async updateCredentials(
+		nodeCredentials: INodeCredentialsDetails,
+		type: string,
+		data: ICredentialDataDecryptedObject,
+	): Promise<void> {}
+}
 
 class NodeTypesClass implements INodeTypes {
-	constructor(private nodeTypes: INodeTypeData = predefinedNodesTypes) {}
+	nodeTypes: INodeTypeData;
+
+	constructor(nodeTypes?: INodeTypeData) {
+		if (nodeTypes) {
+			this.nodeTypes = nodeTypes;
+		} else {
+			this.nodeTypes = predefinedNodesTypes;
+		}
+	}
 
 	getByName(nodeType: string): INodeType | IVersionedNodeType {
 		return this.nodeTypes[nodeType].type;
@@ -33,15 +91,11 @@ class NodeTypesClass implements INodeTypes {
 	getByNameAndVersion(nodeType: string, version?: number): INodeType {
 		return NodeHelpers.getVersionedNodeType(this.nodeTypes[nodeType].type, version);
 	}
-
-	getKnownTypes(): IDataObject {
-		throw new Error('Method not implemented.');
-	}
 }
 
 let nodeTypesInstance: NodeTypesClass | undefined;
 
-export function NodeTypes(nodeTypes?: INodeTypeData): INodeTypes {
+export function NodeTypes(nodeTypes?: INodeTypeData): NodeTypesClass {
 	if (nodeTypesInstance === undefined || nodeTypes !== undefined) {
 		nodeTypesInstance = new NodeTypesClass(nodeTypes);
 	}
@@ -55,7 +109,7 @@ export function WorkflowExecuteAdditionalData(
 ): IWorkflowExecuteAdditionalData {
 	const hookFunctions = {
 		nodeExecuteAfter: [
-			async (nodeName: string, _data: ITaskData): Promise<void> => {
+			async (nodeName: string, data: ITaskData): Promise<void> => {
 				nodeExecutionOrder.push(nodeName);
 			},
 		],
@@ -66,9 +120,30 @@ export function WorkflowExecuteAdditionalData(
 		],
 	};
 
-	return mock<IWorkflowExecuteAdditionalData>({
-		hooks: new WorkflowHooks(hookFunctions, 'trigger', '1', mock()),
-	});
+	const workflowData: IWorkflowBase = {
+		name: '',
+		createdAt: new Date(),
+		updatedAt: new Date(),
+		active: true,
+		nodes: [],
+		connections: {},
+	};
+
+	// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+	// @ts-ignore
+	return {
+		credentialsHelper: new CredentialsHelper(''),
+		hooks: new WorkflowHooks(hookFunctions, 'trigger', '1', workflowData),
+		executeWorkflow: async (workflowInfo: IExecuteWorkflowInfo) => {},
+		sendMessageToUI: (message: string) => {},
+		restApiUrl: '',
+		encryptionKey: 'test',
+		timezone: 'America/New_York',
+		webhookBaseUrl: 'webhook',
+		webhookWaitingBaseUrl: 'webhook-waiting',
+		webhookTestBaseUrl: 'webhook-test',
+		userId: '123',
+	};
 }
 
 const preparePinData = (pinData: IDataObject) => {
@@ -105,11 +180,11 @@ export function getNodeTypes(testData: WorkflowTestData[] | WorkflowTestData) {
 
 	for (const nodeName of nodeNames) {
 		if (!nodeName.startsWith('n8n-nodes-base.')) {
-			throw new ApplicationError('Unknown node type', { tags: { nodeType: nodeName } });
+			throw new Error(`Unknown node type: ${nodeName}`);
 		}
 		const loadInfo = knownNodes[nodeName.replace('n8n-nodes-base.', '')];
 		if (!loadInfo) {
-			throw new ApplicationError('Unknown node type', { tags: { nodeType: nodeName } });
+			throw new Error(`Unknown node type: ${nodeName}`);
 		}
 		const sourcePath = loadInfo.sourcePath.replace(/^dist\//, './').replace(/\.js$/, '.ts');
 		const nodeSourcePath = path.join(BASE_DIR, 'nodes-base', sourcePath);
@@ -146,7 +221,7 @@ export const workflowToTests = (dirname: string, testFolder = 'workflows') => {
 		const description = filePath.replace('.json', '');
 		const workflowData = readJsonFileSync<IWorkflowBase>(filePath);
 		if (workflowData.pinData === undefined) {
-			throw new ApplicationError('Workflow data does not contain pinData');
+			throw new Error('Workflow data does not contain pinData');
 		}
 
 		const nodeData = preparePinData(workflowData.pinData);

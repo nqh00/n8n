@@ -154,12 +154,12 @@ export const paymentFields: INodeProperties[] = [
 		},
 	},
 	{
-		displayName: 'Put Output File in Field',
+		displayName: 'Binary Property',
 		name: 'binaryProperty',
 		type: 'string',
 		required: true,
 		default: 'data',
-		hint: 'The name of the output binary field to put the file in',
+		description: 'Name of the binary property to which to write to',
 		displayOptions: {
 			show: {
 				resource: ['payment'],

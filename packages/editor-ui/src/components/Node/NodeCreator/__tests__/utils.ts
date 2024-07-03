@@ -9,7 +9,6 @@ import type {
 	ViewCreateElement,
 	LabelCreateElement,
 	ActionCreateElement,
-	SectionCreateElement,
 } from '@/Interface';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -18,7 +17,7 @@ export const mockSimplifiedNodeType = (
 ): SimplifiedNodeType => ({
 	displayName: 'Sample DisplayName',
 	name: 'sampleName',
-	icon: 'fa:sampleIcon',
+	icon: 'sampleIcon',
 	iconUrl: 'https://example.com/icon.png',
 	group: ['group1', 'group2'],
 	description: 'Sample description',
@@ -33,7 +32,6 @@ export const mockSimplifiedNodeType = (
 	defaults: {
 		color: '#ffffff',
 	},
-	outputs: [],
 	...overrides,
 });
 
@@ -76,15 +74,14 @@ const mockLabelItemProps = (overrides?: Partial<LabelItemProps>): LabelItemProps
 });
 
 export const mockNodeCreateElement = (
-	overrides?: Partial<NodeCreateElement>,
-	nodeTypeOverrides?: Partial<SimplifiedNodeType>,
+	subcategory?: string,
+	overrides?: Partial<SimplifiedNodeType>,
 ): NodeCreateElement => ({
 	uuid: uuidv4(),
 	key: uuidv4(),
 	type: 'node',
-	subcategory: 'sampleSubcategory',
-	properties: mockSimplifiedNodeType(nodeTypeOverrides),
-	...overrides,
+	subcategory: subcategory || 'sampleSubcategory',
+	properties: mockSimplifiedNodeType(overrides),
 });
 
 export const mockSubcategoryCreateElement = (
@@ -94,17 +91,6 @@ export const mockSubcategoryCreateElement = (
 	key: uuidv4(),
 	type: 'subcategory',
 	properties: mockSubcategoryItemProps(overrides),
-});
-
-export const mockSectionCreateElement = (
-	overrides?: Partial<SectionCreateElement>,
-): SectionCreateElement => ({
-	uuid: uuidv4(),
-	key: 'popular',
-	type: 'section',
-	title: 'Popular',
-	children: [mockNodeCreateElement(), mockNodeCreateElement()],
-	...overrides,
 });
 
 export const mockViewCreateElement = (
@@ -124,7 +110,7 @@ export const mockLabelCreateElement = (
 	uuid: uuidv4(),
 	key: uuidv4(),
 	type: 'label',
-	subcategory: subcategory ?? 'sampleSubcategory',
+	subcategory: subcategory || 'sampleSubcategory',
 	properties: mockLabelItemProps(overrides),
 });
 
@@ -135,6 +121,6 @@ export const mockActionCreateElement = (
 	uuid: uuidv4(),
 	key: uuidv4(),
 	type: 'action',
-	subcategory: subcategory ?? 'sampleSubcategory',
+	subcategory: subcategory || 'sampleSubcategory',
 	properties: mockActionTypeDescription(overrides),
 });

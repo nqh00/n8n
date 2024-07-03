@@ -144,7 +144,7 @@ export class GitlabTrigger implements INodeType {
 				default: '',
 				required: true,
 				placeholder: 'n8n-io',
-				description: 'Owner of the repository',
+				description: 'Owner of the repsitory',
 			},
 			{
 				displayName: 'Repository Name',
@@ -153,7 +153,7 @@ export class GitlabTrigger implements INodeType {
 				default: '',
 				required: true,
 				placeholder: 'n8n',
-				description: 'The name of the repository',
+				description: 'The name of the repsitory',
 			},
 			{
 				displayName: 'Events',
@@ -195,7 +195,7 @@ export class GitlabTrigger implements INodeType {
 				try {
 					await gitlabApiRequest.call(this, 'GET', endpoint, {});
 				} catch (error) {
-					if (error.cause.httpCode === '404' || error.description.includes('404')) {
+					if (error.cause.httpCode === '404') {
 						// Webhook does not exist
 						delete webhookData.webhookId;
 						delete webhookData.webhookEvents;

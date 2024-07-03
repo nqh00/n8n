@@ -17,7 +17,6 @@ export class TwakeCloudApi implements ICredentialType {
 			displayName: 'Workspace Key',
 			name: 'workspaceKey',
 			type: 'string',
-			typeOptions: { password: true },
 			default: '',
 		},
 	];

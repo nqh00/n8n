@@ -15,9 +15,6 @@ export async function getAll(
 	const body = {} as IDataObject;
 
 	let responseData = await apiRequest.call(this, requestMethod, endpoint, body, qs);
-	if (responseData === null) {
-		return [];
-	}
 	if (limit > 0) {
 		responseData = responseData.slice(0, limit);
 	}

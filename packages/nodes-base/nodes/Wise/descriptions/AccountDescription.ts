@@ -136,24 +136,20 @@ export const accountFields: INodeProperties[] = [
 				name: 'PDF',
 				value: 'pdf',
 			},
-			{
-				name: 'XML (CAMT.053)',
-				value: 'xml',
-			},
 		],
 	},
 	{
-		displayName: 'Put Output File in Field',
+		displayName: 'Binary Property',
 		name: 'binaryProperty',
 		type: 'string',
 		required: true,
 		default: 'data',
-		hint: 'The name of the output binary field to put the file in',
+		description: 'Name of the binary property to which to write to',
 		displayOptions: {
 			show: {
 				resource: ['account'],
 				operation: ['getStatement'],
-				format: ['csv', 'pdf', 'xml'],
+				format: ['csv', 'pdf'],
 			},
 		},
 	},
@@ -169,7 +165,7 @@ export const accountFields: INodeProperties[] = [
 			show: {
 				resource: ['account'],
 				operation: ['getStatement'],
-				format: ['csv', 'pdf', 'xml'],
+				format: ['csv', 'pdf'],
 			},
 		},
 	},

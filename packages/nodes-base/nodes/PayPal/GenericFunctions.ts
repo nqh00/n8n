@@ -1,12 +1,13 @@
+import type { OptionsWithUri } from 'request';
+
 import type {
 	JsonObject,
 	IDataObject,
 	IExecuteFunctions,
+	IExecuteSingleFunctions,
 	IHookFunctions,
 	ILoadOptionsFunctions,
 	IWebhookFunctions,
-	IHttpRequestMethods,
-	IRequestOptions,
 } from 'n8n-workflow';
 import { BINARY_ENCODING, NodeApiError, NodeOperationError } from 'n8n-workflow';
 
@@ -18,7 +19,12 @@ function getEnvironment(env: string) {
 }
 
 async function getAccessToken(
-	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions | IWebhookFunctions,
+	this:
+		| IHookFunctions
+		| IExecuteFunctions
+		| IExecuteSingleFunctions
+		| ILoadOptionsFunctions
+		| IWebhookFunctions,
 ): Promise<any> {
 	const credentials = await this.getCredentials('payPalApi');
 	const env = getEnvironment(credentials.env as string);
@@ -29,7 +35,7 @@ async function getAccessToken(
 		{},
 		{ Authorization: `Basic ${data}`, 'Content-Type': 'application/x-www-form-urlencoded' },
 	);
-	const options: IRequestOptions = {
+	const options: OptionsWithUri = {
 		headers: headerWithAuthentication,
 		method: 'POST',
 		form: {
@@ -46,9 +52,14 @@ async function getAccessToken(
 }
 
 export async function payPalApiRequest(
-	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions | IWebhookFunctions,
+	this:
+		| IHookFunctions
+		| IExecuteFunctions
+		| IExecuteSingleFunctions
+		| ILoadOptionsFunctions
+		| IWebhookFunctions,
 	endpoint: string,
-	method: IHttpRequestMethods,
+	method: string,
 
 	body: any = {},
 	query?: IDataObject,
@@ -90,10 +101,10 @@ function getNext(links: IDataObject[]): string | undefined {
  * and return all results
  */
 export async function payPalApiRequestAllItems(
-	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions,
+	this: IHookFunctions | IExecuteFunctions | IExecuteSingleFunctions | ILoadOptionsFunctions,
 	propertyName: string,
 	endpoint: string,
-	method: IHttpRequestMethods,
+	method: string,
 
 	body: any = {},
 	query?: IDataObject,

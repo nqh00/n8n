@@ -91,5 +91,5 @@
 			}
 		]
 	},
-	"alias": ["CSV", "Sheet", "Spreadsheet", "GS"]
+	"alias": ["CSV", "Spreadsheet", "GS"]
 }

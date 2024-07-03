@@ -1,16 +1,16 @@
+import type { OptionsWithUrl } from 'request';
+
 import type {
-	IDataObject,
 	IExecuteFunctions,
-	IHttpRequestMethods,
 	ILoadOptionsFunctions,
-	IRequestOptions,
+	IDataObject,
 	JsonObject,
 } from 'n8n-workflow';
 import { NodeApiError } from 'n8n-workflow';
 
 export async function posthogApiRequest(
 	this: IExecuteFunctions | ILoadOptionsFunctions,
-	method: IHttpRequestMethods,
+	method: string,
 	path: string,
 
 	body: any = {},
@@ -23,7 +23,7 @@ export async function posthogApiRequest(
 
 	body.api_key = credentials.apiKey as string;
 
-	const options: IRequestOptions = {
+	const options: OptionsWithUrl = {
 		headers: {
 			'Content-Type': 'application/json',
 		},

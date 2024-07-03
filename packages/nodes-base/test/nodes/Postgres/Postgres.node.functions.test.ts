@@ -1,5 +1,5 @@
-const pgPromise = require('pg-promise');
 const PostgresFun = require('../../../nodes/Postgres/v1/genericFunctions');
+const pgPromise = require('pg-promise');
 
 type NodeParams = Record<string, string | {}>;
 
@@ -53,7 +53,7 @@ describe('pgUpdate', () => {
 			},
 		];
 
-		await PostgresFun.pgUpdate(getNodeParam, pgp, db, items);
+		const results = await PostgresFun.pgUpdate(getNodeParam, pgp, db, items);
 
 		expect(db.any).toHaveBeenCalledWith(
 			'update "myschema"."mytable" as t set "id"=v."id","name"=v."name" from (values(1234,\'test\')) as v("id","name") WHERE v."id" = t."id" RETURNING *',

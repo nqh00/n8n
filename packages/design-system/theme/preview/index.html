@@ -1,4 +1,4 @@
-<!doctype html>
+<!DOCTYPE html>
 <html>
 	<head>
 		<meta charset="UTF-8" />
@@ -886,9 +886,9 @@
 	</body>
 	<!-- import Vue before Element -->
 	<!-- <script src="https://unpkg.com/vue/dist/vue.js"></script> -->
-	<script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
 	<!-- import JavaScript -->
-	<script src="https://unpkg.com/element-plus/lib/index.js"></script>
+	<script src="https://unpkg.com/element-ui/lib/index.js"></script>
 	<script>
 		const original = {
 			color_primary: '#409EFF',
@@ -919,7 +919,8 @@
 		};
 
 		Vue.config.devtools = true;
-		Vue.createApp({
+		new Vue({
+			el: '#app',
 			data() {
 				return {
 					global: {},
@@ -1329,6 +1330,6 @@
 					this.visible = true;
 				},
 			},
-		}).mount('#app');
+		});
 	</script>
 </html>

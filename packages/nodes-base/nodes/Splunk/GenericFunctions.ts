@@ -3,10 +3,10 @@ import type {
 	IDataObject,
 	ILoadOptionsFunctions,
 	JsonObject,
-	IRequestOptions,
-	IHttpRequestMethods,
 } from 'n8n-workflow';
-import { NodeApiError, NodeOperationError, sleep } from 'n8n-workflow';
+import { NodeApiError } from 'n8n-workflow';
+
+import type { OptionsWithUri } from 'request';
 
 import { parseString } from 'xml2js';
 
@@ -90,7 +90,7 @@ export function formatSearch(responseData: SplunkSearchResponse) {
 // ----------------------------------------
 
 export async function parseXml(xml: string) {
-	return await new Promise((resolve, reject) => {
+	return new Promise((resolve, reject) => {
 		parseString(xml, { explicitArray: false }, (error, result) => {
 			error ? reject(error) : resolve(result);
 		});
@@ -108,7 +108,7 @@ export function toUnixEpoch(timestamp: string) {
 
 export async function splunkApiRequest(
 	this: IExecuteFunctions | ILoadOptionsFunctions,
-	method: IHttpRequestMethods,
+	method: string,
 	endpoint: string,
 	body: IDataObject = {},
 	qs: IDataObject = {},
@@ -117,7 +117,7 @@ export async function splunkApiRequest(
 		'splunkApi',
 	)) as SplunkCredentials;
 
-	const options: IRequestOptions = {
+	const options: OptionsWithUri = {
 		headers: {
 			Authorization: `Bearer ${authToken}`,
 			'Content-Type': 'application/x-www-form-urlencoded',
@@ -139,29 +139,9 @@ export async function splunkApiRequest(
 		delete options.qs;
 	}
 
-	let result;
 	try {
-		let attempts = 0;
-
-		do {
-			try {
-				const response = await this.helpers.request(options);
-				result = await parseXml(response);
-				return result;
-			} catch (error) {
-				if (attempts >= 5) {
-					throw error;
-				}
-				await sleep(1000);
-				attempts++;
-			}
-		} while (true);
+		return await this.helpers.request(options).then(parseXml);
 	} catch (error) {
-		if (result === undefined) {
-			throw new NodeOperationError(this.getNode(), 'No response from API call', {
-				description: "Try to use 'Retry On Fail' option from node's settings",
-			});
-		}
 		if (error?.cause?.code === 'ECONNREFUSED') {
 			throw new NodeApiError(this.getNode(), { ...(error as JsonObject), code: 401 });
 		}

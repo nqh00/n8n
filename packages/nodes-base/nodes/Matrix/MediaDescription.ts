@@ -46,12 +46,11 @@ export const mediaFields: INodeProperties[] = [
 		required: true,
 	},
 	{
-		displayName: 'Input Binary Field',
+		displayName: 'Binary Property',
 		name: 'binaryPropertyName',
 		type: 'string',
 		default: 'data',
 		required: true,
-		hint: 'The name of the input binary field containing the file to be uploaded',
 		displayOptions: {
 			show: {
 				resource: ['media'],
@@ -82,30 +81,8 @@ export const mediaFields: INodeProperties[] = [
 				description: 'Image media type',
 			},
 		],
-		description: 'Type of file being uploaded',
+		description: 'Name of the uploaded file',
 		placeholder: 'mxc://matrix.org/uploaded-media-uri',
 		required: true,
-	},
-	{
-		displayName: 'Additional Fields',
-		name: 'additionalFields',
-		type: 'collection',
-		placeholder: 'Add Field',
-		default: {},
-		displayOptions: {
-			show: {
-				resource: ['media'],
-				operation: ['upload'],
-			},
-		},
-		options: [
-			{
-				displayName: 'File Name',
-				name: 'fileName',
-				type: 'string',
-				default: '',
-				description: 'Name of the file being uploaded',
-			},
-		],
 	},
 ];

@@ -6,8 +6,10 @@ storybook-static
 .storybook
 
 .browserslistrc
+gulpfile.js
 jest.config.js
 vite.config.ts
 
 *.md
 *.stories.js
+*.mdx

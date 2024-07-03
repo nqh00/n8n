@@ -1,5 +1,4 @@
 import type { INodeProperties } from 'n8n-workflow';
-import { includeInputFields } from './common.descriptions';
 
 export const AddToDateDescription: INodeProperties[] = [
 	{
@@ -102,18 +101,5 @@ export const AddToDateDescription: INodeProperties[] = [
 				operation: ['addToDate'],
 			},
 		},
-	},
-	{
-		displayName: 'Options',
-		name: 'options',
-		type: 'collection',
-		placeholder: 'Add Option',
-		displayOptions: {
-			show: {
-				operation: ['addToDate'],
-			},
-		},
-		default: {},
-		options: [includeInputFields],
 	},
 ];

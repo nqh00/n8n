@@ -9,7 +9,6 @@ import type {
 } from 'n8n-workflow';
 import { NodeOperationError } from 'n8n-workflow';
 
-import moment from 'moment-timezone';
 import { clickupApiRequest, clickupApiRequestAllItems, validateJSON } from './GenericFunctions';
 
 import { checklistFields, checklistOperations } from './ChecklistDescription';
@@ -48,6 +47,8 @@ import { listFields, listOperations } from './ListDescription';
 import type { ITask } from './TaskInterface';
 
 import type { IList } from './ListInterface';
+
+import moment from 'moment-timezone';
 
 export class ClickUp implements INodeType {
 	description: INodeTypeDescription = {
@@ -743,7 +744,7 @@ export class ClickUp implements INodeType {
 						) {
 							if (
 								additionalFields.stepsStart === undefined ||
-								additionalFields.stepsEnd === undefined
+								!additionalFields.stepsEnd === undefined
 							) {
 								throw new NodeOperationError(
 									this.getNode(),
@@ -1628,13 +1629,13 @@ export class ClickUp implements INodeType {
 				);
 				returnData.push(...executionData);
 			} catch (error) {
-				if (this.continueOnFail(error)) {
+				if (this.continueOnFail()) {
 					returnData.push({ error: error.message, json: {} });
 					continue;
 				}
 				throw error;
 			}
 		}
-		return [returnData];
+		return this.prepareOutputData(returnData);
 	}
 }

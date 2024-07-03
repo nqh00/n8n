@@ -8,16 +8,15 @@ import type {
 	INodeType,
 	INodeTypeBaseDescription,
 	INodeTypeDescription,
-	IHttpRequestMethods,
 } from 'n8n-workflow';
 
-import moment from 'moment-timezone';
 import { reportFields, reportOperations } from './ReportDescription';
 import { userActivityFields, userActivityOperations } from './UserActivityDescription';
 import { googleApiRequest, googleApiRequestAllItems, merge, simplify } from './GenericFunctions';
+import moment from 'moment-timezone';
 import type { IData } from './Interfaces';
 
-import { oldVersionNotice } from '@utils/descriptions';
+import { oldVersionNotice } from '../../../../utils/descriptions';
 
 const versionDescription: INodeTypeDescription = {
 	displayName: 'Google Analytics',
@@ -96,15 +95,15 @@ export class GoogleAnalyticsV1 implements INodeType {
 					'https://www.googleapis.com/analytics/v3/metadata/ga/columns',
 				);
 
-				for (const dimension of dimensions) {
+				for (const dimesion of dimensions) {
 					if (
-						dimension.attributes.type === 'DIMENSION' &&
-						dimension.attributes.status !== 'DEPRECATED'
+						dimesion.attributes.type === 'DIMENSION' &&
+						dimesion.attributes.status !== 'DEPRECATED'
 					) {
 						returnData.push({
-							name: dimension.attributes.uiName,
-							value: dimension.id,
-							description: dimension.attributes.description,
+							name: dimesion.attributes.uiName,
+							value: dimesion.id,
+							description: dimesion.attributes.description,
 						});
 					}
 				}
@@ -154,7 +153,7 @@ export class GoogleAnalyticsV1 implements INodeType {
 		const resource = this.getNodeParameter('resource', 0);
 		const operation = this.getNodeParameter('operation', 0);
 
-		let method: IHttpRequestMethods = 'GET';
+		let method = '';
 		const qs: IDataObject = {};
 		let endpoint = '';
 		let responseData;
@@ -248,6 +247,7 @@ export class GoogleAnalyticsV1 implements INodeType {
 						if (simple) {
 							responseData = simplify(responseData);
 						} else if (returnAll && responseData.length > 1) {
+							// eslint-disable-next-line @typescript-eslint/no-unsafe-argument
 							responseData = merge(responseData);
 						}
 					}
@@ -292,7 +292,7 @@ export class GoogleAnalyticsV1 implements INodeType {
 				);
 				returnData.push(...executionData);
 			} catch (error) {
-				if (this.continueOnFail(error)) {
+				if (this.continueOnFail()) {
 					const executionErrorData = this.helpers.constructExecutionMetaData(
 						this.helpers.returnJsonArray({ error: error.message }),
 						{ itemData: { item: i } },
@@ -303,6 +303,6 @@ export class GoogleAnalyticsV1 implements INodeType {
 				throw error;
 			}
 		}
-		return [returnData];
+		return this.prepareOutputData(returnData);
 	}
 }

@@ -1,159 +1,228 @@
 import { Service } from 'typedi';
-import type { Response } from 'express';
-import { Workflow, NodeHelpers } from 'n8n-workflow';
-import type { INode, IWebhookData, IHttpRequestMethods } from 'n8n-workflow';
-
-import { WorkflowRepository } from '@db/repositories/workflow.repository';
 import type {
-	IResponseCallbackData,
-	IWebhookManager,
-	WebhookAccessControlOptions,
-	WebhookRequest,
-} from '@/Interfaces';
-import { Logger } from '@/Logger';
-import { NodeTypes } from '@/NodeTypes';
-import { WebhookService } from '@/services/webhook.service';
-import { WebhookNotFoundError } from '@/errors/response-errors/webhook-not-found.error';
-import { NotFoundError } from '@/errors/response-errors/not-found.error';
-import * as WorkflowExecuteAdditionalData from '@/WorkflowExecuteAdditionalData';
-import * as WebhookHelpers from '@/WebhookHelpers';
-import { WorkflowStaticDataService } from '@/workflows/workflowStaticData.service';
+	IWebhookData,
+	WebhookHttpMethod,
+	Workflow,
+	WorkflowActivateMode,
+	WorkflowExecuteMode,
+} from 'n8n-workflow';
+
+import * as NodeExecuteFunctions from 'n8n-core';
 
 @Service()
-export class ActiveWebhooks implements IWebhookManager {
-	constructor(
-		private readonly logger: Logger,
-		private readonly nodeTypes: NodeTypes,
-		private readonly webhookService: WebhookService,
-		private readonly workflowRepository: WorkflowRepository,
-		private readonly workflowStaticDataService: WorkflowStaticDataService,
-	) {}
+export class ActiveWebhooks {
+	private workflowWebhooks: {
+		[key: string]: IWebhookData[];
+	} = {};
 
-	async getWebhookMethods(path: string) {
-		return await this.webhookService.getWebhookMethods(path);
-	}
+	private webhookUrls: {
+		[key: string]: IWebhookData[];
+	} = {};
 
-	async findAccessControlOptions(path: string, httpMethod: IHttpRequestMethods) {
-		const webhook = await this.findWebhook(path, httpMethod);
+	testWebhooks = false;
 
-		const workflowData = await this.workflowRepository.findOne({
-			where: { id: webhook.workflowId },
-			select: ['nodes'],
-		});
+	/**
+	 * Adds a new webhook
+	 *
+	 */
+	async add(
+		workflow: Workflow,
+		webhookData: IWebhookData,
+		mode: WorkflowExecuteMode,
+		activation: WorkflowActivateMode,
+	): Promise<void> {
+		if (workflow.id === undefined) {
+			throw new Error('Webhooks can only be added for saved workflows as an id is needed!');
+		}
+		if (webhookData.path.endsWith('/')) {
+			// eslint-disable-next-line no-param-reassign
+			webhookData.path = webhookData.path.slice(0, -1);
+		}
 
-		const nodes = workflowData?.nodes;
-		const webhookNode = nodes?.find(
-			({ type, parameters, typeVersion }) =>
-				parameters?.path === path &&
-				(parameters?.httpMethod ?? 'GET') === httpMethod &&
-				'webhook' in this.nodeTypes.getByNameAndVersion(type, typeVersion),
+		const webhookKey = this.getWebhookKey(
+			webhookData.httpMethod,
+			webhookData.path,
+			webhookData.webhookId,
 		);
-		return webhookNode?.parameters?.options as WebhookAccessControlOptions;
+
+		// check that there is not a webhook already registered with that path/method
+		if (this.webhookUrls[webhookKey] && !webhookData.webhookId) {
+			throw new Error(
+				`The URL path that the "${webhookData.node}" node uses is already taken. Please change it to something else.`,
+			);
+		}
+
+		if (this.workflowWebhooks[webhookData.workflowId] === undefined) {
+			this.workflowWebhooks[webhookData.workflowId] = [];
+		}
+
+		// Make the webhook available directly because sometimes to create it successfully
+		// it gets called
+		if (!this.webhookUrls[webhookKey]) {
+			this.webhookUrls[webhookKey] = [];
+		}
+		this.webhookUrls[webhookKey].push(webhookData);
+
+		try {
+			const webhookExists = await workflow.runWebhookMethod(
+				'checkExists',
+				webhookData,
+				NodeExecuteFunctions,
+				mode,
+				activation,
+				this.testWebhooks,
+			);
+			if (webhookExists !== true) {
+				// If webhook does not exist yet create it
+				await workflow.runWebhookMethod(
+					'create',
+					webhookData,
+					NodeExecuteFunctions,
+					mode,
+					activation,
+					this.testWebhooks,
+				);
+			}
+		} catch (error) {
+			// If there was a problem unregister the webhook again
+			if (this.webhookUrls[webhookKey].length <= 1) {
+				delete this.webhookUrls[webhookKey];
+			} else {
+				this.webhookUrls[webhookKey] = this.webhookUrls[webhookKey].filter(
+					(webhook) => webhook.path !== webhookData.path,
+				);
+			}
+
+			throw error;
+		}
+		this.workflowWebhooks[webhookData.workflowId].push(webhookData);
 	}
 
 	/**
-	 * Checks if a webhook for the given method and path exists and executes the workflow.
+	 * Returns webhookData if a webhook with matches is currently registered
+	 *
+	 * @param {(string | undefined)} webhookId
 	 */
-	async executeWebhook(
-		request: WebhookRequest,
-		response: Response,
-	): Promise<IResponseCallbackData> {
-		const httpMethod = request.method;
-		const path = request.params.path;
-
-		this.logger.debug(`Received webhook "${httpMethod}" for path "${path}"`);
-
-		// Reset request parameters
-		request.params = {} as WebhookRequest['params'];
-
-		const webhook = await this.findWebhook(path, httpMethod);
-
-		if (webhook.isDynamic) {
-			const pathElements = path.split('/').slice(1);
-
-			// extracting params from path
-			// @ts-ignore
-			webhook.webhookPath.split('/').forEach((ele, index) => {
-				if (ele.startsWith(':')) {
-					// write params to req.params
-					// @ts-ignore
-					request.params[ele.slice(1)] = pathElements[index];
-				}
-			});
+	get(httpMethod: WebhookHttpMethod, path: string, webhookId?: string): IWebhookData | undefined {
+		const webhookKey = this.getWebhookKey(httpMethod, path, webhookId);
+		if (this.webhookUrls[webhookKey] === undefined) {
+			return undefined;
 		}
 
-		const workflowData = await this.workflowRepository.findOne({
-			where: { id: webhook.workflowId },
-			relations: { shared: { project: { projectRelations: true } } },
+		let webhook: IWebhookData | undefined;
+		let maxMatches = 0;
+		const pathElementsSet = new Set(path.split('/'));
+		// check if static elements match in path
+		// if more results have been returned choose the one with the most static-route matches
+		this.webhookUrls[webhookKey].forEach((dynamicWebhook) => {
+			const staticElements = dynamicWebhook.path.split('/').filter((ele) => !ele.startsWith(':'));
+			const allStaticExist = staticElements.every((staticEle) => pathElementsSet.has(staticEle));
+
+			if (allStaticExist && staticElements.length > maxMatches) {
+				maxMatches = staticElements.length;
+				webhook = dynamicWebhook;
+			}
+			// handle routes with no static elements
+			else if (staticElements.length === 0 && !webhook) {
+				webhook = dynamicWebhook;
+			}
 		});
-
-		if (workflowData === null) {
-			throw new NotFoundError(`Could not find workflow with id "${webhook.workflowId}"`);
-		}
-
-		const workflow = new Workflow({
-			id: webhook.workflowId,
-			name: workflowData.name,
-			nodes: workflowData.nodes,
-			connections: workflowData.connections,
-			active: workflowData.active,
-			nodeTypes: this.nodeTypes,
-			staticData: workflowData.staticData,
-			settings: workflowData.settings,
-		});
-
-		const additionalData = await WorkflowExecuteAdditionalData.getBase();
-
-		const webhookData = NodeHelpers.getNodeWebhooks(
-			workflow,
-			workflow.getNode(webhook.node) as INode,
-			additionalData,
-		).find((w) => w.httpMethod === httpMethod && w.path === webhook.webhookPath) as IWebhookData;
-
-		// Get the node which has the webhook defined to know where to start from and to
-		// get additional data
-		const workflowStartNode = workflow.getNode(webhookData.node);
-
-		if (workflowStartNode === null) {
-			throw new NotFoundError('Could not find node to process webhook.');
-		}
-
-		return await new Promise((resolve, reject) => {
-			const executionMode = 'webhook';
-			void WebhookHelpers.executeWebhook(
-				workflow,
-				webhookData,
-				workflowData,
-				workflowStartNode,
-				executionMode,
-				undefined,
-				undefined,
-				undefined,
-				request,
-				response,
-				async (error: Error | null, data: object) => {
-					if (error !== null) {
-						return reject(error);
-					}
-					// Save static data if it changed
-					await this.workflowStaticDataService.saveStaticData(workflow);
-					resolve(data);
-				},
-			);
-		});
-	}
-
-	private async findWebhook(path: string, httpMethod: IHttpRequestMethods) {
-		// Remove trailing slash
-		if (path.endsWith('/')) {
-			path = path.slice(0, -1);
-		}
-
-		const webhook = await this.webhookService.findWebhook(httpMethod, path);
-		if (webhook === null) {
-			throw new WebhookNotFoundError({ path, httpMethod }, { hint: 'production' });
-		}
 
 		return webhook;
+	}
+
+	/**
+	 * Gets all request methods associated with a single webhook
+	 */
+	getWebhookMethods(path: string): string[] {
+		const methods: string[] = [];
+
+		Object.keys(this.webhookUrls)
+			.filter((key) => key.includes(path))
+			// eslint-disable-next-line array-callback-return
+			.map((key) => {
+				methods.push(key.split('|')[0]);
+			});
+
+		return methods;
+	}
+
+	/**
+	 * Returns the ids of all the workflows which have active webhooks
+	 *
+	 */
+	getWorkflowIds(): string[] {
+		return Object.keys(this.workflowWebhooks);
+	}
+
+	/**
+	 * Returns key to uniquely identify a webhook
+	 *
+	 * @param {(string | undefined)} webhookId
+	 */
+	getWebhookKey(httpMethod: WebhookHttpMethod, path: string, webhookId?: string): string {
+		if (webhookId) {
+			if (path.startsWith(webhookId)) {
+				const cutFromIndex = path.indexOf('/') + 1;
+				// eslint-disable-next-line no-param-reassign
+				path = path.slice(cutFromIndex);
+			}
+			return `${httpMethod}|${webhookId}|${path.split('/').length}`;
+		}
+		return `${httpMethod}|${path}`;
+	}
+
+	/**
+	 * Removes all webhooks of a workflow
+	 *
+	 */
+	async removeWorkflow(workflow: Workflow): Promise<boolean> {
+		// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+		const workflowId = workflow.id!.toString();
+
+		if (this.workflowWebhooks[workflowId] === undefined) {
+			// If it did not exist then there is nothing to remove
+			return false;
+		}
+
+		const webhooks = this.workflowWebhooks[workflowId];
+
+		const mode = 'internal';
+
+		// Go through all the registered webhooks of the workflow and remove them
+		// eslint-disable-next-line no-restricted-syntax
+		for (const webhookData of webhooks) {
+			// eslint-disable-next-line no-await-in-loop
+			await workflow.runWebhookMethod(
+				'delete',
+				webhookData,
+				NodeExecuteFunctions,
+				mode,
+				'update',
+				this.testWebhooks,
+			);
+
+			delete this.webhookUrls[
+				this.getWebhookKey(webhookData.httpMethod, webhookData.path, webhookData.webhookId)
+			];
+		}
+
+		// Remove also the workflow-webhook entry
+		delete this.workflowWebhooks[workflowId];
+
+		return true;
+	}
+
+	/**
+	 * Removes all the webhooks of the given workflows
+	 */
+	async removeAll(workflows: Workflow[]): Promise<void> {
+		const removePromises = [];
+		// eslint-disable-next-line no-restricted-syntax
+		for (const workflow of workflows) {
+			removePromises.push(this.removeWorkflow(workflow));
+		}
+
+		await Promise.all(removePromises);
 	}
 }

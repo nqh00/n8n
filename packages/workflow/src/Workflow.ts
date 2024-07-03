@@ -1,11 +1,18 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
-
+/* eslint-disable no-await-in-loop */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
-
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable no-param-reassign */
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
+/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-for-in-array */
-
+/* eslint-disable no-prototype-builtins */
 /* eslint-disable @typescript-eslint/prefer-nullish-coalescing */
+/* eslint-disable no-underscore-dangle */
+/* eslint-disable no-continue */
+/* eslint-disable no-restricted-syntax */
 
 import type {
 	IConnections,
@@ -41,42 +48,21 @@ import type {
 	IRun,
 	IRunNodeResponse,
 	NodeParameterValueType,
-	ConnectionTypes,
-	CloseFunction,
-	INodeOutputConfiguration,
 } from './Interfaces';
-import { Node, NodeConnectionType } from './Interfaces';
 import type { IDeferredPromise } from './DeferredPromise';
 
 import * as NodeHelpers from './NodeHelpers';
 import * as ObservableObject from './ObservableObject';
 import { RoutingNode } from './RoutingNode';
 import { Expression } from './Expression';
-import {
-	MANUAL_CHAT_TRIGGER_LANGCHAIN_NODE_TYPE,
-	NODES_WITH_RENAMABLE_CONTENT,
-	STARTING_NODE_TYPES,
-} from './Constants';
-import { ApplicationError } from './errors/application.error';
+import { NODES_WITH_RENAMABLE_CONTENT } from './Constants';
 
 function dedupe<T>(arr: T[]): T[] {
 	return [...new Set(arr)];
 }
 
-export interface WorkflowParameters {
-	id?: string;
-	name?: string;
-	nodes: INode[];
-	connections: IConnections;
-	active: boolean;
-	nodeTypes: INodeTypes;
-	staticData?: IDataObject;
-	settings?: IWorkflowSettings;
-	pinData?: IPinData;
-}
-
 export class Workflow {
-	id: string;
+	id: string | undefined;
 
 	name: string | undefined;
 
@@ -98,12 +84,21 @@ export class Workflow {
 	// ids of registered webhooks of nodes
 	staticData: IDataObject;
 
-	testStaticData: IDataObject | undefined;
-
 	pinData?: IPinData;
 
-	constructor(parameters: WorkflowParameters) {
-		this.id = parameters.id as string; // @tech_debt Ensure this is not optional
+	// constructor(id: string | undefined, nodes: INode[], connections: IConnections, active: boolean, nodeTypes: INodeTypes, staticData?: IDataObject, settings?: IWorkflowSettings) {
+	constructor(parameters: {
+		id?: string;
+		name?: string;
+		nodes: INode[];
+		connections: IConnections;
+		active: boolean;
+		nodeTypes: INodeTypes;
+		staticData?: IDataObject;
+		settings?: IWorkflowSettings;
+		pinData?: IPinData;
+	}) {
+		this.id = parameters.id;
 		this.name = parameters.name;
 		this.nodeTypes = parameters.nodeTypes;
 		this.pinData = parameters.pinData;
@@ -123,10 +118,7 @@ export class Workflow {
 				// expression resolution also then when the unknown node
 				// does not get used.
 				continue;
-				// throw new ApplicationError(`Node with unknown node type`, {
-				// 	tags: { nodeType: node.type },
-				// 	extra: { node },
-				// });
+				// throw new Error(`The node type "${node.type}" of node "${node.name}" is not known.`);
 			}
 
 			// Add default values
@@ -169,8 +161,7 @@ export class Workflow {
 			if (!connections.hasOwnProperty(sourceNode)) {
 				continue;
 			}
-
-			for (const type of Object.keys(connections[sourceNode]) as NodeConnectionType[]) {
+			for (const type in connections[sourceNode]) {
 				if (!connections[sourceNode].hasOwnProperty(type)) {
 					continue;
 				}
@@ -222,6 +213,7 @@ export class Workflow {
 				continue;
 			}
 
+			// eslint-disable-next-line @typescript-eslint/prefer-optional-chain
 			if (ignoreNodeTypes !== undefined && ignoreNodeTypes.includes(node.type)) {
 				continue;
 			}
@@ -252,14 +244,16 @@ export class Workflow {
 	 * is fine. If there are issues it returns the issues
 	 * which have been found for the different nodes.
 	 * TODO: Does currently not check for credential issues!
+	 *
 	 */
-	checkReadyForExecution(
-		inputData: {
-			startNode?: string;
-			destinationNode?: string;
-			pinDataNodeNames?: string[];
-		} = {},
-	): IWorkflowIssues | null {
+	checkReadyForExecution(inputData: {
+		startNode?: string;
+		destinationNode?: string;
+		pinDataNodeNames?: string[];
+	}): IWorkflowIssues | null {
+		let node: INode;
+		let nodeType: INodeType | undefined;
+		let nodeIssues: INodeIssues | null = null;
 		const workflowIssues: IWorkflowIssues = {};
 
 		let checkNodes: string[] = [];
@@ -276,14 +270,14 @@ export class Workflow {
 		}
 
 		for (const nodeName of checkNodes) {
-			let nodeIssues: INodeIssues | null = null;
-			const node = this.nodes[nodeName];
+			nodeIssues = null;
+			node = this.nodes[nodeName];
 
 			if (node.disabled === true) {
 				continue;
 			}
 
-			const nodeType = this.nodeTypes.getByNameAndVersion(node.type, node.typeVersion);
+			nodeType = this.nodeTypes.getByNameAndVersion(node.type, node.typeVersion);
 
 			if (nodeType === undefined) {
 				// Node type is not known
@@ -324,18 +318,16 @@ export class Workflow {
 			key = 'global';
 		} else if (type === 'node') {
 			if (node === undefined) {
-				throw new ApplicationError(
+				throw new Error(
 					'The request data of context type "node" the node parameter has to be set!',
 				);
 			}
 			key = `node:${node.name}`;
 		} else {
-			throw new ApplicationError('Unknown context type. Only `global` and `node` are supported.', {
-				extra: { contextType: type },
-			});
+			throw new Error(
+				`The context type "${type}" is not know. Only "global" and node" are supported!`,
+			);
 		}
-
-		if (this.testStaticData?.[key]) return this.testStaticData[key] as IDataObject;
 
 		if (this.staticData[key] === undefined) {
 			// Create it as ObservableObject that we can easily check if the data changed
@@ -344,10 +336,6 @@ export class Workflow {
 		}
 
 		return this.staticData[key] as IDataObject;
-	}
-
-	setTestStaticData(testStaticData: IDataObject) {
-		this.testStaticData = testStaticData;
 	}
 
 	/**
@@ -414,7 +402,7 @@ export class Workflow {
 	 *
 	 * @param {string} nodeName Name of the node to return the pinData of
 	 */
-	getPinDataOfNode(nodeName: string): INodeExecutionData[] | undefined {
+	getPinDataOfNode(nodeName: string): IDataObject[] | undefined {
 		return this.pinData ? this.pinData[nodeName] : undefined;
 	}
 
@@ -493,6 +481,7 @@ export class Workflow {
 		const returnData: any = {};
 
 		for (const parameterName of Object.keys(parameterValue || {})) {
+			// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
 			returnData[parameterName] = this.renameNodeInParameterValue(
 				parameterValue![parameterName as keyof typeof parameterValue],
 				currentName,
@@ -576,11 +565,11 @@ export class Workflow {
 	/**
 	 * Finds the highest parent nodes of the node with the given name
 	 *
-	 * @param {ConnectionTypes} [type='main']
+	 * @param {string} [type='main']
 	 */
 	getHighestNode(
 		nodeName: string,
-		type: ConnectionTypes = 'main',
+		type = 'main',
 		nodeConnectionIndex?: number,
 		checkedNodes?: string[],
 	): string[] {
@@ -625,7 +614,7 @@ export class Workflow {
 			connectionsByIndex = this.connectionsByDestinationNode[nodeName][type][connectionIndex];
 			// eslint-disable-next-line @typescript-eslint/no-loop-func
 			connectionsByIndex.forEach((connection) => {
-				if (checkedNodes.includes(connection.node)) {
+				if (checkedNodes!.includes(connection.node)) {
 					// Node got checked already before
 					return;
 				}
@@ -658,25 +647,17 @@ export class Workflow {
 	 * @param {string} [type='main']
 	 * @param {*} [depth=-1]
 	 */
-	getChildNodes(
-		nodeName: string,
-		type: ConnectionTypes | 'ALL' | 'ALL_NON_MAIN' = 'main',
-		depth = -1,
-	): string[] {
+	getChildNodes(nodeName: string, type = 'main', depth = -1): string[] {
 		return this.getConnectedNodes(this.connectionsBySourceNode, nodeName, type, depth);
 	}
 
 	/**
 	 * Returns all the nodes before the given one
 	 *
-	 * @param {ConnectionTypes} [type='main']
+	 * @param {string} [type='main']
 	 * @param {*} [depth=-1]
 	 */
-	getParentNodes(
-		nodeName: string,
-		type: ConnectionTypes | 'ALL' | 'ALL_NON_MAIN' = 'main',
-		depth = -1,
-	): string[] {
+	getParentNodes(nodeName: string, type = 'main', depth = -1): string[] {
 		return this.getConnectedNodes(this.connectionsByDestinationNode, nodeName, type, depth);
 	}
 
@@ -684,15 +665,15 @@ export class Workflow {
 	 * Gets all the nodes which are connected nodes starting from
 	 * the given one
 	 *
-	 * @param {ConnectionTypes} [type='main']
+	 * @param {string} [type='main']
 	 * @param {*} [depth=-1]
 	 */
 	getConnectedNodes(
 		connections: IConnections,
 		nodeName: string,
-		connectionType: ConnectionTypes | 'ALL' | 'ALL_NON_MAIN' = 'main',
+		type = 'main',
 		depth = -1,
-		checkedNodesIncoming?: string[],
+		checkedNodes?: string[],
 	): string[] {
 		depth = depth === -1 ? -1 : depth;
 		const newDepth = depth === -1 ? depth : depth - 1;
@@ -706,71 +687,57 @@ export class Workflow {
 			return [];
 		}
 
-		let types: ConnectionTypes[];
-		if (connectionType === 'ALL') {
-			types = Object.keys(connections[nodeName]) as ConnectionTypes[];
-		} else if (connectionType === 'ALL_NON_MAIN') {
-			types = Object.keys(connections[nodeName]).filter(
-				(type) => type !== 'main',
-			) as ConnectionTypes[];
-		} else {
-			types = [connectionType];
+		if (!connections[nodeName].hasOwnProperty(type)) {
+			// Node does not have incoming connections of given type
+			return [];
 		}
 
+		checkedNodes = checkedNodes || [];
+
+		if (checkedNodes.includes(nodeName)) {
+			// Node got checked already before
+			return [];
+		}
+
+		checkedNodes.push(nodeName);
+
+		const returnNodes: string[] = [];
 		let addNodes: string[];
 		let nodeIndex: number;
 		let i: number;
 		let parentNodeName: string;
-		const returnNodes: string[] = [];
+		connections[nodeName][type].forEach((connectionsByIndex) => {
+			connectionsByIndex.forEach((connection) => {
+				if (checkedNodes!.includes(connection.node)) {
+					// Node got checked already before
+					return;
+				}
 
-		types.forEach((type) => {
-			if (!connections[nodeName].hasOwnProperty(type)) {
-				// Node does not have incoming connections of given type
-				return;
-			}
+				returnNodes.unshift(connection.node);
 
-			const checkedNodes = checkedNodesIncoming ? [...checkedNodesIncoming] : [];
+				addNodes = this.getConnectedNodes(
+					connections,
+					connection.node,
+					type,
+					newDepth,
+					checkedNodes,
+				);
 
-			if (checkedNodes.includes(nodeName)) {
-				// Node got checked already before
-				return;
-			}
+				for (i = addNodes.length; i--; i > 0) {
+					// Because nodes can have multiple parents it is possible that
+					// parts of the tree is parent of both and to not add nodes
+					// twice check first if they already got added before.
+					parentNodeName = addNodes[i];
+					nodeIndex = returnNodes.indexOf(parentNodeName);
 
-			checkedNodes.push(nodeName);
-
-			connections[nodeName][type].forEach((connectionsByIndex) => {
-				connectionsByIndex.forEach((connection) => {
-					if (checkedNodes.includes(connection.node)) {
-						// Node got checked already before
-						return;
+					if (nodeIndex !== -1) {
+						// Node got found before so remove it from current location
+						// that node-order stays correct
+						returnNodes.splice(nodeIndex, 1);
 					}
 
-					returnNodes.unshift(connection.node);
-
-					addNodes = this.getConnectedNodes(
-						connections,
-						connection.node,
-						connectionType,
-						newDepth,
-						checkedNodes,
-					);
-
-					for (i = addNodes.length; i--; i > 0) {
-						// Because nodes can have multiple parents it is possible that
-						// parts of the tree is parent of both and to not add nodes
-						// twice check first if they already got added before.
-						parentNodeName = addNodes[i];
-						nodeIndex = returnNodes.indexOf(parentNodeName);
-
-						if (nodeIndex !== -1) {
-							// Node got found before so remove it from current location
-							// that node-order stays correct
-							returnNodes.splice(nodeIndex, 1);
-						}
-
-						returnNodes.unshift(parentNodeName);
-					}
-				});
+					returnNodes.unshift(parentNodeName);
+				}
 			});
 		});
 
@@ -796,7 +763,7 @@ export class Workflow {
 	searchNodesBFS(connections: IConnections, sourceNode: string, maxDepth = -1): IConnectedNode[] {
 		const returnConns: IConnectedNode[] = [];
 
-		const type: ConnectionTypes = 'main';
+		const type = 'main';
 		let queue: IConnectedNode[] = [];
 		queue.push({
 			name: sourceNode,
@@ -850,47 +817,6 @@ export class Workflow {
 		return returnConns;
 	}
 
-	getParentMainInputNode(node: INode): INode {
-		if (node) {
-			const nodeType = this.nodeTypes.getByNameAndVersion(node.type, node.typeVersion);
-			const outputs = NodeHelpers.getNodeOutputs(this, node, nodeType.description);
-
-			if (
-				!!outputs.find(
-					(output) =>
-						((output as INodeOutputConfiguration)?.type ?? output) !== NodeConnectionType.Main,
-				)
-			) {
-				// Get the first node which is connected to a non-main output
-				const nonMainNodesConnected = outputs?.reduce((acc, outputName) => {
-					const parentNodes = this.getChildNodes(
-						node.name,
-						(outputName as INodeOutputConfiguration)?.type ?? outputName,
-					);
-					if (parentNodes.length > 0) {
-						acc.push(...parentNodes);
-					}
-					return acc;
-				}, [] as string[]);
-
-				if (nonMainNodesConnected.length) {
-					const returnNode = this.getNode(nonMainNodesConnected[0]);
-					if (returnNode === null) {
-						// This should theoretically never happen as the node is connected
-						// but who knows and it makes TS happy
-						throw new ApplicationError(`Node "${nonMainNodesConnected[0]}" not found`);
-					}
-
-					// The chain of non-main nodes is potentially not finished yet so
-					// keep on going
-					return this.getParentMainInputNode(returnNode);
-				}
-			}
-		}
-
-		return node;
-	}
-
 	/**
 	 * Returns via which output of the parent-node and index the current node
 	 * they are connected
@@ -903,7 +829,7 @@ export class Workflow {
 	getNodeConnectionIndexes(
 		nodeName: string,
 		parentNodeName: string,
-		type: ConnectionTypes = 'main',
+		type = 'main',
 		depth = -1,
 		checkedNodes?: string[],
 	): INodeConnection | undefined {
@@ -993,11 +919,6 @@ export class Workflow {
 
 			nodeType = this.nodeTypes.getByNameAndVersion(node.type, node.typeVersion);
 
-			// TODO: Identify later differently
-			if (nodeType.description.name === MANUAL_CHAT_TRIGGER_LANGCHAIN_NODE_TYPE) {
-				continue;
-			}
-
 			if (nodeType && (nodeType.trigger !== undefined || nodeType.poll !== undefined)) {
 				if (node.disabled === true) {
 					continue;
@@ -1006,13 +927,20 @@ export class Workflow {
 			}
 		}
 
+		const startingNodeTypes = [
+			'n8n-nodes-base.manualTrigger',
+			'n8n-nodes-base.executeWorkflowTrigger',
+			'n8n-nodes-base.errorTrigger',
+			'n8n-nodes-base.start',
+		];
+
 		const sortedNodeNames = Object.values(this.nodes)
-			.sort((a, b) => STARTING_NODE_TYPES.indexOf(a.type) - STARTING_NODE_TYPES.indexOf(b.type))
+			.sort((a, b) => startingNodeTypes.indexOf(a.type) - startingNodeTypes.indexOf(b.type))
 			.map((n) => n.name);
 
 		for (const nodeName of sortedNodeNames) {
 			node = this.nodes[nodeName];
-			if (STARTING_NODE_TYPES.includes(node.type)) {
+			if (startingNodeTypes.includes(node.type)) {
 				if (node.disabled === true) {
 					continue;
 				}
@@ -1052,45 +980,20 @@ export class Workflow {
 		return this.__getStartNode(Object.keys(this.nodes));
 	}
 
-	async createWebhookIfNotExists(
-		webhookData: IWebhookData,
-		nodeExecuteFunctions: INodeExecuteFunctions,
-		mode: WorkflowExecuteMode,
-		activation: WorkflowActivateMode,
-	): Promise<void> {
-		const webhookExists = await this.runWebhookMethod(
-			'checkExists',
-			webhookData,
-			nodeExecuteFunctions,
-			mode,
-			activation,
-		);
-		if (!webhookExists) {
-			// If webhook does not exist yet create it
-			await this.runWebhookMethod('create', webhookData, nodeExecuteFunctions, mode, activation);
-		}
-	}
-
-	async deleteWebhook(
-		webhookData: IWebhookData,
-		nodeExecuteFunctions: INodeExecuteFunctions,
-		mode: WorkflowExecuteMode,
-		activation: WorkflowActivateMode,
-	) {
-		await this.runWebhookMethod('delete', webhookData, nodeExecuteFunctions, mode, activation);
-	}
-
-	private async runWebhookMethod(
+	/**
+	 * Executes the Webhooks method of the node
+	 *
+	 * @param {WebhookSetupMethodNames} method The name of the method to execute
+	 */
+	async runWebhookMethod(
 		method: WebhookSetupMethodNames,
 		webhookData: IWebhookData,
 		nodeExecuteFunctions: INodeExecuteFunctions,
 		mode: WorkflowExecuteMode,
 		activation: WorkflowActivateMode,
+		isTest?: boolean,
 	): Promise<boolean | undefined> {
-		const node = this.getNode(webhookData.node);
-
-		if (!node) return;
-
+		const node = this.getNode(webhookData.node) as INode;
 		const nodeType = this.nodeTypes.getByNameAndVersion(node.type, node.typeVersion);
 
 		const webhookFn = nodeType.webhookMethods?.[webhookData.webhookDescription.name]?.[method];
@@ -1102,10 +1005,11 @@ export class Workflow {
 			webhookData.workflowExecuteAdditionalData,
 			mode,
 			activation,
+			isTest,
 			webhookData,
 		);
 
-		return await webhookFn.call(thisArgs);
+		return webhookFn.call(thisArgs);
 	}
 
 	/**
@@ -1125,17 +1029,13 @@ export class Workflow {
 		const nodeType = this.nodeTypes.getByNameAndVersion(node.type, node.typeVersion);
 
 		if (nodeType === undefined) {
-			throw new ApplicationError('Node with unknown node type', {
-				extra: { nodeName: node.name },
-				tags: { nodeType: node.type },
-			});
+			throw new Error(`The node type "${node.type}" of node "${node.name}" is not known.`);
 		}
 
 		if (!nodeType.trigger) {
-			throw new ApplicationError('Node type does not have a trigger function defined', {
-				extra: { nodeName: node.name },
-				tags: { nodeType: node.type },
-			});
+			throw new Error(
+				`The node type "${node.type}" of node "${node.name}" does not have a trigger function defined.`,
+			);
 		}
 
 		if (mode === 'manual') {
@@ -1190,7 +1090,7 @@ export class Workflow {
 			return triggerResponse;
 		}
 		// In all other modes simply start the trigger
-		return await nodeType.trigger.call(triggerFunctions);
+		return nodeType.trigger.call(triggerFunctions);
 	}
 
 	/**
@@ -1206,20 +1106,16 @@ export class Workflow {
 		const nodeType = this.nodeTypes.getByNameAndVersion(node.type, node.typeVersion);
 
 		if (nodeType === undefined) {
-			throw new ApplicationError('Node with unknown node type', {
-				extra: { nodeName: node.name },
-				tags: { nodeType: node.type },
-			});
+			throw new Error(`The node type "${node.type}" of node "${node.name}" is not known.`);
 		}
 
 		if (!nodeType.poll) {
-			throw new ApplicationError('Node type does not have a poll function defined', {
-				extra: { nodeName: node.name },
-				tags: { nodeType: node.type },
-			});
+			throw new Error(
+				`The node type "${node.type}" of node "${node.name}" does not have a poll function defined.`,
+			);
 		}
 
-		return await nodeType.poll.call(pollFunctions);
+		return nodeType.poll.call(pollFunctions);
 	}
 
 	/**
@@ -1236,35 +1132,25 @@ export class Workflow {
 	): Promise<IWebhookResponseData> {
 		const nodeType = this.nodeTypes.getByNameAndVersion(node.type, node.typeVersion);
 		if (nodeType === undefined) {
-			throw new ApplicationError('Unknown node type of webhook node', {
-				extra: { nodeName: node.name },
-			});
+			throw new Error(`The type of the webhook node "${node.name}" is not known.`);
 		} else if (nodeType.webhook === undefined) {
-			throw new ApplicationError('Node does not have any webhooks defined', {
-				extra: { nodeName: node.name },
-			});
+			throw new Error(`The node "${node.name}" does not have any webhooks defined.`);
 		}
 
-		const closeFunctions: CloseFunction[] = [];
-
-		const context = nodeExecuteFunctions.getExecuteWebhookFunctions(
+		const thisArgs = nodeExecuteFunctions.getExecuteWebhookFunctions(
 			this,
 			node,
 			additionalData,
 			mode,
 			webhookData,
-			closeFunctions,
 		);
-		return nodeType instanceof Node
-			? await nodeType.webhook(context)
-			: await nodeType.webhook.call(context);
+		return nodeType.webhook.call(thisArgs);
 	}
 
 	/**
 	 * Executes the given node.
 	 *
 	 */
-	// eslint-disable-next-line complexity
 	async runNode(
 		executionData: IExecuteData,
 		runExecutionData: IRunExecutionData,
@@ -1272,7 +1158,6 @@ export class Workflow {
 		additionalData: IWorkflowExecuteAdditionalData,
 		nodeExecuteFunctions: INodeExecuteFunctions,
 		mode: WorkflowExecuteMode,
-		abortSignal?: AbortSignal,
 	): Promise<IRunNodeResponse> {
 		const { node } = executionData;
 		let inputData = executionData.data;
@@ -1292,32 +1177,22 @@ export class Workflow {
 
 		const nodeType = this.nodeTypes.getByNameAndVersion(node.type, node.typeVersion);
 		if (nodeType === undefined) {
-			throw new ApplicationError('Node type is unknown so cannot run it', {
-				tags: { nodeType: node.type },
-			});
+			throw new Error(`Node type "${node.type}" is not known so can not run it!`);
 		}
 
 		let connectionInputData: INodeExecutionData[] = [];
-		if (nodeType.execute || (!nodeType.poll && !nodeType.trigger && !nodeType.webhook)) {
-			// Only stop if first input is empty for execute runs. For all others run anyways
+		if (
+			nodeType.execute ||
+			nodeType.executeSingle ||
+			(!nodeType.poll && !nodeType.trigger && !nodeType.webhook)
+		) {
+			// Only stop if first input is empty for execute & executeSingle runs. For all others run anyways
 			// because then it is a trigger node. As they only pass data through and so the input-data
 			// becomes output-data it has to be possible.
 
-			if (inputData.main?.length > 0) {
-				// We always use the data of main input and the first input for execute
+			if (inputData.hasOwnProperty('main') && inputData.main.length > 0) {
+				// We always use the data of main input and the first input for executeSingle
 				connectionInputData = inputData.main[0] as INodeExecutionData[];
-			}
-
-			const forceInputNodeExecution = this.settings.executionOrder !== 'v1';
-			if (!forceInputNodeExecution) {
-				// If the nodes do not get force executed data of some inputs may be missing
-				// for that reason do we use the data of the first one that contains any
-				for (const mainData of inputData.main) {
-					if (mainData?.length) {
-						connectionInputData = mainData;
-						break;
-					}
-				}
 			}
 
 			if (connectionInputData.length === 0) {
@@ -1333,12 +1208,6 @@ export class Workflow {
 			// The node did already fail. So throw an error here that it displays and logs it correctly.
 			// Does get used by webhook and trigger nodes in case they throw an error that it is possible
 			// to log the error and display in Editor-UI.
-			if (
-				runExecutionData.resultData.error.name === 'NodeOperationError' ||
-				runExecutionData.resultData.error.name === 'NodeApiError'
-			) {
-				throw runExecutionData.resultData.error;
-			}
 
 			const error = new Error(runExecutionData.resultData.error.message);
 			error.stack = runExecutionData.resultData.error.stack;
@@ -1357,9 +1226,36 @@ export class Workflow {
 			inputData = newInputData;
 		}
 
-		if (nodeType.execute) {
-			const closeFunctions: CloseFunction[] = [];
-			const context = nodeExecuteFunctions.getExecuteFunctions(
+		if (nodeType.executeSingle) {
+			const returnPromises: Array<Promise<INodeExecutionData>> = [];
+
+			for (let itemIndex = 0; itemIndex < connectionInputData.length; itemIndex++) {
+				const thisArgs = nodeExecuteFunctions.getExecuteSingleFunctions(
+					this,
+					runExecutionData,
+					runIndex,
+					connectionInputData,
+					inputData,
+					node,
+					itemIndex,
+					additionalData,
+					executionData,
+					mode,
+				);
+
+				returnPromises.push(nodeType.executeSingle.call(thisArgs));
+			}
+
+			if (returnPromises.length === 0) {
+				return { data: null };
+			}
+
+			const promiseResults = await Promise.all(returnPromises);
+			if (promiseResults) {
+				return { data: [promiseResults] };
+			}
+		} else if (nodeType.execute) {
+			const thisArgs = nodeExecuteFunctions.getExecuteFunctions(
 				this,
 				runExecutionData,
 				runIndex,
@@ -1369,32 +1265,8 @@ export class Workflow {
 				additionalData,
 				executionData,
 				mode,
-				closeFunctions,
-				abortSignal,
 			);
-			const data =
-				nodeType instanceof Node
-					? await nodeType.execute(context)
-					: await nodeType.execute.call(context);
-
-			const closeFunctionsResults = await Promise.allSettled(
-				closeFunctions.map(async (fn) => await fn()),
-			);
-
-			const closingErrors = closeFunctionsResults
-				.filter((result): result is PromiseRejectedResult => result.status === 'rejected')
-				.map((result) => result.reason);
-
-			if (closingErrors.length > 0) {
-				if (closingErrors[0] instanceof Error) throw closingErrors[0];
-				throw new ApplicationError("Error on execution node's close function(s)", {
-					extra: { nodeName: node.name },
-					tags: { nodeType: node.type },
-					cause: closingErrors,
-				});
-			}
-
-			return { data };
+			return { data: await nodeType.execute.call(thisArgs) };
 		} else if (nodeType.poll) {
 			if (mode === 'manual') {
 				// In manual mode run the poll function
@@ -1471,11 +1343,11 @@ export class Workflow {
 					nodeType,
 					executionData,
 					nodeExecuteFunctions,
-					undefined,
-					abortSignal,
 				),
 			};
 		}
+
+		return { data: null };
 	}
 }
 

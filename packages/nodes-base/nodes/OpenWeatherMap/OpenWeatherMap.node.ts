@@ -5,20 +5,22 @@ import type {
 	INodeType,
 	INodeTypeDescription,
 	JsonObject,
-	IRequestOptions,
 } from 'n8n-workflow';
 import { NodeApiError, NodeOperationError } from 'n8n-workflow';
+
+import type { OptionsWithUri } from 'request';
 
 export class OpenWeatherMap implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'OpenWeatherMap',
 		name: 'openWeatherMap',
-		icon: 'file:openWeatherMap.svg',
+		icon: 'fa:sun',
 		group: ['input'],
 		version: 1,
 		description: 'Gets current and future weather information',
 		defaults: {
 			name: 'OpenWeatherMap',
+			color: '#554455',
 		},
 		inputs: ['main'],
 		outputs: ['main'],
@@ -258,7 +260,7 @@ export class OpenWeatherMap implements INodeType {
 					);
 				}
 
-				const options: IRequestOptions = {
+				const options: OptionsWithUri = {
 					method: 'GET',
 					qs,
 					uri: `https://api.openweathermap.org/data/2.5/${endpoint}`,
@@ -278,7 +280,7 @@ export class OpenWeatherMap implements INodeType {
 				);
 				returnData.push(...executionData);
 			} catch (error) {
-				if (this.continueOnFail(error)) {
+				if (this.continueOnFail()) {
 					returnData.push({ json: { error: error.message } });
 					continue;
 				}
@@ -286,6 +288,6 @@ export class OpenWeatherMap implements INodeType {
 			}
 		}
 
-		return [returnData];
+		return this.prepareOutputData(returnData);
 	}
 }

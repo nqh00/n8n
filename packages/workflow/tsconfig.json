@@ -2,12 +2,16 @@
 	"extends": "../../tsconfig.json",
 	"compilerOptions": {
 		"rootDir": ".",
+		"types": ["node", "jest"],
+		"composite": true,
+		"noEmit": true,
 		"baseUrl": "src",
 		"paths": {
 			"@/*": ["./*"]
 		},
-		"lib": ["es2020", "es2022.error", "dom"],
-		"tsBuildInfoFile": "dist/typecheck.tsbuildinfo"
+		"tsBuildInfoFile": "dist/typecheck.tsbuildinfo",
+		// TODO: remove all options below this line
+		"useUnknownInCatchVariables": false
 	},
 	"include": ["src/**/*.ts", "test/**/*.ts"]
 }

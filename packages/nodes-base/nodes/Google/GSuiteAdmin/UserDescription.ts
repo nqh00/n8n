@@ -157,7 +157,6 @@ export const userFields: INodeProperties[] = [
 			{
 				displayName: 'Change Password At Next Login',
 				name: 'changePasswordAtNextLogin',
-
 				type: 'boolean',
 				default: false,
 				description: 'Whether the user is forced to change their password at next login',
@@ -683,7 +682,6 @@ export const userFields: INodeProperties[] = [
 			{
 				displayName: 'Change Password At Next Login',
 				name: 'changePasswordAtNextLogin',
-
 				type: 'boolean',
 				default: false,
 				description: 'Whether the user is forced to change their password at next login',

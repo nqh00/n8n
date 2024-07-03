@@ -1,35 +1,32 @@
 <template>
-	<div :class="$style.filters" class="template-filters" data-test-id="templates-filter-container">
+	<div :class="$style.filters" class="template-filters">
 		<div :class="$style.title" v-text="$locale.baseText('templates.categoriesHeading')" />
 		<div v-if="loading" :class="$style.list">
 			<n8n-loading :loading="loading" :rows="expandLimit" />
 		</div>
 		<ul v-if="!loading" :class="$style.categories">
-			<li :class="$style.item" data-test-id="template-filter-all-categories">
-				<el-checkbox :model-value="allSelected" @update:model-value="() => resetCategories()">
-					{{ $locale.baseText('templates.allCategories') }}
-				</el-checkbox>
+			<li :class="$style.item">
+				<el-checkbox
+					:label="$locale.baseText('templates.allCategories')"
+					:value="allSelected"
+					@change="(value) => resetCategories(value)"
+				/>
 			</li>
 			<li
-				v-for="(category, index) in collapsed
-					? sortedCategories.slice(0, expandLimit)
-					: sortedCategories"
-				:key="index"
+				v-for="category in collapsed ? sortedCategories.slice(0, expandLimit) : sortedCategories"
+				:key="category.id"
 				:class="$style.item"
-				:data-test-id="`template-filter-${category.name.toLowerCase().replaceAll(' ', '-')}`"
 			>
 				<el-checkbox
-					:model-value="isSelected(category)"
-					@update:model-value="(value: boolean) => handleCheckboxChanged(value, category)"
-				>
-					{{ category.name }}
-				</el-checkbox>
+					:label="category.name"
+					:value="isSelected(category.id)"
+					@change="(value) => handleCheckboxChanged(value, category)"
+				/>
 			</li>
 		</ul>
 		<div
-			v-if="sortedCategories.length > expandLimit && collapsed && !loading"
 			:class="$style.button"
-			data-test-id="expand-categories-button"
+			v-if="sortedCategories.length > expandLimit && collapsed && !loading"
 			@click="collapseAction"
 		>
 			<n8n-text size="small" color="primary">
@@ -41,21 +38,19 @@
 
 <script lang="ts">
 import { defineComponent } from 'vue';
+import { genericHelpers } from '@/mixins/genericHelpers';
 import type { ITemplatesCategory } from '@/Interface';
-import type { PropType } from 'vue';
-import { useTemplatesStore } from '@/stores/templates.store';
-import { mapStores } from 'pinia';
 
 export default defineComponent({
 	name: 'TemplateFilters',
+	mixins: [genericHelpers],
 	props: {
-		categories: {
-			type: Array as PropType<ITemplatesCategory[]>,
-			default: () => [],
-		},
 		sortOnPopulate: {
 			type: Boolean,
 			default: false,
+		},
+		categories: {
+			type: Array,
 		},
 		expandLimit: {
 			type: Number,
@@ -65,11 +60,24 @@ export default defineComponent({
 			type: Boolean,
 		},
 		selected: {
-			type: Array as PropType<ITemplatesCategory[]>,
-			default: () => [],
+			type: Array,
 		},
 	},
-	emits: ['clearAll', 'select', 'clear'],
+	watch: {
+		categories: {
+			handler(categories: ITemplatesCategory[]) {
+				if (!this.sortOnPopulate) {
+					this.sortedCategories = categories;
+				} else {
+					const selected = this.selected || [];
+					const selectedCategories = categories.filter(({ id }) => selected.includes(id));
+					const notSelectedCategories = categories.filter(({ id }) => !selected.includes(id));
+					this.sortedCategories = selectedCategories.concat(notSelectedCategories);
+				}
+			},
+			immediate: true,
+		},
+	},
 	data() {
 		return {
 			collapsed: true,
@@ -77,48 +85,19 @@ export default defineComponent({
 		};
 	},
 	computed: {
-		...mapStores(useTemplatesStore),
 		allSelected(): boolean {
 			return this.selected.length === 0;
 		},
 	},
-	watch: {
-		sortOnPopulate: {
-			handler(value: boolean) {
-				if (value) {
-					this.sortCategories();
-				}
-			},
-			immediate: true,
-		},
-		categories: {
-			handler(categories: ITemplatesCategory[]) {
-				if (categories.length > 0) {
-					this.sortCategories();
-				}
-			},
-			immediate: true,
-		},
-	},
 	methods: {
-		sortCategories() {
-			if (!this.sortOnPopulate) {
-				this.sortedCategories = this.categories;
-			} else {
-				const selected = this.selected || [];
-				const selectedCategories = this.categories.filter((cat) => selected.includes(cat));
-				const notSelectedCategories = this.categories.filter((cat) => !selected.includes(cat));
-				this.sortedCategories = selectedCategories.concat(notSelectedCategories);
-			}
-		},
 		collapseAction() {
 			this.collapsed = false;
 		},
 		handleCheckboxChanged(value: boolean, selectedCategory: ITemplatesCategory) {
-			this.$emit(value ? 'select' : 'clear', selectedCategory);
+			this.$emit(value ? 'select' : 'clear', selectedCategory.id);
 		},
-		isSelected(category: ITemplatesCategory) {
-			return this.selected.includes(category);
+		isSelected(categoryId: string) {
+			return this.selected.includes(categoryId);
 		},
 		resetCategories() {
 			this.$emit('clearAll');

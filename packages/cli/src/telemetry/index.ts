@@ -1,20 +1,16 @@
-import axios from 'axios';
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import type RudderStack from '@rudderstack/rudder-sdk-node';
 import { PostHogClient } from '@/posthog';
-import { Container, Service } from 'typedi';
 import type { ITelemetryTrackProperties } from 'n8n-workflow';
-import { InstanceSettings } from 'n8n-core';
-
+import { LoggerProxy } from 'n8n-workflow';
 import config from '@/config';
 import type { IExecutionTrackProperties } from '@/Interfaces';
-import { Logger } from '@/Logger';
+import { getLogger } from '@/Logger';
 import { License } from '@/License';
+import { LicenseService } from '@/license/License.service';
 import { N8N_VERSION } from '@/constants';
-import { WorkflowRepository } from '@db/repositories/workflow.repository';
-import { SourceControlPreferencesService } from '../environments/sourceControl/sourceControlPreferences.service.ee';
-import { UserRepository } from '@db/repositories/user.repository';
-import { ProjectRepository } from '@/databases/repositories/project.repository';
-import { ProjectRelationRepository } from '@/databases/repositories/projectRelation.repository';
+import { Service } from 'typedi';
 
 type ExecutionTrackDataKey = 'manual_error' | 'manual_success' | 'prod_error' | 'prod_success';
 
@@ -35,57 +31,47 @@ interface IExecutionsBuffer {
 
 @Service()
 export class Telemetry {
+	private instanceId: string;
+
 	private rudderStack?: RudderStack;
 
 	private pulseIntervalReference: NodeJS.Timeout;
 
 	private executionCountsBuffer: IExecutionsBuffer = {};
 
-	constructor(
-		private readonly logger: Logger,
-		private readonly postHog: PostHogClient,
-		private readonly license: License,
-		private readonly instanceSettings: InstanceSettings,
-		private readonly workflowRepository: WorkflowRepository,
-	) {}
+	constructor(private postHog: PostHogClient, private license: License) {}
+
+	setInstanceId(instanceId: string) {
+		this.instanceId = instanceId;
+	}
 
 	async init() {
 		const enabled = config.getEnv('diagnostics.enabled');
 		if (enabled) {
 			const conf = config.getEnv('diagnostics.config.backend');
-			const [key, dataPlaneUrl] = conf.split(';');
+			const [key, url] = conf.split(';');
 
-			if (!key || !dataPlaneUrl) {
-				this.logger.warn('Diagnostics backend config is invalid');
+			if (!key || !url) {
+				const logger = getLogger();
+				LoggerProxy.init(logger);
+				logger.warn('Diagnostics backend config is invalid');
 				return;
 			}
 
 			const logLevel = config.getEnv('logs.level');
 
+			// eslint-disable-next-line @typescript-eslint/naming-convention
 			const { default: RudderStack } = await import('@rudderstack/rudder-sdk-node');
-			const axiosInstance = axios.create();
-			axiosInstance.interceptors.request.use((cfg) => {
-				cfg.headers.setContentType('application/json', false);
-				return cfg;
-			});
-			this.rudderStack = new RudderStack(key, {
-				axiosInstance,
-				logLevel,
-				dataPlaneUrl,
-				gzip: false,
-			});
+			this.rudderStack = new RudderStack(key, url, { logLevel });
 
 			this.startPulse();
 		}
 	}
 
 	private startPulse() {
-		this.pulseIntervalReference = setInterval(
-			async () => {
-				void this.pulse();
-			},
-			6 * 60 * 60 * 1000,
-		); // every 6 hours
+		this.pulseIntervalReference = setInterval(async () => {
+			void this.pulse();
+		}, 6 * 60 * 60 * 1000); // every 6 hours
 	}
 
 	private async pulse(): Promise<unknown> {
@@ -104,35 +90,29 @@ export class Telemetry {
 				return sum > 0;
 			})
 			.map(async (workflowId) => {
-				const promise = this.track('Workflow execution count', {
-					event_version: '2',
-					workflow_id: workflowId,
-					...this.executionCountsBuffer[workflowId],
-				});
+				const promise = this.track(
+					'Workflow execution count',
+					{
+						event_version: '2',
+						workflow_id: workflowId,
+						...this.executionCountsBuffer[workflowId],
+					},
+					{ withPostHog: true },
+				);
 
-				return await promise;
+				return promise;
 			});
 
 		this.executionCountsBuffer = {};
-
-		const sourceControlPreferences = Container.get(
-			SourceControlPreferencesService,
-		).getPreferences();
 
 		// License info
 		const pulsePacket = {
 			plan_name_current: this.license.getPlanName(),
 			quota: this.license.getTriggerLimit(),
-			usage: await this.workflowRepository.getActiveTriggerCount(),
-			role_count: await Container.get(UserRepository).countUsersByRole(),
-			source_control_set_up: Container.get(SourceControlPreferencesService).isSourceControlSetup(),
-			branchName: sourceControlPreferences.branchName,
-			read_only_instance: sourceControlPreferences.branchReadOnly,
-			team_projects: (await Container.get(ProjectRepository).getProjectCounts()).team,
-			project_role_count: await Container.get(ProjectRelationRepository).countUsersByRole(),
+			usage: await LicenseService.getActiveTriggerCount(),
 		};
 		allPromises.push(this.track('pulse', pulsePacket));
-		return await Promise.all(allPromises);
+		return Promise.all(allPromises);
 	}
 
 	async trackWorkflowExecution(properties: IExecutionTrackProperties): Promise<void> {
@@ -148,15 +128,14 @@ export class Telemetry {
 				properties.success ? 'success' : 'error'
 			}`;
 
-			const executionTrackDataKey = this.executionCountsBuffer[workflowId][key];
-
-			if (!executionTrackDataKey) {
+			if (!this.executionCountsBuffer[workflowId][key]) {
 				this.executionCountsBuffer[workflowId][key] = {
 					count: 1,
 					first: execTime,
 				};
 			} else {
-				executionTrackDataKey.count++;
+				// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+				this.executionCountsBuffer[workflowId][key]!.count++;
 			}
 
 			if (
@@ -171,20 +150,30 @@ export class Telemetry {
 
 	async trackN8nStop(): Promise<void> {
 		clearInterval(this.pulseIntervalReference);
-		await this.track('User instance stopped');
-		void Promise.all([this.postHog.stop(), this.rudderStack?.flush()]);
+		void this.track('User instance stopped');
+		return new Promise<void>(async (resolve) => {
+			await this.postHog.stop();
+
+			if (this.rudderStack) {
+				this.rudderStack.flush(resolve);
+			} else {
+				resolve();
+			}
+		});
 	}
 
 	async identify(traits?: {
 		[key: string]: string | number | boolean | object | undefined | null;
 	}): Promise<void> {
-		const { instanceId } = this.instanceSettings;
-		return await new Promise<void>((resolve) => {
+		return new Promise<void>((resolve) => {
 			if (this.rudderStack) {
 				this.rudderStack.identify(
 					{
-						userId: instanceId,
-						traits: { ...traits, instanceId },
+						userId: this.instanceId,
+						traits: {
+							...traits,
+							instanceId: this.instanceId,
+						},
 					},
 					resolve,
 				);
@@ -199,18 +188,17 @@ export class Telemetry {
 		properties: ITelemetryTrackProperties = {},
 		{ withPostHog } = { withPostHog: false }, // whether to additionally track with PostHog
 	): Promise<void> {
-		const { instanceId } = this.instanceSettings;
-		return await new Promise<void>((resolve) => {
+		return new Promise<void>((resolve) => {
 			if (this.rudderStack) {
 				const { user_id } = properties;
-				const updatedProperties = {
+				const updatedProperties: ITelemetryTrackProperties = {
 					...properties,
-					instance_id: instanceId,
+					instance_id: this.instanceId,
 					version_cli: N8N_VERSION,
 				};
 
 				const payload = {
-					userId: `${instanceId}${user_id ? `#${user_id}` : ''}`,
+					userId: `${this.instanceId}${user_id ? `#${user_id}` : ''}`,
 					event: eventName,
 					properties: updatedProperties,
 				};

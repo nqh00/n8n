@@ -15,13 +15,12 @@
 		</div>
 		<n8n-tooltip :disabled="!disabled" placement="bottom">
 			<template #content>
-				<div>
-					{{ $locale.baseText('workflowActivator.thisWorkflowHasNoTriggerNodes') }}
-				</div>
+				<div>{{ $locale.baseText('workflowActivator.thisWorkflowHasNoTriggerNodes') }}</div>
 			</template>
 			<el-switch
 				v-loading="updatingWorkflowActivation"
-				:model-value="workflowActive"
+				:value="workflowActive"
+				@change="activeChanged"
 				:title="
 					workflowActive
 						? $locale.baseText('workflowActivator.deactivateWorkflow')
@@ -30,13 +29,13 @@
 				:disabled="disabled || updatingWorkflowActivation"
 				:active-color="getActiveColor"
 				inactive-color="#8899AA"
+				element-loading-spinner="el-icon-loading"
 				data-test-id="workflow-activate-switch"
-				@update:model-value="activeChanged"
 			>
 			</el-switch>
 		</n8n-tooltip>
 
-		<div v-if="couldNotBeStarted" class="could-not-be-started">
+		<div class="could-not-be-started" v-if="couldNotBeStarted">
 			<n8n-tooltip placement="top">
 				<template #content>
 					<div
@@ -44,28 +43,29 @@
 						v-html="$locale.baseText('workflowActivator.theWorkflowIsSetToBeActiveBut')"
 					></div>
 				</template>
-				<font-awesome-icon icon="exclamation-triangle" @click="displayActivationError" />
+				<font-awesome-icon @click="displayActivationError" icon="exclamation-triangle" />
 			</n8n-tooltip>
 		</div>
 	</div>
 </template>
 
 <script lang="ts">
-import { useToast } from '@/composables/useToast';
-import { useWorkflowActivate } from '@/composables/useWorkflowActivate';
+import { useToast } from '@/composables';
+import { workflowActivate } from '@/mixins/workflowActivate';
 import { useUIStore } from '@/stores/ui.store';
 import { useWorkflowsStore } from '@/stores/workflows.store';
 import { mapStores } from 'pinia';
 import { defineComponent } from 'vue';
-import { getActivatableTriggerNodes } from '@/utils/nodeTypesUtils';
+import { getActivatableTriggerNodes } from '@/utils';
 
 export default defineComponent({
 	name: 'WorkflowActivator',
 	props: ['workflowActive', 'workflowId'],
-	setup() {
+	mixins: [workflowActivate],
+	setup(props) {
 		return {
 			...useToast(),
-			...useWorkflowActivate(),
+			...workflowActivate.setup?.(props),
 		};
 	},
 	computed: {
@@ -81,7 +81,7 @@ export default defineComponent({
 			return this.workflowActive === true && this.isWorkflowActive !== this.workflowActive;
 		},
 		getActiveColor(): string {
-			if (this.couldNotBeStarted) {
+			if (this.couldNotBeStarted === true) {
 				return '#ff4949';
 			}
 			return '#13ce66';
@@ -104,7 +104,7 @@ export default defineComponent({
 	},
 	methods: {
 		async activeChanged(newActiveState: boolean) {
-			return await this.updateWorkflowActivation(this.workflowId, newActiveState);
+			return this.updateWorkflowActivation(this.workflowId, newActiveState);
 		},
 		async displayActivationError() {
 			let errorMessage: string;
@@ -118,7 +118,7 @@ export default defineComponent({
 				} else {
 					errorMessage = this.$locale.baseText(
 						'workflowActivator.showMessage.displayActivationError.message.errorDataNotUndefined',
-						{ interpolate: { message: errorData } },
+						{ interpolate: { message: errorData.error.message } },
 					);
 				}
 			} catch (error) {
@@ -158,7 +158,11 @@ export default defineComponent({
 
 .could-not-be-started {
 	display: inline-block;
-	color: var(--color-text-danger);
+	color: #ff4949;
 	margin-left: 0.5em;
+}
+
+::v-deep .el-loading-spinner {
+	margin-top: -10px;
 }
 </style>

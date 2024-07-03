@@ -1,7 +1,6 @@
 import { i18n } from '@/plugins/i18n';
 import type { CompletionContext, CompletionResult } from '@codemirror/autocomplete';
 import { prefixMatch } from './utils';
-import { createInfoBoxRenderer } from './infoBoxRenderer';
 
 /**
  * Completions offered at the initial position for any char other than `$`.
@@ -24,32 +23,16 @@ export function nonDollarCompletions(context: CompletionContext): CompletionResu
 	const nonDollarOptions = [
 		{
 			label: 'DateTime',
-			info: createInfoBoxRenderer({
-				name: 'DateTime',
-				returnType: 'DateTimeGlobal',
-				description: i18n.baseText('codeNodeEditor.completer.dateTime'),
-				docURL: 'https://moment.github.io/luxon/api-docs/index.html#datetime',
-			}),
+			type: 'keyword',
+			info: i18n.rootVars.DateTime,
 		},
 		{
 			label: 'Math',
-			info: createInfoBoxRenderer({
-				name: 'Math',
-				returnType: 'MathGlobal',
-				description: i18n.baseText('codeNodeEditor.completer.math'),
-				docURL:
-					'https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math',
-			}),
+			type: 'keyword',
 		},
 		{
 			label: 'Object',
-			info: createInfoBoxRenderer({
-				name: 'Object',
-				returnType: 'ObjectGlobal',
-				description: i18n.baseText('codeNodeEditor.completer.globalObject'),
-				docURL:
-					'https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object',
-			}),
+			type: 'keyword',
 		},
 	];
 

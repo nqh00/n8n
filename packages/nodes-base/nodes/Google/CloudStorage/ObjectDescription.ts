@@ -1,11 +1,5 @@
-import type { Readable } from 'stream';
 import FormData from 'form-data';
-import {
-	BINARY_ENCODING,
-	type IDataObject,
-	type INodeExecutionData,
-	type INodeProperties,
-} from 'n8n-workflow';
+import type { IDataObject, INodeExecutionData, INodeProperties } from 'n8n-workflow';
 
 // Define these because we'll be using them in two separate places
 const metagenerationFilters: INodeProperties[] = [
@@ -150,40 +144,33 @@ export const objectOperations: INodeProperties[] = [
 								});
 
 								// Determine content and content type
-								let content: string | Buffer | Readable;
+								let content: string | Buffer;
 								let contentType: string;
-								let contentLength: number;
 								if (useBinary) {
 									const binaryPropertyName = this.getNodeParameter(
 										'createBinaryPropertyName',
 									) as string;
 
 									const binaryData = this.helpers.assertBinaryData(binaryPropertyName);
-									if (binaryData.id) {
-										content = await this.helpers.getBinaryStream(binaryData.id);
-										const binaryMetadata = await this.helpers.getBinaryMetadata(binaryData.id);
-										contentType = binaryMetadata.mimeType ?? 'application/octet-stream';
-										contentLength = binaryMetadata.fileSize;
-									} else {
-										content = Buffer.from(binaryData.data, BINARY_ENCODING);
-										contentType = binaryData.mimeType;
-										contentLength = content.length;
-									}
+
+									// Decode from base64 for upload
+									content = Buffer.from(binaryData.data, 'base64');
+									contentType = binaryData.mimeType;
 								} else {
 									content = this.getNodeParameter('createContent') as string;
 									contentType = 'text/plain';
-									contentLength = content.length;
 								}
-								body.append('file', content, { contentType, knownLength: contentLength });
+								body.append('file', content, { contentType });
 
 								// Set the headers
 								if (!requestOptions.headers) requestOptions.headers = {};
 								requestOptions.headers['Content-Length'] = body.getLengthSync();
-								requestOptions.headers['Content-Type'] =
-									`multipart/related; boundary=${body.getBoundary()}`;
+								requestOptions.headers[
+									'Content-Type'
+								] = `multipart/related; boundary=${body.getBoundary()}`;
 
 								// Return the request data
-								requestOptions.body = body;
+								requestOptions.body = body.getBuffer();
 								return requestOptions;
 							},
 						],
@@ -496,7 +483,7 @@ export const objectFields: INodeProperties[] = [
 		},
 	},
 	{
-		displayName: 'Use Input Binary Field',
+		displayName: 'Use Binary Property',
 		name: 'createFromBinary',
 		type: 'boolean',
 		displayOptions: {
@@ -510,10 +497,9 @@ export const objectFields: INodeProperties[] = [
 		description: 'Whether the data for creating a file should come from a binary field',
 	},
 	{
-		displayName: 'Input Binary Field',
+		displayName: 'Binary Property',
 		name: 'createBinaryPropertyName',
 		type: 'string',
-		hint: 'The name of the input binary field containing the file to be written',
 		displayOptions: {
 			show: {
 				resource: ['object'],
@@ -538,10 +524,9 @@ export const objectFields: INodeProperties[] = [
 		description: 'Content of the file to be uploaded',
 	},
 	{
-		displayName: 'Put Output File in Field',
+		displayName: 'Binary Property',
 		name: 'binaryPropertyName',
 		type: 'string',
-		hint: 'The name of the output binary field to put the file in',
 		displayOptions: {
 			show: {
 				resource: ['object'],

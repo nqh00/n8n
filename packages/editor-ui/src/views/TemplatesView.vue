@@ -2,7 +2,7 @@
 	<div :class="$style.template">
 		<div :class="$style.container">
 			<div :class="$style.header">
-				<div v-if="goBackEnabled" :class="$style.goBack">
+				<div :class="$style.goBack" v-if="goBackEnabled">
 					<GoBackButton />
 				</div>
 				<slot name="header"></slot>

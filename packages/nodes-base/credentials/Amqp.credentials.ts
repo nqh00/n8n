@@ -40,7 +40,7 @@ export class Amqp implements ICredentialType {
 			name: 'transportType',
 			type: 'string',
 			default: '',
-			description: 'Optional Transport Type to use. Either tcp or tls.',
+			description: 'Optional Transport Type to use',
 		},
 	];
 }

@@ -1,18 +1,24 @@
+import type { OptionsWithUri } from 'request';
+
 import type {
 	IDataObject,
 	IExecuteFunctions,
+	IExecuteSingleFunctions,
 	IHookFunctions,
-	IHttpRequestMethods,
 	ILoadOptionsFunctions,
-	IRequestOptions,
 	IWebhookFunctions,
 	JsonObject,
 } from 'n8n-workflow';
 import { NodeApiError } from 'n8n-workflow';
 
 export async function sentryIoApiRequest(
-	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions | IWebhookFunctions,
-	method: IHttpRequestMethods,
+	this:
+		| IHookFunctions
+		| IExecuteFunctions
+		| IExecuteSingleFunctions
+		| ILoadOptionsFunctions
+		| IWebhookFunctions,
+	method: string,
 	resource: string,
 
 	body: any = {},
@@ -24,14 +30,14 @@ export async function sentryIoApiRequest(
 
 	const version = this.getNodeParameter('sentryVersion', 0);
 
-	const options = {
+	const options: OptionsWithUri = {
 		headers: {},
 		method,
 		qs,
 		body,
 		uri: uri || `https://sentry.io${resource}`,
 		json: true,
-	} satisfies IRequestOptions;
+	};
 	if (!Object.keys(body as IDataObject).length) {
 		delete options.body;
 	}
@@ -95,7 +101,7 @@ function hasMore(link: string) {
 
 export async function sentryApiRequestAllItems(
 	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions,
-	method: IHttpRequestMethods,
+	method: string,
 	resource: string,
 
 	body: any = {},

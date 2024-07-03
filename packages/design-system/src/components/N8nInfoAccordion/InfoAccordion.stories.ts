@@ -1,5 +1,5 @@
 import N8nInfoAccordion from './InfoAccordion.vue';
-import type { StoryFn } from '@storybook/vue3';
+import type { StoryFn } from '@storybook/vue';
 import { action } from '@storybook/addon-actions';
 
 export default {
@@ -16,12 +16,11 @@ const methods = {
 };
 
 export const Default: StoryFn = (args, { argTypes }) => ({
-	setup: () => ({ args }),
 	props: Object.keys(argTypes),
 	components: {
 		N8nInfoAccordion,
 	},
-	template: '<n8n-info-accordion v-bind="args" @click="onClick" />',
+	template: '<n8n-info-accordion v-bind="$props" @click="onClick" />',
 	methods,
 });
 

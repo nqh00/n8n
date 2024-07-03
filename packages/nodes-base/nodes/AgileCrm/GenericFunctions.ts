@@ -1,11 +1,12 @@
+import type { OptionsWithUri } from 'request';
+
 import type {
 	IDataObject,
 	IExecuteFunctions,
+	IExecuteSingleFunctions,
 	IHookFunctions,
 	ILoadOptionsFunctions,
 	JsonObject,
-	IRequestOptions,
-	IHttpRequestMethods,
 } from 'n8n-workflow';
 import { NodeApiError } from 'n8n-workflow';
 
@@ -14,8 +15,8 @@ import type { IContactUpdate } from './ContactInterface';
 import type { IFilterRules, ISearchConditions } from './FilterInterface';
 
 export async function agileCrmApiRequest(
-	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions,
-	method: IHttpRequestMethods,
+	this: IHookFunctions | IExecuteFunctions | IExecuteSingleFunctions | ILoadOptionsFunctions,
+	method: string,
 	endpoint: string,
 	body: any = {},
 	query: IDataObject = {},
@@ -23,7 +24,7 @@ export async function agileCrmApiRequest(
 	sendAsForm?: boolean,
 ): Promise<any> {
 	const credentials = await this.getCredentials('agileCrmApi');
-	const options: IRequestOptions = {
+	const options: OptionsWithUri = {
 		method,
 		headers: {
 			Accept: 'application/json',
@@ -56,7 +57,7 @@ export async function agileCrmApiRequest(
 
 export async function agileCrmApiRequestAllItems(
 	this: IHookFunctions | ILoadOptionsFunctions | IExecuteFunctions,
-	method: IHttpRequestMethods,
+	method: string,
 	resource: string,
 	body: any = {},
 	query: IDataObject = {},
@@ -94,16 +95,16 @@ export async function agileCrmApiRequestAllItems(
 }
 
 export async function agileCrmApiRequestUpdate(
-	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions,
-	method: IHttpRequestMethods = 'PUT',
-	_endpoint?: string,
+	this: IHookFunctions | IExecuteFunctions | IExecuteSingleFunctions | ILoadOptionsFunctions,
+	method = 'PUT',
+	endpoint?: string,
 	body: any = {},
 	_query: IDataObject = {},
 	uri?: string,
 ): Promise<any> {
 	const credentials = await this.getCredentials('agileCrmApi');
 	const baseUri = `https://${credentials.subdomain}.agilecrm.com/dev/`;
-	const options: IRequestOptions = {
+	const options: OptionsWithUri = {
 		method,
 		headers: {
 			Accept: 'application/json',

@@ -4,7 +4,6 @@ export * from './EventTagDescription';
 export * from './FeedDescription';
 export * from './GalaxyDescription';
 export * from './NoticelistDescription';
-export * from './ObjectDescription';
 export * from './OrganisationDescription';
 export * from './TagDescription';
 export * from './UserDescription';

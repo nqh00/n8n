@@ -1,11 +1,9 @@
 import { existsSync } from 'fs';
 import { mkdir, utimes, open, rm } from 'fs/promises';
 import { join, dirname } from 'path';
-import { Container } from 'typedi';
-import { InstanceSettings } from 'n8n-core';
-import { sleep } from 'n8n-workflow';
+import { UserSettings } from 'n8n-core';
+import { LoggerProxy, sleep } from 'n8n-workflow';
 import { inProduction } from '@/constants';
-import { Logger } from '@/Logger';
 
 export const touchFile = async (filePath: string): Promise<void> => {
 	await mkdir(dirname(filePath), { recursive: true });
@@ -18,15 +16,14 @@ export const touchFile = async (filePath: string): Promise<void> => {
 	}
 };
 
-const { n8nFolder } = Container.get(InstanceSettings);
-const journalFile = join(n8nFolder, 'crash.journal');
+const journalFile = join(UserSettings.getUserN8nFolderPath(), 'crash.journal');
 
 export const init = async () => {
 	if (!inProduction) return;
 
 	if (existsSync(journalFile)) {
 		// Crash detected
-		Container.get(Logger).error('Last session crashed');
+		LoggerProxy.error('Last session crashed');
 		// add a 10 seconds pause to slow down crash-looping
 		await sleep(10_000);
 	}

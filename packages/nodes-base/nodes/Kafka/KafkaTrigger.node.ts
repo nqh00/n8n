@@ -17,7 +17,7 @@ export class KafkaTrigger implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Kafka Trigger',
 		name: 'kafkaTrigger',
-		icon: { light: 'file:kafka.svg', dark: 'file:kafka.dark.svg' },
+		icon: 'file:kafka.svg',
 		group: ['trigger'],
 		version: [1, 1.1],
 		description: 'Consume messages from a Kafka topic',

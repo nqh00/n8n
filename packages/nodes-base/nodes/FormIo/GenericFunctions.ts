@@ -4,10 +4,8 @@ import type {
 	IHookFunctions,
 	IWebhookFunctions,
 	JsonObject,
-	IRequestOptions,
-	IHttpRequestMethods,
 } from 'n8n-workflow';
-import { ApplicationError, NodeApiError } from 'n8n-workflow';
+import { NodeApiError } from 'n8n-workflow';
 
 interface IFormIoCredentials {
 	environment: 'cloudHosted' | ' selfHosted';
@@ -38,15 +36,14 @@ async function getToken(
 		uri: `${base}/user/login`,
 		json: true,
 		resolveWithFullResponse: true,
-	} satisfies IRequestOptions;
+	};
 
 	try {
 		const responseObject = await this.helpers.request(options);
 		return responseObject.headers['x-jwt-token'];
 	} catch (error) {
-		throw new ApplicationError(
+		throw new Error(
 			'Authentication Failed for Form.io. Please provide valid credentails/ endpoint details',
-			{ level: 'warning' },
 		);
 	}
 }
@@ -56,7 +53,7 @@ async function getToken(
  */
 export async function formIoApiRequest(
 	this: IHookFunctions | ILoadOptionsFunctions | IWebhookFunctions,
-	method: IHttpRequestMethods,
+	method: string,
 	endpoint: string,
 	body = {},
 	qs = {},

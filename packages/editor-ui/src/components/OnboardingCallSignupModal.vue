@@ -2,10 +2,10 @@
 	<Modal
 		:name="ONBOARDING_CALL_SIGNUP_MODAL_KEY"
 		:title="$locale.baseText('onboardingCallSignupModal.title')"
-		:event-bus="modalBus"
+		:eventBus="modalBus"
 		:center="true"
-		:show-close="false"
-		:before-close="onModalClose"
+		:showClose="false"
+		:beforeClose="onModalClose"
 		width="460px"
 	>
 		<template #content>
@@ -29,6 +29,7 @@
 				<n8n-button
 					:label="$locale.baseText('onboardingCallSignupModal.cancelButton.label')"
 					:disabled="loading"
+					size="medium"
 					float="right"
 					type="outline"
 					@click="onCancel"
@@ -36,6 +37,7 @@
 				<n8n-button
 					:disabled="email === '' || loading"
 					:label="$locale.baseText('onboardingCallSignupModal.signupButton.label')"
+					size="medium"
 					float="right"
 					:loading="loading"
 					@click="onSignup"
@@ -50,10 +52,10 @@ import { ONBOARDING_CALL_SIGNUP_MODAL_KEY, VALID_EMAIL_REGEX } from '@/constants
 import Modal from './Modal.vue';
 
 import { defineComponent } from 'vue';
-import { useToast } from '@/composables/useToast';
+import { useToast } from '@/composables';
 import { mapStores } from 'pinia';
 import { useUIStore } from '@/stores/ui.store';
-import { createEventBus } from 'n8n-design-system/utils';
+import { createEventBus } from 'n8n-design-system';
 
 export default defineComponent({
 	name: 'OnboardingCallSignupModal',
@@ -63,7 +65,7 @@ export default defineComponent({
 	props: ['modalName'],
 	setup() {
 		return {
-			toast: useToast(),
+			...useToast(),
 		};
 	},
 	data() {
@@ -94,7 +96,7 @@ export default defineComponent({
 
 			try {
 				await this.uiStore.applyForOnboardingCall(this.email);
-				this.toast.showMessage({
+				this.showMessage({
 					type: 'success',
 					title: this.$locale.baseText('onboardingCallSignupSucess.title'),
 					message: this.$locale.baseText('onboardingCallSignupSucess.message'),
@@ -102,7 +104,7 @@ export default defineComponent({
 				this.okToClose = true;
 				this.modalBus.emit('close');
 			} catch (e) {
-				this.toast.showError(
+				this.showError(
 					e,
 					this.$locale.baseText('onboardingCallSignupFailed.title'),
 					this.$locale.baseText('onboardingCallSignupFailed.message'),

@@ -1,52 +1,60 @@
 <template>
-	<component :is="tag" :class="['n8n-heading', ...classes]" v-bind="$attrs">
+	<component :is="tag" :class="['n8n-heading', ...classes]" v-on="$listeners">
 		<slot></slot>
 	</component>
 </template>
 
-<script lang="ts" setup>
-import { computed, useCssModule } from 'vue';
+<script lang="ts">
+import { defineComponent } from 'vue';
 
-const SIZES = ['2xlarge', 'xlarge', 'large', 'medium', 'small'] as const;
-const COLORS = [
-	'primary',
-	'text-dark',
-	'text-base',
-	'text-light',
-	'text-xlight',
-	'danger',
-] as const;
-const ALIGN = ['right', 'left', 'center'] as const;
+export default defineComponent({
+	name: 'n8n-heading',
+	props: {
+		tag: {
+			type: String,
+			default: 'span',
+		},
+		bold: {
+			type: Boolean,
+			default: false,
+		},
+		size: {
+			type: String,
+			default: 'medium',
+			validator: (value: string): boolean =>
+				['2xlarge', 'xlarge', 'large', 'medium', 'small'].includes(value),
+		},
+		color: {
+			type: String,
+			validator: (value: string): boolean =>
+				['primary', 'text-dark', 'text-base', 'text-light', 'text-xlight', 'danger'].includes(
+					value,
+				),
+		},
+		align: {
+			type: String,
+			validator: (value: string): boolean => ['right', 'left', 'center'].includes(value),
+		},
+	},
+	computed: {
+		classes() {
+			const applied = [];
+			if (this.align) {
+				// eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+				applied.push(`align-${this.align}`);
+			}
+			if (this.color) {
+				applied.push(this.color);
+			}
 
-interface HeadingProps {
-	tag?: string;
-	bold?: boolean;
-	size?: (typeof SIZES)[number];
-	color?: (typeof COLORS)[number];
-	align?: (typeof ALIGN)[number];
-}
+			// eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+			applied.push(`size-${this.size}`);
 
-defineOptions({ name: 'N8nHeading' });
-const props = withDefaults(defineProps<HeadingProps>(), {
-	tag: 'span',
-	bold: false,
-	size: 'medium',
-});
+			applied.push(this.bold ? 'bold' : 'regular');
 
-const $style = useCssModule();
-const classes = computed(() => {
-	const applied: string[] = [];
-	if (props.align) {
-		applied.push(`align-${props.align}`);
-	}
-	if (props.color) {
-		applied.push(props.color);
-	}
-
-	applied.push(`size-${props.size}`);
-	applied.push(props.bold ? 'bold' : 'regular');
-
-	return applied.map((c) => $style[c]);
+			return applied.map((c) => this.$style[c]);
+		},
+	},
 });
 </script>
 

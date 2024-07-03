@@ -18,7 +18,6 @@ export class PayPalApi implements ICredentialType {
 			displayName: 'Secret',
 			name: 'secret',
 			type: 'string',
-			typeOptions: { password: true },
 			default: '',
 		},
 		{

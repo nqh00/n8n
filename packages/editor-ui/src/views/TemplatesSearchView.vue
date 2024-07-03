@@ -10,11 +10,8 @@
 				<div :class="$style.button">
 					<n8n-button
 						size="large"
-						type="secondary"
-						element="a"
-						:href="creatorHubUrl"
-						:label="$locale.baseText('templates.shareWorkflow')"
-						target="_blank"
+						:label="$locale.baseText('templates.newButton')"
+						@click="openNewWorkflow"
 					/>
 				</div>
 			</div>
@@ -24,51 +21,47 @@
 				<div :class="$style.filters">
 					<TemplateFilters
 						:categories="templatesStore.allCategories"
-						:sort-on-populate="areCategoriesPrepopulated"
-						:selected="categories"
+						:sortOnPopulate="areCategoriesPrepopulated"
 						:loading="loadingCategories"
+						:selected="categories"
 						@clear="onCategoryUnselected"
-						@clear-all="onCategoriesCleared"
+						@clearAll="onCategoriesCleared"
 						@select="onCategorySelected"
 					/>
 				</div>
 				<div :class="$style.search">
 					<n8n-input
-						:model-value="search"
+						:value="search"
 						:placeholder="$locale.baseText('templates.searchPlaceholder')"
-						clearable
-						data-test-id="template-search-input"
-						@update:model-value="onSearchInput"
+						@input="onSearchInput"
 						@blur="trackSearch"
+						clearable
 					>
 						<template #prefix>
 							<font-awesome-icon icon="search" />
 						</template>
 					</n8n-input>
-					<div v-show="collections.length || loadingCollections" :class="$style.carouselContainer">
+					<div :class="$style.carouselContainer" v-show="collections.length || loadingCollections">
 						<div :class="$style.header">
 							<n8n-heading :bold="true" size="medium" color="text-light">
 								{{ $locale.baseText('templates.collections') }}
-								<span
-									v-if="!loadingCollections"
-									data-test-id="collection-count-label"
-									v-text="`(${collections.length})`"
-								/>
+								<span v-if="!loadingCollections" v-text="`(${collections.length})`" />
 							</n8n-heading>
 						</div>
-						<TemplatesInfoCarousel
+
+						<CollectionsCarousel
 							:collections="collections"
 							:loading="loadingCollections"
-							@open-collection="onOpenCollection"
+							@openCollection="onOpenCollection"
 						/>
 					</div>
 					<TemplateList
 						:infinite-scroll-enabled="true"
 						:loading="loadingWorkflows"
+						:total-workflows="totalWorkflows"
 						:workflows="workflows"
-						:total-count="totalWorkflows"
-						@load-more="onLoadMore"
-						@open-template="onOpenTemplate"
+						@loadMore="onLoadMore"
+						@openTemplate="onOpenTemplate"
 					/>
 					<div v-if="endOfSearchMessage" :class="$style.endText">
 						<n8n-text size="medium" color="text-base">
@@ -84,11 +77,12 @@
 <script lang="ts">
 import { defineComponent } from 'vue';
 import { mapStores } from 'pinia';
-import TemplatesInfoCarousel from '@/components/TemplatesInfoCarousel.vue';
+import CollectionsCarousel from '@/components/CollectionsCarousel.vue';
 import TemplateFilters from '@/components/TemplateFilters.vue';
 import TemplateList from '@/components/TemplateList.vue';
 import TemplatesView from '@/views/TemplatesView.vue';
 
+import { genericHelpers } from '@/mixins/genericHelpers';
 import type {
 	ITemplatesCollection,
 	ITemplatesWorkflow,
@@ -96,15 +90,14 @@ import type {
 	ITemplatesCategory,
 } from '@/Interface';
 import type { IDataObject } from 'n8n-workflow';
-import { setPageTitle } from '@/utils/htmlUtils';
-import { CREATOR_HUB_URL, VIEWS } from '@/constants';
+import { setPageTitle } from '@/utils';
+import { VIEWS } from '@/constants';
+import { debounceHelper } from '@/mixins/debounce';
 import { useSettingsStore } from '@/stores/settings.store';
 import { useUsersStore } from '@/stores/users.store';
 import { useTemplatesStore } from '@/stores/templates.store';
 import { useUIStore } from '@/stores/ui.store';
-import { useToast } from '@/composables/useToast';
-import { usePostHog } from '@/stores/posthog.store';
-import { useDebounce } from '@/composables/useDebounce';
+import { useToast } from '@/composables';
 
 interface ISearchEvent {
 	search_string: string;
@@ -116,34 +109,22 @@ interface ISearchEvent {
 
 export default defineComponent({
 	name: 'TemplatesSearchView',
+	mixins: [genericHelpers, debounceHelper],
 	components: {
-		TemplatesInfoCarousel,
+		CollectionsCarousel,
 		TemplateFilters,
 		TemplateList,
 		TemplatesView,
 	},
-	beforeRouteLeave(_to, _from, next) {
-		const contentArea = document.getElementById('content');
-		if (contentArea) {
-			// When leaving this page, store current scroll position in route data
-			this.$route.meta?.setScrollPosition?.(contentArea.scrollTop);
-		}
-
-		this.trackSearch();
-		next();
-	},
 	setup() {
-		const { callDebounced } = useDebounce();
-
 		return {
-			callDebounced,
 			...useToast(),
 		};
 	},
 	data() {
 		return {
 			areCategoriesPrepopulated: false,
-			categories: [] as ITemplatesCategory[],
+			categories: [] as number[],
 			loading: true,
 			loadingCategories: true,
 			loadingCollections: true,
@@ -151,23 +132,25 @@ export default defineComponent({
 			search: '',
 			searchEventToTrack: null as null | ISearchEvent,
 			errorLoadingWorkflows: false,
-			creatorHubUrl: CREATOR_HUB_URL as string,
 		};
 	},
 	computed: {
-		...mapStores(useSettingsStore, useTemplatesStore, useUIStore, useUsersStore, usePostHog),
+		...mapStores(useSettingsStore, useTemplatesStore, useUIStore, useUsersStore),
 		totalWorkflows(): number {
-			return this.templatesStore.getSearchedWorkflowsTotal(this.createQueryObject('name'));
+			return this.templatesStore.getSearchedWorkflowsTotal(this.query);
 		},
 		workflows(): ITemplatesWorkflow[] {
-			return this.templatesStore.getSearchedWorkflows(this.createQueryObject('name')) ?? [];
+			return this.templatesStore.getSearchedWorkflows(this.query) || [];
 		},
 		collections(): ITemplatesCollection[] {
-			return this.templatesStore.getSearchedCollections(this.createQueryObject('id')) ?? [];
+			return this.templatesStore.getSearchedCollections(this.query) || [];
 		},
 		endOfSearchMessage(): string | null {
 			if (this.loadingWorkflows) {
 				return null;
+			}
+			if (this.workflows.length && this.workflows.length >= this.totalWorkflows) {
+				return this.$locale.baseText('templates.endResult');
 			}
 			if (
 				!this.loadingCollections &&
@@ -182,6 +165,12 @@ export default defineComponent({
 
 			return null;
 		},
+		query(): ITemplatesQuery {
+			return {
+				categories: this.categories,
+				search: this.search,
+			};
+		},
 		nothingFound(): boolean {
 			return (
 				!this.loadingWorkflows &&
@@ -191,58 +180,7 @@ export default defineComponent({
 			);
 		},
 	},
-	watch: {
-		workflows(newWorkflows) {
-			if (newWorkflows.length === 0) {
-				this.scrollTo(0);
-			}
-		},
-	},
-	async mounted() {
-		setPageTitle('n8n - Templates');
-		await this.loadCategories();
-		void this.loadWorkflowsAndCollections(true);
-		void this.usersStore.showPersonalizationSurvey();
-
-		this.restoreSearchFromRoute();
-
-		setTimeout(() => {
-			// Check if there is scroll position saved in route and scroll to it
-			const scrollOffset = this.$route.meta?.scrollOffset;
-			if (typeof scrollOffset === 'number' && scrollOffset > 0) {
-				this.scrollTo(scrollOffset, 'auto');
-			}
-		}, 100);
-	},
 	methods: {
-		createQueryObject(categoryId: 'name' | 'id'): ITemplatesQuery {
-			// We are using category names for template search and ids for collection search
-			return {
-				categories: this.categories.map((category) =>
-					categoryId === 'name' ? category.name : String(category.id),
-				),
-				search: this.search,
-			};
-		},
-		restoreSearchFromRoute() {
-			let updateSearch = false;
-			if (this.$route.query.search && typeof this.$route.query.search === 'string') {
-				this.search = this.$route.query.search;
-				updateSearch = true;
-			}
-			if (typeof this.$route.query.categories === 'string' && this.$route.query.categories.length) {
-				const categoriesFromURL = this.$route.query.categories.split(',');
-				this.categories = this.templatesStore.allCategories.filter((category) =>
-					categoriesFromURL.includes(category.id.toString()),
-				);
-				updateSearch = true;
-			}
-			if (updateSearch) {
-				this.updateSearch();
-				this.trackCategories();
-				this.areCategoriesPrepopulated = true;
-			}
-		},
 		onOpenCollection({ event, id }: { event: MouseEvent; id: string }) {
 			this.navigateTo(event, VIEWS.COLLECTION, id);
 		},
@@ -259,7 +197,7 @@ export default defineComponent({
 			}
 		},
 		updateSearch() {
-			this.updateQueryParam(this.search, this.categories.map((category) => category.id).join(','));
+			this.updateQueryParam(this.search, this.categories.join(','));
 			void this.loadWorkflowsAndCollections(false);
 		},
 		updateSearchTracking(search: string, categories: number[]) {
@@ -289,26 +227,27 @@ export default defineComponent({
 				this.searchEventToTrack = null;
 			}
 		},
+		openNewWorkflow() {
+			this.uiStore.nodeViewInitialized = false;
+			void this.$router.push({ name: VIEWS.NEW_WORKFLOW });
+		},
 		onSearchInput(search: string) {
 			this.loadingWorkflows = true;
 			this.loadingCollections = true;
 			this.search = search;
-			void this.callDebounced(this.updateSearch, {
-				debounceTime: 500,
-				trailing: true,
-			});
+			void this.callDebounced('updateSearch', { debounceTime: 500, trailing: true });
 
 			if (search.length === 0) {
 				this.trackSearch();
 			}
 		},
-		onCategorySelected(selected: ITemplatesCategory) {
+		onCategorySelected(selected: number) {
 			this.categories = this.categories.concat(selected);
 			this.updateSearch();
 			this.trackCategories();
 		},
-		onCategoryUnselected(selected: ITemplatesCategory) {
-			this.categories = this.categories.filter((category) => category.id !== selected.id);
+		onCategoryUnselected(selected: number) {
+			this.categories = this.categories.filter((id) => id !== selected);
 			this.updateSearch();
 			this.trackCategories();
 		},
@@ -320,7 +259,9 @@ export default defineComponent({
 			if (this.categories.length) {
 				this.$telemetry.track('User changed template filters', {
 					search_string: this.search,
-					categories_applied: this.categories,
+					categories_applied: this.categories.map((categoryId: number) =>
+						this.templatesStore.getCollectionById(categoryId.toString()),
+					),
 					wf_template_repo_session_id: this.templatesStore.currentSessionId,
 				});
 			}
@@ -349,7 +290,7 @@ export default defineComponent({
 			try {
 				this.loadingWorkflows = true;
 				await this.templatesStore.getMoreWorkflows({
-					categories: this.categories.map((category) => category.name),
+					categories: this.categories,
 					search: this.search,
 				});
 			} catch (e) {
@@ -372,7 +313,7 @@ export default defineComponent({
 			try {
 				this.loadingCollections = true;
 				await this.templatesStore.getCollections({
-					categories: this.categories.map((category) => String(category.id)),
+					categories: this.categories,
 					search: this.search,
 				});
 			} catch (e) {}
@@ -384,7 +325,7 @@ export default defineComponent({
 				this.loadingWorkflows = true;
 				await this.templatesStore.getWorkflows({
 					search: this.search,
-					categories: this.categories.map((category) => category.name),
+					categories: this.categories,
 				});
 				this.errorLoadingWorkflows = false;
 			} catch (e) {
@@ -398,10 +339,7 @@ export default defineComponent({
 			const categories = [...this.categories];
 			await Promise.all([this.loadWorkflows(), this.loadCollections()]);
 			if (!initialLoad) {
-				this.updateSearchTracking(
-					search,
-					categories.map((category) => category.id),
-				);
+				this.updateSearchTracking(search, categories);
 			}
 		},
 		scrollTo(position: number, behavior: ScrollBehavior = 'smooth') {
@@ -415,6 +353,54 @@ export default defineComponent({
 				}
 			}, 0);
 		},
+	},
+	watch: {
+		workflows(newWorkflows) {
+			if (newWorkflows.length === 0) {
+				this.scrollTo(0);
+			}
+		},
+	},
+	beforeRouteLeave(to, from, next) {
+		const contentArea = document.getElementById('content');
+		if (contentArea) {
+			// When leaving this page, store current scroll position in route data
+			if (
+				this.$route.meta &&
+				this.$route.meta.setScrollPosition &&
+				typeof this.$route.meta.setScrollPosition === 'function'
+			) {
+				this.$route.meta.setScrollPosition(contentArea.scrollTop);
+			}
+		}
+
+		this.trackSearch();
+		next();
+	},
+	async mounted() {
+		setPageTitle('n8n - Templates');
+		void this.loadCategories();
+		void this.loadWorkflowsAndCollections(true);
+		void this.usersStore.showPersonalizationSurvey();
+
+		setTimeout(() => {
+			// Check if there is scroll position saved in route and scroll to it
+			if (this.$route.meta && this.$route.meta.scrollOffset > 0) {
+				this.scrollTo(this.$route.meta.scrollOffset, 'auto');
+			}
+		}, 100);
+	},
+	async created() {
+		if (this.$route.query.search && typeof this.$route.query.search === 'string') {
+			this.search = this.$route.query.search;
+		}
+
+		if (typeof this.$route.query.categories === 'string' && this.$route.query.categories.length) {
+			this.categories = this.$route.query.categories
+				.split(',')
+				.map((categoryId) => parseInt(categoryId, 10));
+			this.areCategoriesPrepopulated = true;
+		}
 	},
 });
 </script>
@@ -437,11 +423,11 @@ export default defineComponent({
 .filters {
 	width: 200px;
 	margin-bottom: var(--spacing-xl);
-	margin-right: var(--spacing-2xl);
 }
 
 .search {
 	width: 100%;
+	padding-left: var(--spacing-2xl);
 
 	> * {
 		margin-bottom: var(--spacing-l);

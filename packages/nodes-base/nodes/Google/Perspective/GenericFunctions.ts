@@ -1,4 +1,6 @@
-import type { IExecuteFunctions, IDataObject, JsonObject, IRequestOptions } from 'n8n-workflow';
+import type { OptionsWithUri } from 'request';
+
+import type { IExecuteFunctions, IDataObject, JsonObject } from 'n8n-workflow';
 import { NodeApiError } from 'n8n-workflow';
 
 export async function googleApiRequest(
@@ -7,7 +9,7 @@ export async function googleApiRequest(
 	endpoint: string,
 	body: IDataObject = {},
 ) {
-	const options: IRequestOptions = {
+	const options: OptionsWithUri = {
 		headers: {
 			Accept: 'application/json',
 			'Content-Type': 'application/json',

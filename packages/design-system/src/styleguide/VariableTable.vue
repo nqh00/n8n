@@ -15,52 +15,58 @@
 	</table>
 </template>
 
-<script lang="ts" setup>
-import { onMounted, onUnmounted } from 'vue';
+<script lang="ts">
+import type { PropType } from 'vue';
+import { defineComponent } from 'vue';
 
-interface VariableTableProps {
-	variables: string[];
-	attr?: string;
-}
+export default defineComponent({
+	name: 'variable-table',
+	data() {
+		return {
+			observer: null as null | MutationObserver,
+			values: {} as Record<string, string>,
+		};
+	},
+	props: {
+		variables: {
+			type: Array as PropType<string[]>,
+			required: true,
+		},
+		attr: {
+			type: String,
+			default: '',
+		},
+	},
+	created() {
+		const setValues = () => {
+			this.variables.forEach((variable) => {
+				const style = getComputedStyle(document.body);
+				const value = style.getPropertyValue(variable);
 
-const props = withDefaults(defineProps<VariableTableProps>(), {
-	attr: '',
-});
+				this.$set(this.values, variable, value);
+			});
+		};
 
-let observer: MutationObserver | null = null;
-let values: Record<string, string> = {};
+		setValues();
 
-onMounted(() => {
-	const setValues = () => {
-		props.variables.forEach((variable) => {
-			const style = getComputedStyle(document.body);
-			const value = style.getPropertyValue(variable);
-
-			values = {
-				...values,
-				[variable]: value,
-			};
-		});
-	};
-
-	setValues();
-
-	// when theme class is added or removed, reset color values
-	observer = new MutationObserver((mutationsList) => {
-		for (const mutation of mutationsList) {
-			if (mutation.type === 'attributes') {
-				setValues();
+		// when theme class is added or removed, reset color values
+		this.observer = new MutationObserver((mutationsList) => {
+			for (const mutation of mutationsList) {
+				if (mutation.type === 'attributes') {
+					setValues();
+				}
 			}
+		});
+		const body = document.querySelector('body');
+		if (body) {
+			this.observer.observe(body, { attributes: true });
 		}
-	});
-	const body = document.querySelector('body');
-	if (body) {
-		observer.observe(body, { attributes: true });
-	}
-});
-
-onUnmounted(() => {
-	observer?.disconnect();
+	},
+	destroyed() {
+		if (this.observer) {
+			this.observer.disconnect();
+		}
+	},
 });
 </script>
 

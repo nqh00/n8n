@@ -9,6 +9,7 @@ export declare namespace SamlConfiguration {
 		{},
 		{},
 		{
+			// eslint-disable-next-line @typescript-eslint/naming-convention
 			RelayState?: string;
 		},
 		{}

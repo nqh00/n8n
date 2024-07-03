@@ -8,8 +8,6 @@ import type {
 	INodeTypeDescription,
 } from 'n8n-workflow';
 
-import { capitalCase, pascalCase } from 'change-case';
-import moment from 'moment-timezone';
 import { keapApiRequest, keapApiRequestAllItems, keysToSnakeCase } from './GenericFunctions';
 
 import { contactFields, contactOperations } from './ContactDescription';
@@ -48,6 +46,10 @@ import type { IEcommerceProduct } from './EcommerceProductInterface';
 import type { IFile } from './FileInterface';
 
 import type { ICompany } from './CompanyInterface';
+
+import { capitalCase, pascalCase } from 'change-case';
+
+import moment from 'moment-timezone';
 
 export class Keap implements INodeType {
 	description: INodeTypeDescription = {
@@ -604,7 +606,7 @@ export class Keap implements INodeType {
 				//https://developer.infusionsoft.com/docs/rest/#!/E-Commerce/getOrderUsingGET
 				if (operation === 'get') {
 					const orderId = parseInt(this.getNodeParameter('orderId', i) as string, 10);
-					responseData = await keapApiRequest.call(this, 'GET', `/orders/${orderId}`);
+					responseData = await keapApiRequest.call(this, 'get', `/orders/${orderId}`);
 				}
 				//https://developer.infusionsoft.com/docs/rest/#!/E-Commerce/listOrdersUsingGET
 				if (operation === 'getAll') {
@@ -649,7 +651,7 @@ export class Keap implements INodeType {
 				//https://developer.infusionsoft.com/docs/rest/#!/Product/retrieveProductUsingGET
 				if (operation === 'get') {
 					const productId = this.getNodeParameter('productId', i) as string;
-					responseData = await keapApiRequest.call(this, 'GET', `/products/${productId}`);
+					responseData = await keapApiRequest.call(this, 'get', `/products/${productId}`);
 				}
 				//https://developer.infusionsoft.com/docs/rest/#!/Product/listProductsUsingGET
 				if (operation === 'getAll') {
@@ -828,6 +830,6 @@ export class Keap implements INodeType {
 			returnData.push(...executionData);
 		}
 
-		return [returnData];
+		return this.prepareOutputData(returnData);
 	}
 }

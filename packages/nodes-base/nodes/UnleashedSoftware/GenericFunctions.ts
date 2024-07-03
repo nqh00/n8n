@@ -1,20 +1,22 @@
-import { createHmac } from 'crypto';
+import type { OptionsWithUrl } from 'request';
+
 import type {
 	IDataObject,
 	IExecuteFunctions,
+	IExecuteSingleFunctions,
 	IHookFunctions,
 	ILoadOptionsFunctions,
 	JsonObject,
-	IRequestOptions,
-	IHttpRequestMethods,
 } from 'n8n-workflow';
 import { NodeApiError } from 'n8n-workflow';
+
+import { createHmac } from 'crypto';
 
 import qs from 'qs';
 
 export async function unleashedApiRequest(
-	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions,
-	method: IHttpRequestMethods,
+	this: IHookFunctions | IExecuteFunctions | IExecuteSingleFunctions | ILoadOptionsFunctions,
+	method: string,
 	path: string,
 	body: IDataObject = {},
 	query: IDataObject = {},
@@ -23,7 +25,7 @@ export async function unleashedApiRequest(
 ) {
 	const paginatedPath = pageNumber ? `/${path}/${pageNumber}` : `/${path}`;
 
-	const options: IRequestOptions = {
+	const options: OptionsWithUrl = {
 		headers: {
 			Accept: 'application/json',
 			'Content-Type': 'application/json',
@@ -60,7 +62,7 @@ export async function unleashedApiRequest(
 export async function unleashedApiRequestAllItems(
 	this: IExecuteFunctions | ILoadOptionsFunctions,
 	propertyName: string,
-	method: IHttpRequestMethods,
+	method: string,
 	endpoint: string,
 	body: IDataObject = {},
 	query: IDataObject = {},

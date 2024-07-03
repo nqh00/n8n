@@ -6,7 +6,6 @@ import type {
 	INodeTypeDescription,
 } from 'n8n-workflow';
 
-import moment from 'moment-timezone';
 import { uptimeRobotApiRequest } from './GenericFunctions';
 
 import { monitorFields, monitorOperations } from './MonitorDescription';
@@ -19,6 +18,8 @@ import {
 } from './MaintenanceWindowDescription';
 
 import { publicStatusPageFields, publicStatusPageOperations } from './PublicStatusPageDescription';
+
+import moment from 'moment-timezone';
 
 export class UptimeRobot implements INodeType {
 	description: INodeTypeDescription = {
@@ -420,7 +421,7 @@ export class UptimeRobot implements INodeType {
 					? returnData.push(...(responseData as IDataObject[]))
 					: returnData.push(responseData as IDataObject);
 			} catch (error) {
-				if (this.continueOnFail(error)) {
+				if (this.continueOnFail()) {
 					returnData.push({ error: error.message });
 					continue;
 				}

@@ -6,11 +6,9 @@ import type {
 	INodePropertyOptions,
 	INodeType,
 	INodeTypeDescription,
-	IHttpRequestMethods,
 } from 'n8n-workflow';
 import { NodeOperationError } from 'n8n-workflow';
 
-import { wrapData } from '../../utils/utilities';
 import { apiRequest } from './GenericFunctions';
 
 import { boardFields, boardOperations } from './BoardDescription';
@@ -31,8 +29,8 @@ export class Wekan implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Wekan',
 		name: 'wekan',
-
-		icon: 'file:wekan.svg',
+		// eslint-disable-next-line n8n-nodes-base/node-class-description-icon-not-svg
+		icon: 'file:wekan.png',
 		group: ['transform'],
 		version: 1,
 		subtitle: '={{$parameter["operation"] + ": " + $parameter["resource"]}}',
@@ -236,7 +234,7 @@ export class Wekan implements INodeType {
 
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
 		const items = this.getInputData();
-		const returnData: INodeExecutionData[] = [];
+		const returnData: IDataObject[] = [];
 		let returnAll;
 		let limit;
 
@@ -248,7 +246,7 @@ export class Wekan implements INodeType {
 		// For Query string
 		let qs: IDataObject;
 
-		let requestMethod: IHttpRequestMethods;
+		let requestMethod: string;
 		let endpoint: string;
 
 		for (let i = 0; i < items.length; i++) {
@@ -661,15 +659,14 @@ export class Wekan implements INodeType {
 					responseData = responseData.splice(0, limit);
 				}
 
-				const executionData = this.helpers.constructExecutionMetaData(
-					wrapData(responseData as IDataObject[]),
-					{ itemData: { item: i } },
-				);
-
-				returnData.push(...executionData);
+				if (Array.isArray(responseData)) {
+					returnData.push.apply(returnData, responseData as IDataObject[]);
+				} else {
+					returnData.push(responseData as IDataObject);
+				}
 			} catch (error) {
-				if (this.continueOnFail(error)) {
-					returnData.push({ json: { error: error.message }, pairedItem: { item: i } });
+				if (this.continueOnFail()) {
+					returnData.push({ error: error.message });
 					continue;
 				}
 				throw error;

@@ -1,4 +1,6 @@
-import type { IExecuteFunctions, IDataObject, IRequestOptions } from 'n8n-workflow';
+import type { OptionsWithUri } from 'request';
+
+import type { IExecuteFunctions, IDataObject } from 'n8n-workflow';
 
 export async function urlScanIoApiRequest(
 	this: IExecuteFunctions,
@@ -7,7 +9,7 @@ export async function urlScanIoApiRequest(
 	body: IDataObject = {},
 	qs: IDataObject = {},
 ) {
-	const options: IRequestOptions = {
+	const options: OptionsWithUri = {
 		method,
 		body,
 		qs,
@@ -23,7 +25,7 @@ export async function urlScanIoApiRequest(
 		delete options.qs;
 	}
 
-	return await this.helpers.requestWithAuthentication.call(this, 'urlScanIoApi', options);
+	return this.helpers.requestWithAuthentication.call(this, 'urlScanIoApi', options);
 }
 
 export async function handleListing(

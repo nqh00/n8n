@@ -1,14 +1,13 @@
 import type { IExecuteFunctions, IDataObject, INodeExecutionData } from 'n8n-workflow';
 import { apiRequest } from '../../transport';
 import type { GoogleSheet } from '../../helpers/GoogleSheet';
-import { wrapData } from '../../../../../../utils/utilities';
 
 export async function execute(
 	this: IExecuteFunctions,
-	_sheet: GoogleSheet,
+	sheet: GoogleSheet,
 	sheetName: string,
 ): Promise<INodeExecutionData[]> {
-	const returnData: INodeExecutionData[] = [];
+	const returnData: IDataObject[] = [];
 	const items = this.getInputData();
 	for (let i = 0; i < items.length; i++) {
 		const [spreadsheetId, sheetWithinDocument] = sheetName.split('||');
@@ -27,14 +26,8 @@ export async function execute(
 			{ requests },
 		);
 		delete responseData.replies;
-
-		const executionData = this.helpers.constructExecutionMetaData(
-			wrapData(responseData as IDataObject[]),
-			{ itemData: { item: i } },
-		);
-
-		returnData.push(...executionData);
+		returnData.push(responseData as IDataObject);
 	}
 
-	return returnData;
+	return this.helpers.returnJsonArray(returnData);
 }

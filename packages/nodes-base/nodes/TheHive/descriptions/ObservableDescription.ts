@@ -120,12 +120,12 @@ export const observableFields: INodeProperties[] = [
 		},
 	},
 	{
-		displayName: 'Input Binary Field',
+		displayName: 'Binary Property',
 		name: 'binaryProperty',
 		type: 'string',
 		required: true,
 		default: 'data',
-		description: 'The name of the input binary field that represent the attachment file',
+		description: 'Binary Property that represent the attachment file',
 		displayOptions: {
 			show: {
 				resource: ['observable'],

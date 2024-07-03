@@ -9,7 +9,7 @@ import type { EventNamesWorkflowType } from '.';
 // --------------------------------------
 // EventMessage class for Workflow events
 // --------------------------------------
-export interface EventPayloadWorkflow extends AbstractEventPayload {
+interface EventPayloadWorkflow extends AbstractEventPayload {
 	msg?: string;
 
 	workflowData?: IWorkflowBase;

@@ -5,48 +5,35 @@
 <script lang="ts">
 import { defineComponent } from 'vue';
 import { mapStores } from 'pinia';
-import { useRootStore } from '@/stores/root.store';
+import { useRootStore } from '@/stores/n8nRoot.store';
 import { useSettingsStore } from '@/stores/settings.store';
 import { useUsersStore } from '@/stores/users.store';
 import type { ITelemetrySettings } from 'n8n-workflow';
-import { useProjectsStore } from '@/stores/projects.store';
+import { externalHooks } from '@/mixins/externalHooks';
 
 export default defineComponent({
 	name: 'Telemetry',
+	mixins: [externalHooks],
 	data() {
 		return {
 			isTelemetryInitialized: false,
 		};
 	},
 	computed: {
-		...mapStores(useRootStore, useSettingsStore, useUsersStore, useProjectsStore),
+		...mapStores(useRootStore, useSettingsStore, useUsersStore),
 		currentUserId(): string {
-			return this.usersStore.currentUserId ?? '';
+			return this.usersStore.currentUserId || '';
 		},
 		isTelemetryEnabledOnRoute(): boolean {
-			const routeMeta = this.$route.meta as { telemetry?: { disabled?: boolean } } | undefined;
-			return routeMeta?.telemetry ? !routeMeta.telemetry.disabled : true;
+			return this.$route.meta && this.$route.meta.telemetry
+				? !this.$route.meta.telemetry.disabled
+				: true;
 		},
 		telemetry(): ITelemetrySettings {
 			return this.settingsStore.telemetry;
 		},
 		isTelemetryEnabled(): boolean {
 			return !!this.telemetry?.enabled;
-		},
-	},
-	watch: {
-		telemetry() {
-			this.init();
-		},
-		currentUserId(userId) {
-			if (this.isTelemetryEnabled) {
-				this.$telemetry.identify(this.rootStore.instanceId, userId);
-			}
-		},
-		isTelemetryEnabledOnRoute(enabled) {
-			if (enabled) {
-				this.init();
-			}
 		},
 	},
 	mounted() {
@@ -64,11 +51,25 @@ export default defineComponent({
 			this.$telemetry.init(this.telemetry, {
 				instanceId: this.rootStore.instanceId,
 				userId: this.currentUserId,
-				projectId: this.projectsStore.personalProject?.id,
 				versionCli: this.rootStore.versionCli,
 			});
 
 			this.isTelemetryInitialized = true;
+		},
+	},
+	watch: {
+		telemetry() {
+			this.init();
+		},
+		currentUserId(userId) {
+			if (this.isTelemetryEnabled) {
+				this.$telemetry.identify(this.rootStore.instanceId, userId);
+			}
+		},
+		isTelemetryEnabledOnRoute(enabled) {
+			if (enabled) {
+				this.init();
+			}
 		},
 	},
 });

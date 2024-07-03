@@ -1,16 +1,17 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import syslog from 'syslog-client';
-
 import type {
 	MessageEventBusDestinationOptions,
 	MessageEventBusDestinationSyslogOptions,
 } from 'n8n-workflow';
-import { MessageEventBusDestinationTypeNames } from 'n8n-workflow';
+import { LoggerProxy, MessageEventBusDestinationTypeNames } from 'n8n-workflow';
 import { MessageEventBusDestination } from './MessageEventBusDestination.ee';
+import { isLogStreamingEnabled } from '../MessageEventBus/MessageEventBusHelper';
 import { eventMessageGenericDestinationTestEvent } from '../EventMessageClasses/EventMessageGeneric';
 import type { MessageEventBus, MessageWithCallback } from '../MessageEventBus/MessageEventBus';
-import Container from 'typedi';
-import { Logger } from '@/Logger';
+
 export const isMessageEventBusDestinationSyslogOptions = (
 	candidate: unknown,
 ): candidate is MessageEventBusDestinationSyslogOptions => {
@@ -62,9 +63,9 @@ export class MessageEventBusDestinationSyslog
 					? syslog.Transport.Tcp
 					: syslog.Transport.Udp,
 		});
-		this.logger.debug(`MessageEventBusDestinationSyslog with id ${this.getId()} initialized`);
+		LoggerProxy.debug(`MessageEventBusDestinationSyslog with id ${this.getId()} initialized`);
 		this.client.on('error', function (error) {
-			Container.get(Logger).error(`${error.message}`);
+			console.error(error);
 		});
 	}
 
@@ -72,7 +73,7 @@ export class MessageEventBusDestinationSyslog
 		const { msg, confirmCallback } = emitterPayload;
 		let sendResult = false;
 		if (msg.eventName !== eventMessageGenericDestinationTestEvent) {
-			if (!this.license.isLogStreamingEnabled()) return sendResult;
+			if (!isLogStreamingEnabled()) return sendResult;
 			if (!this.hasSubscribedToEvent(msg)) return sendResult;
 		}
 		try {
@@ -92,7 +93,7 @@ export class MessageEventBusDestinationSyslog
 				},
 				async (error) => {
 					if (error?.message) {
-						this.logger.debug(error.message);
+						LoggerProxy.debug(error.message);
 					} else {
 						// eventBus.confirmSent(msg, { id: this.id, name: this.label });
 						confirmCallback(msg, { id: this.id, name: this.label });
@@ -101,7 +102,7 @@ export class MessageEventBusDestinationSyslog
 				},
 			);
 		} catch (error) {
-			if (error.message) this.logger.debug(error.message as string);
+			if (error.message) LoggerProxy.debug(error.message as string);
 		}
 		if (msg.eventName === eventMessageGenericDestinationTestEvent) {
 			await new Promise((resolve) => setTimeout(resolve, 500));

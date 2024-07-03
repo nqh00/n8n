@@ -1,12 +1,14 @@
+import type { OptionsWithUri } from 'request';
+
 import type {
 	IDataObject,
 	IExecuteFunctions,
+	IExecuteSingleFunctions,
 	IHookFunctions,
 	ILoadOptionsFunctions,
 	JsonObject,
-	IRequestOptions,
 } from 'n8n-workflow';
-import { NodeApiError, randomInt } from 'n8n-workflow';
+import { NodeApiError } from 'n8n-workflow';
 
 const serviceJSONRPC = 'object';
 const methodJSONRPC = 'execute';
@@ -65,7 +67,7 @@ export interface IOdooNameValueFields {
 	}>;
 }
 
-export interface IOdooResponseFields {
+export interface IOdooResponceFields {
 	fields: Array<{
 		field: string;
 		fromList?: boolean;
@@ -97,18 +99,18 @@ export function processNameValueFields(value: IDataObject) {
 	}, {});
 }
 
-// function processResponseFields(value: IDataObject) {
-// 	const data = value as unknown as IOdooResponseFields;
+// function processResponceFields(value: IDataObject) {
+// 	const data = value as unknown as IOdooResponceFields;
 // 	return data?.fields?.map((entry) => entry.field);
 // }
 
 export async function odooJSONRPCRequest(
-	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions,
+	this: IHookFunctions | IExecuteFunctions | IExecuteSingleFunctions | ILoadOptionsFunctions,
 	body: IDataObject,
 	url: string,
 ): Promise<IDataObject | IDataObject[]> {
 	try {
-		const options: IRequestOptions = {
+		const options: OptionsWithUri = {
 			headers: {
 				'User-Agent': 'n8n',
 				Connection: 'keep-alive',
@@ -121,20 +123,20 @@ export async function odooJSONRPCRequest(
 			json: true,
 		};
 
-		const response = await this.helpers.request(options);
-		if (response.error) {
-			throw new NodeApiError(this.getNode(), response.error.data as JsonObject, {
-				message: response.error.data.message,
+		const responce = await this.helpers.request(options);
+		if (responce.error) {
+			throw new NodeApiError(this.getNode(), responce.error.data as JsonObject, {
+				message: responce.error.data.message,
 			});
 		}
-		return response.result;
+		return responce.result;
 	} catch (error) {
 		throw new NodeApiError(this.getNode(), error as JsonObject);
 	}
 }
 
 export async function odooGetModelFields(
-	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions,
+	this: IHookFunctions | IExecuteFunctions | IExecuteSingleFunctions | ILoadOptionsFunctions,
 	db: string,
 	userID: number,
 	password: string,
@@ -158,7 +160,7 @@ export async function odooGetModelFields(
 					['string', 'type', 'help', 'required', 'name'],
 				],
 			},
-			id: randomInt(100),
+			id: Math.floor(Math.random() * 100),
 		};
 
 		const result = await odooJSONRPCRequest.call(this, body, url);
@@ -169,7 +171,7 @@ export async function odooGetModelFields(
 }
 
 export async function odooCreate(
-	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions,
+	this: IHookFunctions | IExecuteFunctions | IExecuteSingleFunctions | ILoadOptionsFunctions,
 	db: string,
 	userID: number,
 	password: string,
@@ -194,7 +196,7 @@ export async function odooCreate(
 					newItem || {},
 				],
 			},
-			id: randomInt(100),
+			id: Math.floor(Math.random() * 100),
 		};
 
 		const result = await odooJSONRPCRequest.call(this, body, url);
@@ -205,7 +207,7 @@ export async function odooCreate(
 }
 
 export async function odooGet(
-	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions,
+	this: IHookFunctions | IExecuteFunctions | IExecuteSingleFunctions | ILoadOptionsFunctions,
 	db: string,
 	userID: number,
 	password: string,
@@ -234,11 +236,11 @@ export async function odooGet(
 					password,
 					mapOdooResources[resource] || resource,
 					mapOperationToJSONRPC[operation],
-					itemsID ? [+itemsID] : [],
+					[+itemsID] || [],
 					fieldsToReturn || [],
 				],
 			},
-			id: randomInt(100),
+			id: Math.floor(Math.random() * 100),
 		};
 
 		const result = await odooJSONRPCRequest.call(this, body, url);
@@ -249,7 +251,7 @@ export async function odooGet(
 }
 
 export async function odooGetAll(
-	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions,
+	this: IHookFunctions | IExecuteFunctions | IExecuteSingleFunctions | ILoadOptionsFunctions,
 	db: string,
 	userID: number,
 	password: string,
@@ -279,7 +281,7 @@ export async function odooGetAll(
 					limit,
 				],
 			},
-			id: randomInt(100),
+			id: Math.floor(Math.random() * 100),
 		};
 
 		const result = await odooJSONRPCRequest.call(this, body, url);
@@ -290,7 +292,7 @@ export async function odooGetAll(
 }
 
 export async function odooUpdate(
-	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions,
+	this: IHookFunctions | IExecuteFunctions | IExecuteSingleFunctions | ILoadOptionsFunctions,
 	db: string,
 	userID: number,
 	password: string,
@@ -325,11 +327,11 @@ export async function odooUpdate(
 					password,
 					mapOdooResources[resource] || resource,
 					mapOperationToJSONRPC[operation],
-					itemsID ? [+itemsID] : [],
+					[+itemsID] || [],
 					fieldsToUpdate,
 				],
 			},
-			id: randomInt(100),
+			id: Math.floor(Math.random() * 100),
 		};
 
 		await odooJSONRPCRequest.call(this, body, url);
@@ -340,7 +342,7 @@ export async function odooUpdate(
 }
 
 export async function odooDelete(
-	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions,
+	this: IHookFunctions | IExecuteFunctions | IExecuteSingleFunctions | ILoadOptionsFunctions,
 	db: string,
 	userID: number,
 	password: string,
@@ -368,10 +370,10 @@ export async function odooDelete(
 					password,
 					mapOdooResources[resource] || resource,
 					mapOperationToJSONRPC[operation],
-					itemsID ? [+itemsID] : [],
+					[+itemsID] || [],
 				],
 			},
-			id: randomInt(100),
+			id: Math.floor(Math.random() * 100),
 		};
 
 		await odooJSONRPCRequest.call(this, body, url);
@@ -382,7 +384,7 @@ export async function odooDelete(
 }
 
 export async function odooGetUserID(
-	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions,
+	this: IHookFunctions | IExecuteFunctions | IExecuteSingleFunctions | ILoadOptionsFunctions,
 	db: string,
 	username: string,
 	password: string,
@@ -397,7 +399,7 @@ export async function odooGetUserID(
 				method: 'login',
 				args: [db, username, password],
 			},
-			id: randomInt(100),
+			id: Math.floor(Math.random() * 100),
 		};
 		const loginResult = await odooJSONRPCRequest.call(this, body, url);
 		return loginResult as unknown as number;
@@ -407,7 +409,7 @@ export async function odooGetUserID(
 }
 
 export async function odooGetServerVersion(
-	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions,
+	this: IHookFunctions | IExecuteFunctions | IExecuteSingleFunctions | ILoadOptionsFunctions,
 	url: string,
 ) {
 	try {
@@ -419,7 +421,7 @@ export async function odooGetServerVersion(
 				method: 'version',
 				args: [],
 			},
-			id: randomInt(100),
+			id: Math.floor(Math.random() * 100),
 		};
 		const result = await odooJSONRPCRequest.call(this, body, url);
 		return result;

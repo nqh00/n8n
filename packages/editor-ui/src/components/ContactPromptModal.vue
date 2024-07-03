@@ -1,11 +1,11 @@
 <template>
 	<Modal
 		:name="modalName"
-		:event-bus="modalBus"
+		:eventBus="modalBus"
 		:center="true"
-		:close-on-press-escape="false"
-		:before-close="closeDialog"
-		custom-class="contact-prompt-modal"
+		:closeOnPressEscape="false"
+		:beforeClose="closeDialog"
+		customClass="contact-prompt-modal"
 		width="460px"
 	>
 		<template #header>
@@ -26,34 +26,29 @@
 		</template>
 		<template #footer>
 			<div :class="$style.footer">
-				<n8n-button label="Send" float="right" :disabled="!isEmailValid" @click="send" />
+				<n8n-button label="Send" float="right" @click="send" :disabled="!isEmailValid" />
 			</div>
 		</template>
 	</Modal>
 </template>
 
 <script lang="ts">
-import type { PropType } from 'vue';
 import { defineComponent } from 'vue';
 import { mapStores } from 'pinia';
-import type { IN8nPromptResponse, ModalKey } from '@/Interface';
+import type { IN8nPromptResponse } from '@/Interface';
 import { VALID_EMAIL_REGEX } from '@/constants';
+import { workflowHelpers } from '@/mixins/workflowHelpers';
 import Modal from '@/components/Modal.vue';
 import { useSettingsStore } from '@/stores/settings.store';
-import { useRootStore } from '@/stores/root.store';
-import { createEventBus } from 'n8n-design-system/utils';
-import { useToast } from '@/composables/useToast';
-import { useNpsSurveyStore } from '@/stores/npsSurvey.store';
+import { useRootStore } from '@/stores/n8nRoot.store';
+import { createEventBus } from 'n8n-design-system';
+import { useToast } from '@/composables';
 
 export default defineComponent({
 	name: 'ContactPromptModal',
+	mixins: [workflowHelpers],
 	components: { Modal },
-	props: {
-		modalName: {
-			type: String as PropType<ModalKey>,
-			required: true,
-		},
-	},
+	props: ['modalName'],
 	setup() {
 		return {
 			...useToast(),
@@ -66,17 +61,17 @@ export default defineComponent({
 		};
 	},
 	computed: {
-		...mapStores(useRootStore, useSettingsStore, useNpsSurveyStore),
+		...mapStores(useRootStore, useSettingsStore),
 		title(): string {
-			if (this.npsSurveyStore.promptsData?.title) {
-				return this.npsSurveyStore.promptsData.title;
+			if (this.settingsStore.promptsData && this.settingsStore.promptsData.title) {
+				return this.settingsStore.promptsData.title;
 			}
 
 			return 'You’re a power user 💪';
 		},
 		description(): string {
-			if (this.npsSurveyStore.promptsData?.message) {
-				return this.npsSurveyStore.promptsData.message;
+			if (this.settingsStore.promptsData && this.settingsStore.promptsData.message) {
+				return this.settingsStore.promptsData.message;
 			}
 
 			return 'Your experience with n8n can help us improve — for you and our entire community.';

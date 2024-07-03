@@ -4,7 +4,6 @@ import type {
 	INodeExecutionData,
 	INodeType,
 	INodeTypeDescription,
-	IHttpRequestMethods,
 } from 'n8n-workflow';
 
 import { spotifyApiRequest, spotifyApiRequestAllItems } from './GenericFunctions';
@@ -331,7 +330,7 @@ export class Spotify implements INodeType {
 					},
 				},
 				placeholder: 'US',
-				description: 'Top tracks in which country? Enter the postal abbreviation',
+				description: 'Top tracks in which country? Enter the postal abbriviation',
 			},
 
 			{
@@ -363,13 +362,13 @@ export class Spotify implements INodeType {
 						resource: ['playlist'],
 					},
 				},
-
+				// eslint-disable-next-line n8n-nodes-base/node-param-options-type-unsorted-items
 				options: [
 					{
 						name: 'Add an Item',
 						value: 'add',
-						description: 'Add tracks to a playlist by track and playlist URI or ID',
-						action: 'Add an Item to a playlist',
+						description: 'Add tracks from a playlist by track and playlist URI or ID',
+						action: 'Add an Item a playlist',
 					},
 					{
 						name: 'Create a Playlist',
@@ -790,7 +789,7 @@ export class Spotify implements INodeType {
 		// For Query string
 		let qs: IDataObject;
 
-		let requestMethod: IHttpRequestMethods;
+		let requestMethod: string;
 		let endpoint: string;
 		let returnAll: boolean;
 		let propertyName = '';
@@ -1313,7 +1312,7 @@ export class Spotify implements INodeType {
 				);
 				returnData.push(...executionData);
 			} catch (error) {
-				if (this.continueOnFail(error)) {
+				if (this.continueOnFail()) {
 					const executionData = this.helpers.constructExecutionMetaData(
 						this.helpers.returnJsonArray({ error: error.message }),
 						{ itemData: { item: i } },
@@ -1325,6 +1324,6 @@ export class Spotify implements INodeType {
 			}
 		}
 
-		return [returnData];
+		return this.prepareOutputData(returnData);
 	}
 }

@@ -1,33 +1,77 @@
+/* eslint-disable @typescript-eslint/no-use-before-define */
+import { AES, enc } from 'crypto-js';
 import type { Entry as LdapUser } from 'ldapts';
 import { Filter } from 'ldapts/filters/Filter';
 import { Container } from 'typedi';
+import { UserSettings } from 'n8n-core';
 import { validate } from 'jsonschema';
-import { randomString } from 'n8n-workflow';
-
 import * as Db from '@/Db';
 import config from '@/config';
+import type { Role } from '@db/entities/Role';
 import { User } from '@db/entities/User';
 import { AuthIdentity } from '@db/entities/AuthIdentity';
+import { RoleRepository } from '@db/repositories';
 import type { AuthProviderSyncHistory } from '@db/entities/AuthProviderSyncHistory';
+import { isUserManagementEnabled } from '@/UserManagement/UserManagementHelper';
+import { LdapManager } from './LdapManager.ee';
 
 import {
 	BINARY_AD_ATTRIBUTES,
 	LDAP_CONFIG_SCHEMA,
+	LDAP_FEATURE_NAME,
 	LDAP_LOGIN_ENABLED,
 	LDAP_LOGIN_LABEL,
 } from './constants';
 import type { ConnectionSecurity, LdapConfig } from './types';
+import { jsonParse, LoggerProxy as Logger } from 'n8n-workflow';
 import { License } from '@/License';
-import { UserRepository } from '@db/repositories/user.repository';
-import { AuthProviderSyncHistoryRepository } from '@db/repositories/authProviderSyncHistory.repository';
-import { AuthIdentityRepository } from '@db/repositories/authIdentity.repository';
+import { InternalHooks } from '@/InternalHooks';
+import {
+	getCurrentAuthenticationMethod,
+	isEmailCurrentAuthenticationMethod,
+	isLdapCurrentAuthenticationMethod,
+	setCurrentAuthenticationMethod,
+} from '@/sso/ssoHelpers';
+import { InternalServerError } from '../ResponseHelper';
 
 /**
  *  Check whether the LDAP feature is disabled in the instance
  */
-export const isLdapEnabled = () => {
-	return Container.get(License).isLdapEnabled();
+export const isLdapEnabled = (): boolean => {
+	const license = Container.get(License);
+	return isUserManagementEnabled() && license.isLdapEnabled();
 };
+
+/**
+ * 	Check whether the LDAP feature is enabled in the instance
+ */
+export const isLdapDisabled = (): boolean => !isLdapEnabled();
+
+/**
+ * Set the LDAP login label to the configuration object
+ */
+export const setLdapLoginLabel = (value: string): void => {
+	config.set(LDAP_LOGIN_LABEL, value);
+};
+
+/**
+ * Set the LDAP login enabled to the configuration object
+ */
+export async function setLdapLoginEnabled(enabled: boolean): Promise<void> {
+	if (isEmailCurrentAuthenticationMethod() || isLdapCurrentAuthenticationMethod()) {
+		if (enabled) {
+			config.set(LDAP_LOGIN_ENABLED, true);
+			await setCurrentAuthenticationMethod('ldap');
+		} else if (!enabled) {
+			config.set(LDAP_LOGIN_ENABLED, false);
+			await setCurrentAuthenticationMethod('email');
+		}
+	} else {
+		throw new InternalServerError(
+			`Cannot switch LDAP login enabled state when an authentication method other than email or ldap is active (current: ${getCurrentAuthenticationMethod()})`,
+		);
+	}
+}
 
 /**
  * Retrieve the LDAP login label from the configuration object
@@ -38,6 +82,20 @@ export const getLdapLoginLabel = (): string => config.getEnv(LDAP_LOGIN_LABEL);
  * Retrieve the LDAP login enabled from the configuration object
  */
 export const isLdapLoginEnabled = (): boolean => config.getEnv(LDAP_LOGIN_ENABLED);
+
+/**
+ * Return a random password to be assigned to the LDAP users
+ */
+export const randomPassword = (): string => {
+	return Math.random().toString(36).slice(-8);
+};
+
+/**
+ * Return the user role to be assigned to LDAP users
+ */
+export const getLdapUserRole = async (): Promise<Role> => {
+	return Container.get(RoleRepository).findGlobalMemberRoleOrFail();
+};
 
 /**
  * Validate the structure of the LDAP configuration schema
@@ -54,7 +112,45 @@ export const validateLdapConfigurationSchema = (
 	return { valid, message };
 };
 
-export const resolveEntryBinaryAttributes = (entry: LdapUser): LdapUser => {
+/**
+ * Encrypt password using the instance's encryption key
+ */
+export const encryptPassword = async (password: string): Promise<string> => {
+	const encryptionKey = await UserSettings.getEncryptionKey();
+	return AES.encrypt(password, encryptionKey).toString();
+};
+
+/**
+ * Decrypt password using the instance's encryption key
+ */
+export const decryptPassword = async (password: string): Promise<string> => {
+	const encryptionKey = await UserSettings.getEncryptionKey();
+	return AES.decrypt(password, encryptionKey).toString(enc.Utf8);
+};
+
+/**
+ * Retrieve the LDAP configuration (decrypted) form the database
+ */
+export const getLdapConfig = async (): Promise<LdapConfig> => {
+	const configuration = await Db.collections.Settings.findOneByOrFail({
+		key: LDAP_FEATURE_NAME,
+	});
+	const configurationData = jsonParse<LdapConfig>(configuration.value);
+	configurationData.bindingAdminPassword = await decryptPassword(
+		configurationData.bindingAdminPassword,
+	);
+	return configurationData;
+};
+
+/**
+ * Take the LDAP configuration and set login enabled and login label to the config object
+ */
+export const setGlobalLdapConfigVariables = async (ldapConfig: LdapConfig): Promise<void> => {
+	await setLdapLoginEnabled(ldapConfig.loginEnabled);
+	setLdapLoginLabel(ldapConfig.loginLabel);
+};
+
+const resolveEntryBinaryAttributes = (entry: LdapUser): LdapUser => {
 	Object.entries(entry)
 		.filter(([k]) => BINARY_AD_ATTRIBUTES.includes(k))
 		.forEach(([k]) => {
@@ -65,6 +161,74 @@ export const resolveEntryBinaryAttributes = (entry: LdapUser): LdapUser => {
 
 export const resolveBinaryAttributes = (entries: LdapUser[]): void => {
 	entries.forEach((entry) => resolveEntryBinaryAttributes(entry));
+};
+
+/**
+ * Update the LDAP configuration in the database
+ */
+export const updateLdapConfig = async (ldapConfig: LdapConfig): Promise<void> => {
+	const { valid, message } = validateLdapConfigurationSchema(ldapConfig);
+
+	if (!valid) {
+		throw new Error(message);
+	}
+
+	LdapManager.updateConfig({ ...ldapConfig });
+
+	ldapConfig.bindingAdminPassword = await encryptPassword(ldapConfig.bindingAdminPassword);
+
+	if (!ldapConfig.loginEnabled) {
+		ldapConfig.synchronizationEnabled = false;
+		const ldapUsers = await getLdapUsers();
+		if (ldapUsers.length) {
+			await deleteAllLdapIdentities();
+			void Container.get(InternalHooks).onLdapUsersDisabled({
+				reason: 'ldap_update',
+				users: ldapUsers.length,
+				user_ids: ldapUsers.map((user) => user.id),
+			});
+		}
+	}
+
+	await Db.collections.Settings.update(
+		{ key: LDAP_FEATURE_NAME },
+		{ value: JSON.stringify(ldapConfig), loadOnStartup: true },
+	);
+	await setGlobalLdapConfigVariables(ldapConfig);
+};
+
+/**
+ * Handle the LDAP initialization.
+ * If it's the first run of this feature, all the default data is created in the database
+ */
+export const handleLdapInit = async (): Promise<void> => {
+	if (!isLdapEnabled()) {
+		const ldapUsers = await getLdapUsers();
+		if (ldapUsers.length) {
+			void Container.get(InternalHooks).onLdapUsersDisabled({
+				reason: 'ldap_feature_deactivated',
+				users: ldapUsers.length,
+				user_ids: ldapUsers.map((user) => user.id),
+			});
+		}
+		return;
+	}
+
+	const ldapConfig = await getLdapConfig();
+
+	try {
+		await setGlobalLdapConfigVariables(ldapConfig);
+	} catch (error) {
+		Logger.error(
+			`Cannot set LDAP login enabled state when an authentication method other than email or ldap is active (current: ${getCurrentAuthenticationMethod()})`,
+			// eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+			error,
+		);
+	}
+
+	// init LDAP manager with the current
+	// configuration
+	LdapManager.init(ldapConfig);
 };
 
 export const createFilter = (filter: string, userFilter: string) => {
@@ -81,13 +245,74 @@ export const escapeFilter = (filter: string): string => {
 };
 
 /**
+ * Find and authenticate user in the LDAP server.
+ */
+export const findAndAuthenticateLdapUser = async (
+	loginId: string,
+	password: string,
+	loginIdAttribute: string,
+	userFilter: string,
+): Promise<LdapUser | undefined> => {
+	const ldapService = LdapManager.getInstance().service;
+
+	// Search for the user with the administrator binding using the
+	// the Login ID attribute and whatever was inputted in the UI's
+	// email input.
+	let searchResult: LdapUser[] = [];
+
+	try {
+		searchResult = await ldapService.searchWithAdminBinding(
+			createFilter(`(${loginIdAttribute}=${escapeFilter(loginId)})`, userFilter),
+		);
+	} catch (e) {
+		if (e instanceof Error) {
+			void Container.get(InternalHooks).onLdapLoginSyncFailed({
+				error: e.message,
+			});
+			Logger.error('LDAP - Error during search', { message: e.message });
+		}
+		return undefined;
+	}
+
+	if (!searchResult.length) {
+		return undefined;
+	}
+
+	// In the unlikely scenario that more than one user is found (
+	// can happen depending on how the LDAP database is structured
+	// and the LDAP configuration), return the last one found as it
+	// should be the less important in the hierarchy.
+	let user = searchResult.pop();
+
+	if (user === undefined) {
+		user = { dn: '' };
+	}
+
+	try {
+		// Now with the user distinguished name (unique identifier
+		// for the user) and the password, attempt to validate the
+		// user by binding
+		await ldapService.validUser(user.dn, password);
+	} catch (e) {
+		if (e instanceof Error) {
+			Logger.error('LDAP - Error validating user against LDAP server', { message: e.message });
+		}
+		return undefined;
+	}
+
+	resolveEntryBinaryAttributes(user);
+
+	return user;
+};
+
+/**
  * Retrieve auth identity by LDAP ID from database
  */
 export const getAuthIdentityByLdapId = async (
 	idAttributeValue: string,
 ): Promise<AuthIdentity | null> => {
-	return await Container.get(AuthIdentityRepository).findOne({
-		relations: { user: true },
+	return Db.collections.AuthIdentity.findOne({
+		relations: ['user', 'user.globalRole'],
 		where: {
 			providerId: idAttributeValue,
 			providerType: 'ldap',
@@ -96,8 +321,9 @@ export const getAuthIdentityByLdapId = async (
 };
 
 export const getUserByEmail = async (email: string): Promise<User | null> => {
-	return await Container.get(UserRepository).findOne({
+	return Db.collections.User.findOne({
 		where: { email },
+		relations: ['globalRole'],
 	});
 };
 
@@ -123,7 +349,7 @@ export const mapLdapAttributesToUser = (
  * Retrieve LDAP ID of all LDAP users in the database
  */
 export const getLdapIds = async (): Promise<string[]> => {
-	const identities = await Container.get(AuthIdentityRepository).find({
+	const identities = await Db.collections.AuthIdentity.find({
 		select: ['providerId'],
 		where: {
 			providerType: 'ldap',
@@ -133,8 +359,8 @@ export const getLdapIds = async (): Promise<string[]> => {
 };
 
 export const getLdapUsers = async (): Promise<User[]> => {
-	const identities = await Container.get(AuthIdentityRepository).find({
-		relations: { user: true },
+	const identities = await Db.collections.AuthIdentity.find({
+		relations: ['user'],
 		where: {
 			providerType: 'ldap',
 		},
@@ -148,14 +374,14 @@ export const getLdapUsers = async (): Promise<User[]> => {
 export const mapLdapUserToDbUser = (
 	ldapUser: LdapUser,
 	ldapConfig: LdapConfig,
-	toCreate = false,
+	role?: Role,
 ): [string, User] => {
 	const user = new User();
 	const [ldapId, data] = mapLdapAttributesToUser(ldapUser, ldapConfig);
 	Object.assign(user, data);
-	if (toCreate) {
-		user.role = 'global:member';
-		user.password = randomString(8);
+	if (role) {
+		user.globalRole = role;
+		user.password = randomPassword();
 		user.disabled = false;
 	} else {
 		user.disabled = true;
@@ -173,16 +399,11 @@ export const processUsers = async (
 	toUpdateUsers: Array<[string, User]>,
 	toDisableUsers: string[],
 ): Promise<void> => {
-	const userRepository = Container.get(UserRepository);
 	await Db.transaction(async (transactionManager) => {
-		return await Promise.all([
+		return Promise.all([
 			...toCreateUsers.map(async ([ldapId, user]) => {
-				const { user: savedUser } = await userRepository.createUserWithProject(
-					user,
-					transactionManager,
-				);
-				const authIdentity = AuthIdentity.create(savedUser, ldapId);
-				return await transactionManager.save(authIdentity);
+				const authIdentity = AuthIdentity.create(await transactionManager.save(user), ldapId);
+				return transactionManager.save(authIdentity);
 			}),
 			...toUpdateUsers.map(async ([ldapId, user]) => {
 				const authIdentity = await transactionManager.findOneBy(AuthIdentity, {
@@ -201,13 +422,7 @@ export const processUsers = async (
 					providerId: ldapId,
 				});
 				if (authIdentity?.userId) {
-					const user = await transactionManager.findOneBy(User, { id: authIdentity.userId });
-
-					if (user) {
-						user.disabled = true;
-						await transactionManager.save(user);
-					}
-
+					await transactionManager.update(User, { id: authIdentity?.userId }, { disabled: true });
 					await transactionManager.delete(AuthIdentity, { userId: authIdentity?.userId });
 				}
 			}),
@@ -221,13 +436,10 @@ export const processUsers = async (
 export const saveLdapSynchronization = async (
 	data: Omit<AuthProviderSyncHistory, 'id' | 'providerType'>,
 ): Promise<void> => {
-	await Container.get(AuthProviderSyncHistoryRepository).save(
-		{
-			...data,
-			providerType: 'ldap',
-		},
-		{ transaction: false },
-	);
+	await Db.collections.AuthProviderSyncHistory.save({
+		...data,
+		providerType: 'ldap',
+	});
 };
 
 /**
@@ -238,7 +450,7 @@ export const getLdapSynchronizations = async (
 	perPage: number,
 ): Promise<AuthProviderSyncHistory[]> => {
 	const _page = Math.abs(page);
-	return await Container.get(AuthProviderSyncHistoryRepository).find({
+	return Db.collections.AuthProviderSyncHistory.find({
 		where: { providerType: 'ldap' },
 		order: { id: 'DESC' },
 		take: perPage,
@@ -265,15 +477,13 @@ export const getMappingAttributes = (ldapConfig: LdapConfig): string[] => {
 };
 
 export const createLdapAuthIdentity = async (user: User, ldapId: string) => {
-	return await Container.get(AuthIdentityRepository).save(AuthIdentity.create(user, ldapId), {
-		transaction: false,
-	});
+	return Db.collections.AuthIdentity.save(AuthIdentity.create(user, ldapId));
 };
 
-export const createLdapUserOnLocalDb = async (data: Partial<User>, ldapId: string) => {
-	const { user } = await Container.get(UserRepository).createUserWithProject({
-		password: randomString(8),
-		role: 'global:member',
+export const createLdapUserOnLocalDb = async (role: Role, data: Partial<User>, ldapId: string) => {
+	const user = await Db.collections.User.save({
+		password: randomPassword(),
+		globalRole: role,
 		...data,
 	});
 	await createLdapAuthIdentity(user, ldapId);
@@ -283,14 +493,10 @@ export const createLdapUserOnLocalDb = async (data: Partial<User>, ldapId: strin
 export const updateLdapUserOnLocalDb = async (identity: AuthIdentity, data: Partial<User>) => {
 	const userId = identity?.user?.id;
 	if (userId) {
-		const user = await Container.get(UserRepository).findOneBy({ id: userId });
-
-		if (user) {
-			await Container.get(UserRepository).save({ id: userId, ...data }, { transaction: true });
-		}
+		await Db.collections.User.update({ id: userId }, data);
 	}
 };
 
-export const deleteAllLdapIdentities = async () => {
-	return await Container.get(AuthIdentityRepository).delete({ providerType: 'ldap' });
+const deleteAllLdapIdentities = async () => {
+	return Db.collections.AuthIdentity.delete({ providerType: 'ldap' });
 };

@@ -4,7 +4,6 @@
 			['menu-container']: true,
 			[$style.container]: true,
 			[$style.menuCollapsed]: collapsed,
-			[$style.transparentBackground]: transparentBackground,
 		}"
 	>
 		<div v-if="$slots.header" :class="$style.menuHeader">
@@ -15,33 +14,33 @@
 				<div v-if="$slots.menuPrefix" :class="$style.menuPrefix">
 					<slot name="menuPrefix"></slot>
 				</div>
-				<ElMenu :default-active="defaultActive" :collapse="collapsed">
-					<N8nMenuItem
+				<el-menu :defaultActive="defaultActive" :collapse="collapsed" v-on="$listeners">
+					<n8n-menu-item
 						v-for="item in upperMenuItems"
 						:key="item.id"
 						:item="item"
 						:compact="collapsed"
-						:tooltip-delay="tooltipDelay"
+						:tooltipDelay="tooltipDelay"
 						:mode="mode"
-						:active-tab="activeTab"
-						:handle-select="onSelect"
+						:activeTab="activeTab"
+						@click="onSelect"
 					/>
-				</ElMenu>
+				</el-menu>
 			</div>
 			<div :class="[$style.lowerContent, 'pb-2xs']">
 				<slot name="beforeLowerMenu"></slot>
-				<ElMenu :default-active="defaultActive" :collapse="collapsed">
-					<N8nMenuItem
+				<el-menu :defaultActive="defaultActive" :collapse="collapsed" v-on="$listeners">
+					<n8n-menu-item
 						v-for="item in lowerMenuItems"
 						:key="item.id"
 						:item="item"
 						:compact="collapsed"
-						:tooltip-delay="tooltipDelay"
+						:tooltipDelay="tooltipDelay"
 						:mode="mode"
-						:active-tab="activeTab"
-						:handle-select="onSelect"
+						:activeTab="activeTab"
+						@click="onSelect"
 					/>
-				</ElMenu>
+				</el-menu>
 				<div v-if="$slots.menuSuffix" :class="$style.menuSuffix">
 					<slot name="menuSuffix"></slot>
 				</div>
@@ -53,76 +52,107 @@
 	</div>
 </template>
 
-<script lang="ts" setup>
-import { computed, onMounted, ref } from 'vue';
-import { useRoute } from 'vue-router';
-import { ElMenu } from 'element-plus';
+<script lang="ts">
+import { Menu as ElMenu } from 'element-ui';
 import N8nMenuItem from '../N8nMenuItem';
-import type { IMenuItem } from '../../types';
-import { doesMenuItemMatchCurrentRoute } from '../N8nMenuItem/routerUtil';
+import type { PropType } from 'vue';
+import { defineComponent } from 'vue';
+import type { IMenuItem, RouteObject } from '../../types';
 
-interface MenuProps {
-	type?: 'primary' | 'secondary';
-	defaultActive?: string;
-	collapsed?: boolean;
-	transparentBackground?: boolean;
-	mode?: 'router' | 'tabs';
-	tooltipDelay?: number;
-	items?: IMenuItem[];
-	modelValue?: string;
-}
+export default defineComponent({
+	name: 'n8n-menu',
+	components: {
+		ElMenu,
+		N8nMenuItem,
+	},
+	data() {
+		return {
+			activeTab: this.value,
+		};
+	},
+	props: {
+		type: {
+			type: String,
+			default: 'primary',
+			validator: (value: string): boolean => ['primary', 'secondary'].includes(value),
+		},
+		defaultActive: {
+			type: String,
+		},
+		collapsed: {
+			type: Boolean,
+			default: false,
+		},
+		mode: {
+			type: String,
+			default: 'router',
+			validator: (value: string): boolean => ['router', 'tabs'].includes(value),
+		},
+		tooltipDelay: {
+			type: Number,
+			default: 300,
+		},
+		items: {
+			type: Array as PropType<IMenuItem[]>,
+			default: (): IMenuItem[] => [],
+		},
+		value: {
+			type: String,
+			default: '',
+		},
+	},
+	mounted() {
+		if (this.mode === 'router') {
+			const found = this.items.find((item) => {
+				return (
+					(Array.isArray(item.activateOnRouteNames) &&
+						item.activateOnRouteNames.includes(this.currentRoute.name || '')) ||
+					(Array.isArray(item.activateOnRoutePaths) &&
+						item.activateOnRoutePaths.includes(this.currentRoute.path))
+				);
+			});
+			this.activeTab = found ? found.id : '';
+		} else {
+			this.activeTab = this.items.length > 0 ? this.items[0].id : '';
+		}
 
-const props = withDefaults(defineProps<MenuProps>(), {
-	type: 'primary',
-	collapsed: false,
-	transparentBackground: false,
-	mode: 'router',
-	tooltipDelay: 300,
-	items: () => [],
+		this.$emit('input', this.activeTab);
+	},
+	computed: {
+		upperMenuItems(): IMenuItem[] {
+			return this.items.filter(
+				(item: IMenuItem) => item.position === 'top' && item.available !== false,
+			);
+		},
+		lowerMenuItems(): IMenuItem[] {
+			return this.items.filter(
+				(item: IMenuItem) => item.position === 'bottom' && item.available !== false,
+			);
+		},
+		currentRoute(): RouteObject {
+			return (
+				(this as typeof this & { $route: RouteObject }).$route || {
+					name: '',
+					path: '',
+				}
+			);
+		},
+	},
+	methods: {
+		onSelect(event: MouseEvent, option: string): void {
+			if (this.mode === 'tabs') {
+				this.activeTab = option;
+			}
+			this.$emit('select', option);
+			this.$emit('input', this.activeTab);
+		},
+	},
+	watch: {
+		value(value: string) {
+			this.activeTab = value;
+		},
+	},
 });
-const $route = useRoute();
-
-const $emit = defineEmits<{
-	(event: 'select', itemId: string): void;
-	(event: 'update:modelValue', itemId: string): void;
-}>();
-
-const activeTab = ref(props.modelValue);
-
-const upperMenuItems = computed(() =>
-	props.items.filter((item: IMenuItem) => item.position === 'top' && item.available !== false),
-);
-
-const lowerMenuItems = computed(() =>
-	props.items.filter((item: IMenuItem) => item.position === 'bottom' && item.available !== false),
-);
-
-const currentRoute = computed(() => {
-	return $route ?? { name: '', path: '' };
-});
-
-onMounted(() => {
-	if (props.mode === 'router') {
-		const found = props.items.find((item) =>
-			doesMenuItemMatchCurrentRoute(item, currentRoute.value),
-		);
-
-		activeTab.value = found ? found.id : '';
-	} else {
-		activeTab.value = props.items.length > 0 ? props.items[0].id : '';
-	}
-
-	$emit('update:modelValue', activeTab.value);
-});
-
-const onSelect = (item: IMenuItem): void => {
-	if (props.mode === 'tabs') {
-		activeTab.value = item.id;
-	}
-
-	$emit('select', item.id);
-	$emit('update:modelValue', item.id);
-};
 </script>
 
 <style lang="scss" module>
@@ -133,18 +163,11 @@ const onSelect = (item: IMenuItem): void => {
 	background-color: var(--menu-background, var(--color-background-xlight));
 }
 
-.menuHeader {
-	display: flex;
-	flex-direction: column;
-	flex: 0 1 auto;
-	overflow-y: auto;
-}
-
 .menuContent {
 	display: flex;
 	flex-direction: column;
 	justify-content: space-between;
-	flex: 1 1 auto;
+	flex-grow: 1;
 
 	& > div > :global(.el-menu) {
 		background: none;
@@ -169,9 +192,5 @@ const onSelect = (item: IMenuItem): void => {
 	:global(.hideme) {
 		display: none !important;
 	}
-}
-
-.transparentBackground {
-	background-color: transparent;
 }
 </style>

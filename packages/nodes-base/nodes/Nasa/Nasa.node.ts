@@ -7,8 +7,9 @@ import type {
 } from 'n8n-workflow';
 import { NodeOperationError } from 'n8n-workflow';
 
-import moment from 'moment-timezone';
 import { nasaApiRequest, nasaApiRequestAllItems } from './GenericFunctions';
+
+import moment from 'moment';
 
 export class Nasa implements INodeType {
 	description: INodeTypeDescription = {
@@ -570,7 +571,7 @@ export class Nasa implements INodeType {
 					'By default just the URL of the image is returned. When set to true the image will be downloaded.',
 			},
 			{
-				displayName: 'Put Output File in Field',
+				displayName: 'Binary Property',
 				name: 'binaryPropertyName',
 				type: 'string',
 				required: true,
@@ -582,7 +583,7 @@ export class Nasa implements INodeType {
 						download: [true],
 					},
 				},
-				hint: 'The name of the output binary field to put the file in',
+				description: 'Name of the binary property to which to write to',
 			},
 
 			/* date for astronomyPictureOfTheDay */
@@ -766,7 +767,7 @@ export class Nasa implements INodeType {
 				},
 			},
 			{
-				displayName: 'Put Output File in Field',
+				displayName: 'Binary Property',
 				name: 'binaryPropertyName',
 				type: 'string',
 				required: true,
@@ -777,7 +778,7 @@ export class Nasa implements INodeType {
 						resource: ['earthImagery'],
 					},
 				},
-				hint: 'The name of the output binary field to put the file in',
+				description: 'Name of the binary property to which to write to',
 			},
 
 			//aqui
@@ -1110,7 +1111,7 @@ export class Nasa implements INodeType {
 
 				returnData.push(...executionData);
 			} catch (error) {
-				if (this.continueOnFail(error)) {
+				if (this.continueOnFail()) {
 					if (resource === 'earthImagery' && operation === 'get') {
 						items[i].json = { error: error.message };
 					} else if (resource === 'astronomyPictureOfTheDay' && operation === 'get' && download) {
@@ -1129,11 +1130,11 @@ export class Nasa implements INodeType {
 		}
 
 		if (resource === 'earthImagery' && operation === 'get') {
-			return [items];
+			return this.prepareOutputData(items);
 		} else if (resource === 'astronomyPictureOfTheDay' && operation === 'get' && download) {
-			return [items];
+			return this.prepareOutputData(items);
 		} else {
-			return [returnData];
+			return this.prepareOutputData(returnData);
 		}
 	}
 }

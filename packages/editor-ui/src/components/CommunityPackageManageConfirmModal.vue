@@ -3,19 +3,21 @@
 		width="540px"
 		:name="COMMUNITY_PACKAGE_CONFIRM_MODAL_KEY"
 		:title="getModalContent.title"
-		:event-bus="modalBus"
+		:eventBus="modalBus"
 		:center="true"
-		:show-close="!loading"
-		:before-close="onModalClose"
+		:showClose="!loading"
+		:beforeClose="onModalClose"
 	>
 		<template #content>
 			<n8n-text>{{ getModalContent.message }}</n8n-text>
 			<div
-				v-if="mode === COMMUNITY_PACKAGE_MANAGE_ACTIONS.UPDATE"
 				:class="$style.descriptionContainer"
+				v-if="mode === COMMUNITY_PACKAGE_MANAGE_ACTIONS.UPDATE"
 			>
 				<n8n-info-tip theme="info" type="note" :bold="false">
-					<span v-text="getModalContent.description"></span>
+					<template>
+						<span v-text="getModalContent.description"></span>
+					</template>
 				</n8n-info-tip>
 			</div>
 		</template>
@@ -36,10 +38,10 @@
 import { defineComponent } from 'vue';
 import Modal from '@/components/Modal.vue';
 import { COMMUNITY_PACKAGE_CONFIRM_MODAL_KEY, COMMUNITY_PACKAGE_MANAGE_ACTIONS } from '@/constants';
-import { useToast } from '@/composables/useToast';
+import { useToast } from '@/composables';
 import { mapStores } from 'pinia';
 import { useCommunityNodesStore } from '@/stores/communityNodes.store';
-import { createEventBus } from 'n8n-design-system/utils';
+import { createEventBus } from 'n8n-design-system';
 
 export default defineComponent({
 	name: 'CommunityPackageManageConfirmModal',

@@ -86,7 +86,7 @@ export const attachmentFields: INodeProperties[] = [
 			'Required. Name of the attached file. Maximum size is 255 characters. Label is File Name.',
 	},
 	{
-		displayName: 'Input Binary Field',
+		displayName: 'Binary Property',
 		name: 'binaryPropertyName',
 		type: 'string',
 		default: 'data',
@@ -98,7 +98,7 @@ export const attachmentFields: INodeProperties[] = [
 			},
 		},
 		placeholder: '',
-		hint: 'The name of the input binary field containing the file to be uploaded',
+		description: 'Name of the binary property which contains the data for the file to be uploaded',
 	},
 	{
 		displayName: 'Additional Fields',
@@ -173,12 +173,13 @@ export const attachmentFields: INodeProperties[] = [
 		},
 		options: [
 			{
-				displayName: 'Input Binary Field',
+				displayName: 'Binary Property',
 				name: 'binaryPropertyName',
 				type: 'string',
 				default: 'data',
 				placeholder: '',
-				hint: 'The name of the input binary field containing the file to be uploaded',
+				description:
+					'Name of the binary property which contains the data for the file to be uploaded',
 			},
 			{
 				displayName: 'Description',

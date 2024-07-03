@@ -372,24 +372,6 @@ export class Discourse implements INodeType {
 						const returnAll = this.getNodeParameter('returnAll', i);
 						const flag = this.getNodeParameter('flag', i) as boolean;
 
-						const options = this.getNodeParameter('options', i);
-
-						if (options.stats) {
-							qs.stats = options.stats as boolean;
-						}
-
-						if (options.asc) {
-							qs.asc = options.asc as boolean;
-						}
-
-						if (options.showEmails) {
-							qs.show_emails = options.showEmails as boolean;
-						}
-
-						if (options.order) {
-							qs.order = options.order as string;
-						}
-
 						responseData = await discourseApiRequest.call(
 							this,
 							'GET',
@@ -443,7 +425,7 @@ export class Discourse implements INodeType {
 				);
 				returnData.push(...executionData);
 			} catch (error) {
-				if (this.continueOnFail(error)) {
+				if (this.continueOnFail()) {
 					const executionErrorData = this.helpers.constructExecutionMetaData(
 						this.helpers.returnJsonArray({ error: error.message }),
 						{ itemData: { item: i } },
@@ -454,6 +436,6 @@ export class Discourse implements INodeType {
 				throw error;
 			}
 		}
-		return [returnData];
+		return this.prepareOutputData(returnData);
 	}
 }

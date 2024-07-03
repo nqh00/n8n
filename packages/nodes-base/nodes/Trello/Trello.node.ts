@@ -6,7 +6,6 @@ import type {
 	INodeListSearchResult,
 	INodeType,
 	INodeTypeDescription,
-	IHttpRequestMethods,
 } from 'n8n-workflow';
 import { NodeOperationError } from 'n8n-workflow';
 
@@ -203,7 +202,7 @@ export class Trello implements INodeType {
 		// For Query string
 		let qs: IDataObject;
 
-		let requestMethod: IHttpRequestMethods;
+		let requestMethod: string;
 		let endpoint: string;
 		let returnAll = false;
 		let responseData;
@@ -906,7 +905,7 @@ export class Trello implements INodeType {
 				);
 				returnData.push(...executionData);
 			} catch (error) {
-				if (this.continueOnFail(error)) {
+				if (this.continueOnFail()) {
 					const executionData = this.helpers.constructExecutionMetaData(
 						this.helpers.returnJsonArray({ error: error.message }),
 						{ itemData: { item: i } },
@@ -918,6 +917,6 @@ export class Trello implements INodeType {
 			}
 		}
 
-		return [returnData];
+		return this.prepareOutputData(returnData);
 	}
 }

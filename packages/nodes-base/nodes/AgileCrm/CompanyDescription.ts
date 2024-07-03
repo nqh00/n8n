@@ -379,47 +379,11 @@ export const companyFields: INodeProperties[] = [
 		options: [
 			{
 				displayName: 'Address',
-				name: 'addressOptions',
-				type: 'fixedCollection',
-				default: {},
+				name: 'email',
+				type: 'string',
+				placeholder: 'name@email.com',
+				default: '',
 				description: 'Company address',
-				typeOptions: {
-					multipleValues: true,
-				},
-				options: [
-					{
-						displayName: 'Address Properties',
-						name: 'addressProperties',
-						values: [
-							{
-								displayName: 'Type',
-								name: 'subtype',
-								type: 'options',
-								required: true,
-								default: '',
-								description: 'Type of address',
-								options: [
-									{
-										name: 'Postal',
-										value: 'postal',
-									},
-									{
-										name: 'Office',
-										value: 'office',
-									},
-								],
-							},
-							{
-								displayName: 'Address',
-								name: 'address',
-								type: 'string',
-								required: true,
-								default: '',
-								description: 'Full address',
-							},
-						],
-					},
-				],
 			},
 			{
 				displayName: 'Email',
@@ -691,47 +655,11 @@ export const companyFields: INodeProperties[] = [
 		options: [
 			{
 				displayName: 'Address',
-				name: 'addressOptions',
-				type: 'fixedCollection',
-				default: {},
+				name: 'email',
+				type: 'string',
+				placeholder: 'name@email.com',
+				default: '',
 				description: 'Company address',
-				typeOptions: {
-					multipleValues: true,
-				},
-				options: [
-					{
-						displayName: 'Address Properties',
-						name: 'addressProperties',
-						values: [
-							{
-								displayName: 'Type',
-								name: 'subtype',
-								type: 'options',
-								required: true,
-								default: '',
-								description: 'Type of address',
-								options: [
-									{
-										name: 'Postal',
-										value: 'postal',
-									},
-									{
-										name: 'Office',
-										value: 'office',
-									},
-								],
-							},
-							{
-								displayName: 'Address',
-								name: 'address',
-								type: 'string',
-								required: true,
-								default: '',
-								description: 'Full address',
-							},
-						],
-					},
-				],
 			},
 			{
 				displayName: 'Email',

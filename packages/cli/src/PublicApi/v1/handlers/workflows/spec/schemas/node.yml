@@ -37,11 +37,6 @@ properties:
   continueOnFail:
     type: boolean
     example: false
-    description: 'use onError instead'
-    deprecated: true
-  onError:
-    type: string
-    example: 'stopWorkflow'
   position:
     type: array
     items:

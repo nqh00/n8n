@@ -9,10 +9,7 @@ export class N8nTrainingCustomerMessenger implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Customer Messenger (n8n training)',
 		name: 'n8nTrainingCustomerMessenger',
-		icon: {
-			light: 'file:n8nTrainingCustomerMessenger.svg',
-			dark: 'file:n8nTrainingCustomerMessenger.dark.svg',
-		},
+		icon: 'file:n8nTrainingCustomerMessenger.svg',
 		group: ['transform'],
 		version: 1,
 		description: 'Dummy node used for n8n training',
@@ -61,6 +58,6 @@ export class N8nTrainingCustomerMessenger implements INodeType {
 
 			returnData.push(...executionData);
 		}
-		return [returnData];
+		return this.prepareOutputData(returnData);
 	}
 }

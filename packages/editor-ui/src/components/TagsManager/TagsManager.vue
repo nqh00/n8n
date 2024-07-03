@@ -1,29 +1,28 @@
 <template>
 	<Modal
-		id="tags-manager-modal"
 		:title="$locale.baseText('tagsManager.manageTags')"
 		:name="TAGS_MANAGER_MODAL_KEY"
-		:event-bus="modalBus"
-		min-width="620px"
-		min-height="420px"
+		:eventBus="modalBus"
 		@enter="onEnter"
+		minWidth="620px"
+		minHeight="420px"
 	>
 		<template #content>
 			<el-row>
 				<TagsView
 					v-if="hasTags || isCreating"
-					:is-loading="isLoading"
+					:isLoading="isLoading"
 					:tags="tags"
 					@create="onCreate"
 					@update="onUpdate"
 					@delete="onDelete"
-					@disable-create="onDisableCreate"
+					@disableCreate="onDisableCreate"
 				/>
-				<NoTagsView v-else @enable-create="onEnableCreate" />
+				<NoTagsView @enableCreate="onEnableCreate" v-else />
 			</el-row>
 		</template>
 		<template #footer="{ close }">
-			<n8n-button :label="$locale.baseText('tagsManager.done')" float="right" @click="close" />
+			<n8n-button :label="$locale.baseText('tagsManager.done')" @click="close" float="right" />
 		</template>
 	</Modal>
 </template>
@@ -33,26 +32,24 @@ import { defineComponent } from 'vue';
 
 import type { ITag } from '@/Interface';
 
-import { useToast } from '@/composables/useToast';
+import { useToast } from '@/composables';
 import TagsView from '@/components/TagsManager/TagsView/TagsView.vue';
 import NoTagsView from '@/components/TagsManager/NoTagsView.vue';
 import Modal from '@/components/Modal.vue';
 import { TAGS_MANAGER_MODAL_KEY } from '@/constants';
 import { mapStores } from 'pinia';
 import { useTagsStore } from '@/stores/tags.store';
-import { createEventBus } from 'n8n-design-system/utils';
+import { createEventBus } from 'n8n-design-system';
 
 export default defineComponent({
 	name: 'TagsManager',
-	components: {
-		TagsView,
-		NoTagsView,
-		Modal,
-	},
 	setup() {
 		return {
 			...useToast(),
 		};
+	},
+	created() {
+		void this.tagsStore.fetchAll({ force: true, withUsageCount: true });
 	},
 	data() {
 		const tagIds = useTagsStore().allTags.map((tag) => tag.id);
@@ -63,8 +60,10 @@ export default defineComponent({
 			TAGS_MANAGER_MODAL_KEY,
 		};
 	},
-	created() {
-		void this.tagsStore.fetchAll({ force: true, withUsageCount: true });
+	components: {
+		TagsView,
+		NoTagsView,
+		Modal,
 	},
 	computed: {
 		...mapStores(useTagsStore),
@@ -72,7 +71,9 @@ export default defineComponent({
 			return this.tagsStore.isLoading;
 		},
 		tags(): ITag[] {
-			return this.tagIds.map((tagId: string) => this.tagsStore.getTagById(tagId)).filter(Boolean); // if tag is deleted from store
+			return this.$data.tagIds
+				.map((tagId: string) => this.tagsStore.getTagById(tagId))
+				.filter(Boolean); // if tag is deleted from store
 		},
 		hasTags(): boolean {
 			return this.tags.length > 0;
@@ -80,11 +81,11 @@ export default defineComponent({
 	},
 	methods: {
 		onEnableCreate() {
-			this.isCreating = true;
+			this.$data.isCreating = true;
 		},
 
 		onDisableCreate() {
-			this.isCreating = false;
+			this.$data.isCreating = false;
 		},
 
 		async onCreate(name: string, cb: (tag: ITag | null, error?: Error) => void) {
@@ -94,7 +95,7 @@ export default defineComponent({
 				}
 
 				const newTag = await this.tagsStore.create(name);
-				this.tagIds = [newTag.id].concat(this.tagIds);
+				this.$data.tagIds = [newTag.id].concat(this.$data.tagIds);
 				cb(newTag);
 			} catch (error) {
 				const escapedName = escape(name);
@@ -153,7 +154,7 @@ export default defineComponent({
 					throw new Error(this.$locale.baseText('tagsManager.couldNotDeleteTag'));
 				}
 
-				this.tagIds = this.tagIds.filter((tagId: string) => tagId !== id);
+				this.$data.tagIds = this.$data.tagIds.filter((tagId: string) => tagId !== id);
 
 				cb(deleted);
 

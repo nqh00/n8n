@@ -1,8 +1,8 @@
 <template>
-	<div class="duplicate-parameter" @keydown.stop>
+	<div @keydown.stop class="duplicate-parameter">
 		<n8n-input-label
 			:label="$locale.nodeText().inputLabelDisplayName(parameter, path)"
-			:tooltip-text="$locale.nodeText().inputLabelDescription(parameter, path)"
+			:tooltipText="$locale.nodeText().inputLabelDescription(parameter, path)"
 			:underline="true"
 			size="small"
 			color="text-dark"
@@ -14,7 +14,7 @@
 			class="duplicate-parameter-item"
 			:class="parameter.type"
 		>
-			<div v-if="!isReadOnly" class="delete-item clickable">
+			<div class="delete-item clickable" v-if="!isReadOnly">
 				<font-awesome-icon
 					icon="trash"
 					:title="$locale.baseText('multipleParameter.deleteItem')"
@@ -38,27 +38,27 @@
 				</div>
 			</div>
 			<div v-if="parameter.type === 'collection'">
-				<CollectionParameter
+				<collection-parameter
 					:parameter="parameter"
 					:values="value"
-					:node-values="nodeValues"
+					:nodeValues="nodeValues"
 					:path="getPath(index)"
-					:hide-delete="hideDelete"
-					:is-read-only="isReadOnly"
-					@value-changed="valueChanged"
+					:hideDelete="hideDelete"
+					:isReadOnly="isReadOnly"
+					@valueChanged="valueChanged"
 				/>
 			</div>
 			<div v-else>
-				<ParameterInputFull
+				<parameter-input-full
 					class="duplicate-parameter-input-item"
 					:parameter="parameter"
 					:value="value"
-					:display-options="true"
-					:hide-label="true"
+					:displayOptions="true"
+					:hideLabel="true"
 					:path="getPath(index)"
-					input-size="small"
-					:is-read-only="isReadOnly"
-					@update="valueChanged"
+					@valueChanged="valueChanged"
+					inputSize="small"
+					:isReadOnly="isReadOnly"
 				/>
 			</div>
 		</div>
@@ -76,8 +76,8 @@
 				v-if="!isReadOnly"
 				type="tertiary"
 				block
-				:label="addButtonText"
 				@click="addItem()"
+				:label="addButtonText"
 			/>
 		</div>
 	</div>
@@ -102,7 +102,7 @@ export default defineComponent({
 	},
 	props: {
 		nodeValues: {
-			type: Object as PropType<INodeParameters>,
+			type: Object as PropType<Record<string, INodeParameters[]>>,
 			required: true,
 		},
 		parameter: {
@@ -127,6 +127,17 @@ export default defineComponent({
 			mutableValues: [] as INodeParameters[],
 		};
 	},
+	watch: {
+		values: {
+			handler(newValues: INodeParameters[]) {
+				this.mutableValues = deepCopy(newValues);
+			},
+			deep: true,
+		},
+	},
+	created() {
+		this.mutableValues = deepCopy(this.values);
+	},
 	computed: {
 		addButtonText(): string {
 			if (
@@ -145,21 +156,10 @@ export default defineComponent({
 			return !!this.parameter.typeOptions?.sortable;
 		},
 	},
-	watch: {
-		values: {
-			handler(newValues: INodeParameters[]) {
-				this.mutableValues = deepCopy(newValues);
-			},
-			deep: true,
-		},
-	},
-	created() {
-		this.mutableValues = deepCopy(this.values);
-	},
 	methods: {
 		addItem() {
 			const name = this.getPath();
-			const currentValue = get(this.nodeValues, name, []) as INodeParameters[];
+			const currentValue = get(this.nodeValues, name, [] as INodeParameters[]);
 
 			currentValue.push(deepCopy(this.parameter.default as INodeParameters));
 
@@ -209,32 +209,6 @@ export default defineComponent({
 </script>
 
 <style scoped lang="scss">
-.duplicate-parameter {
-	:deep(.button) {
-		--button-background-color: var(--color-background-base);
-		--button-border-color: var(--color-foreground-base);
-	}
-
-	:deep(.duplicate-parameter-item) {
-		position: relative;
-
-		.multi > .delete-item {
-			top: 0.1em;
-		}
-	}
-
-	:deep(.duplicate-parameter-input-item) {
-		margin: 0.5em 0 0.25em 2em;
-	}
-
-	:deep(.duplicate-parameter-item + .duplicate-parameter-item) {
-		.collection-parameter-wrapper {
-			border-top: 1px dashed #999;
-			margin-top: var(--spacing-xs);
-		}
-	}
-}
-
 .duplicate-parameter-item {
 	~ .add-item-wrapper {
 		margin-top: var(--spacing-xs);
@@ -256,6 +230,31 @@ export default defineComponent({
 	}
 }
 
+::v-deep {
+	.button {
+		--button-background-color: var(--color-background-base);
+		--button-border-color: var(--color-foreground-base);
+	}
+
+	.duplicate-parameter-item {
+		position: relative;
+
+		.multi > .delete-item {
+			top: 0.1em;
+		}
+	}
+
+	.duplicate-parameter-input-item {
+		margin: 0.5em 0 0.25em 2em;
+	}
+
+	.duplicate-parameter-item + .duplicate-parameter-item {
+		.collection-parameter-wrapper {
+			border-top: 1px dashed #999;
+			margin-top: var(--spacing-xs);
+		}
+	}
+}
 .no-items-exist {
 	margin: var(--spacing-xs) 0;
 }

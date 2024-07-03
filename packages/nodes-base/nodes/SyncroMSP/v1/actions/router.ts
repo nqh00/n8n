@@ -42,7 +42,7 @@ export async function router(this: IExecuteFunctions): Promise<INodeExecutionDat
 
 			operationResult.push(...executionData);
 		} catch (err) {
-			if (this.continueOnFail(err)) {
+			if (this.continueOnFail()) {
 				const executionErrorData = this.helpers.constructExecutionMetaData(
 					this.helpers.returnJsonArray({ error: err.message }),
 					{ itemData: { item: i } },
@@ -54,5 +54,5 @@ export async function router(this: IExecuteFunctions): Promise<INodeExecutionDat
 		}
 	}
 
-	return [operationResult];
+	return this.prepareOutputData(operationResult);
 }

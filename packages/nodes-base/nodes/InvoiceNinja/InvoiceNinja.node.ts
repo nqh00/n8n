@@ -418,12 +418,7 @@ export class InvoiceNinja implements INodeType {
 							body.invoice_date = additionalFields.invoiceDate as string;
 						}
 						if (additionalFields.invoiceNumber) {
-							if (apiVersion === 'v4') {
-								body.invoice_number = additionalFields.invoiceNumber as string;
-							} else if (apiVersion === 'v5') {
-								// eslint-disable-next-line id-denylist
-								body.number = additionalFields.invoiceNumber as string;
-							}
+							body.invoice_number = additionalFields.invoiceNumber as string;
 						}
 						if (additionalFields.invoiceStatus) {
 							body.invoice_status_id = additionalFields.invoiceStatus as number;
@@ -863,12 +858,7 @@ export class InvoiceNinja implements INodeType {
 							body.invoice_date = additionalFields.quouteDate as string;
 						}
 						if (additionalFields.quoteNumber) {
-							if (apiVersion === 'v4') {
-								body.invoice_number = additionalFields.quoteNumber as string;
-							} else if (apiVersion === 'v5') {
-								// eslint-disable-next-line id-denylist
-								body.number = additionalFields.quoteNumber as string;
-							}
+							body.invoice_number = additionalFields.quoteNumber as string;
 						}
 						if (additionalFields.invoiceStatus) {
 							body.invoice_status_id = additionalFields.invoiceStatus as number;
@@ -1021,7 +1011,7 @@ export class InvoiceNinja implements INodeType {
 
 				returnData.push(...executionData);
 			} catch (error) {
-				if (this.continueOnFail(error)) {
+				if (this.continueOnFail()) {
 					const executionErrorData = this.helpers.constructExecutionMetaData(
 						this.helpers.returnJsonArray({ error: error.message }),
 						{ itemData: { item: i } },
@@ -1033,6 +1023,6 @@ export class InvoiceNinja implements INodeType {
 			}
 		}
 
-		return [returnData];
+		return this.prepareOutputData(returnData);
 	}
 }

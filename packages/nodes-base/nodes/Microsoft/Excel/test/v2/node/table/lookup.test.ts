@@ -1,10 +1,12 @@
-import type { IHttpRequestMethods, INodeTypes } from 'n8n-workflow';
+import type { INodeTypes } from 'n8n-workflow';
+
+import { getResultNodeData, setup, workflowToTests } from '../../../../../../../test/nodes/Helpers';
+import type { WorkflowTestData } from '../../../../../../../test/nodes/types';
+import { executeWorkflow } from '../../../../../../../test/nodes/ExecuteWorkflow';
+
+import * as transport from '../../../../v2/transport';
 
 import nock from 'nock';
-import * as transport from '../../../../v2/transport';
-import { getResultNodeData, setup, workflowToTests } from '@test/nodes/Helpers';
-import type { WorkflowTestData } from '@test/nodes/types';
-import { executeWorkflow } from '@test/nodes/ExecuteWorkflow';
 
 jest.mock('../../../../v2/transport', () => {
 	const originalModule = jest.requireActual('../../../../v2/transport');
@@ -12,7 +14,7 @@ jest.mock('../../../../v2/transport', () => {
 		...originalModule,
 		microsoftApiRequestAllItemsSkip: jest.fn(async function (
 			_property: string,
-			_method: IHttpRequestMethods,
+			_method: string,
 			endpoint: string,
 		) {
 			if (endpoint.includes('columns')) {
@@ -107,6 +109,6 @@ describe('Test MicrosoftExcelV2, table => lookup', () => {
 	};
 
 	for (const testData of tests) {
-		test(testData.description, async () => await testNode(testData, nodeTypes));
+		test(testData.description, async () => testNode(testData, nodeTypes));
 	}
 });

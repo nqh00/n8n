@@ -6,27 +6,26 @@ import type {
 	INodeType,
 	INodeTypeDescription,
 } from 'n8n-workflow';
-import set from 'lodash/set';
 import { javascriptCodeDescription } from './descriptions/JavascriptCodeDescription';
 import { pythonCodeDescription } from './descriptions/PythonCodeDescription';
 import { JavaScriptSandbox } from './JavaScriptSandbox';
 import { PythonSandbox } from './PythonSandbox';
 import { getSandboxContext } from './Sandbox';
 import { standardizeOutput } from './utils';
-
-const { CODE_ENABLE_STDOUT } = process.env;
+import { IS_V1_RELEASE } from '../../utils/constants';
 
 export class Code implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Code',
 		name: 'code',
-		icon: 'file:code.svg',
+		icon: 'fa:code',
 		group: ['transform'],
 		version: [1, 2],
-		defaultVersion: 2,
-		description: 'Run custom JavaScript or Python code',
+		defaultVersion: IS_V1_RELEASE ? 2 : 1,
+		description: 'Run custom JavaScript code',
 		defaults: {
 			name: 'Code',
+			color: '#FF9922',
 		},
 		inputs: ['main'],
 		outputs: ['main'],
@@ -94,9 +93,8 @@ export class Code implements INodeType {
 		const nodeMode = this.getNodeParameter('mode', 0) as CodeExecutionMode;
 		const workflowMode = this.getMode();
 
-		const node = this.getNode();
 		const language: CodeNodeEditorLanguage =
-			node.typeVersion === 2
+			this.getNode()?.typeVersion === 2
 				? (this.getNodeParameter('language', 0) as CodeNodeEditorLanguage)
 				: 'javaScript';
 		const codeParameterName = language === 'python' ? 'pythonCode' : 'jsCode';
@@ -110,18 +108,18 @@ export class Code implements INodeType {
 				context.item = context.$input.item;
 			}
 
-			const Sandbox = language === 'python' ? PythonSandbox : JavaScriptSandbox;
-			const sandbox = new Sandbox(context, code, index, this.helpers);
-			sandbox.on(
-				'output',
-				workflowMode === 'manual'
-					? this.sendMessageToUI
-					: CODE_ENABLE_STDOUT === 'true'
-						? (...args) =>
-								console.log(`[Workflow "${this.getWorkflow().id}"][Node "${node.name}"]`, ...args)
-						: () => {},
-			);
-			return sandbox;
+			if (language === 'python') {
+				const modules = this.getNodeParameter('modules', index) as string;
+				const moduleImports: string[] = modules ? modules.split(',').map((m) => m.trim()) : [];
+				context.printOverwrite = workflowMode === 'manual' ? this.sendMessageToUI : null;
+				return new PythonSandbox(context, code, moduleImports, index, this.helpers);
+			} else {
+				const sandbox = new JavaScriptSandbox(context, code, index, workflowMode, this.helpers);
+				if (workflowMode === 'manual') {
+					sandbox.vm.on('console.log', this.sendMessageToUI);
+				}
+				return sandbox;
+			}
 		};
 
 		// ----------------------------------
@@ -132,12 +130,9 @@ export class Code implements INodeType {
 			const sandbox = getSandbox();
 			let items: INodeExecutionData[];
 			try {
-				items = (await sandbox.runCodeAllItems()) as INodeExecutionData[];
+				items = await sandbox.runCodeAllItems();
 			} catch (error) {
-				if (!this.continueOnFail(error)) {
-					set(error, 'node', node);
-					throw error;
-				}
+				if (!this.continueOnFail()) throw error;
 				items = [{ json: { error: error.message } }];
 			}
 
@@ -145,7 +140,7 @@ export class Code implements INodeType {
 				standardizeOutput(item.json);
 			}
 
-			return [items];
+			return this.prepareOutputData(items);
 		}
 
 		// ----------------------------------
@@ -162,16 +157,8 @@ export class Code implements INodeType {
 			try {
 				result = await sandbox.runCodeEachItem();
 			} catch (error) {
-				if (!this.continueOnFail(error)) {
-					set(error, 'node', node);
-					throw error;
-				}
-				returnData.push({
-					json: { error: error.message },
-					pairedItem: {
-						item: index,
-					},
-				});
+				if (!this.continueOnFail()) throw error;
+				returnData.push({ json: { error: error.message } });
 			}
 
 			if (result) {
@@ -183,6 +170,6 @@ export class Code implements INodeType {
 			}
 		}
 
-		return [returnData];
+		return this.prepareOutputData(returnData);
 	}
 }

@@ -1,31 +1,28 @@
-import { Container } from 'typedi';
+/* eslint-disable @typescript-eslint/naming-convention */
+import { getInstanceBaseUrl } from '@/UserManagement/UserManagementHelper';
 import type { ServiceProviderInstance } from 'samlify';
-import { UrlService } from '@/services/url.service';
+import { ServiceProvider } from 'samlify';
+import { SamlUrls } from './constants';
 import type { SamlPreferences } from './types/samlPreferences';
 
 let serviceProviderInstance: ServiceProviderInstance | undefined;
 
 export function getServiceProviderEntityId(): string {
-	return Container.get(UrlService).getInstanceBaseUrl() + '/rest/sso/saml/metadata';
+	return getInstanceBaseUrl() + SamlUrls.restMetadata;
 }
 
 export function getServiceProviderReturnUrl(): string {
-	return Container.get(UrlService).getInstanceBaseUrl() + '/rest/sso/saml/acs';
+	return getInstanceBaseUrl() + SamlUrls.restAcs;
 }
 
 export function getServiceProviderConfigTestReturnUrl(): string {
-	// TODO: what is this URL?
-	return Container.get(UrlService).getInstanceBaseUrl() + '/config/test/return';
+	return getInstanceBaseUrl() + SamlUrls.configTestReturn;
 }
 
 // TODO:SAML: make these configurable for the end user
-export function getServiceProviderInstance(
-	prefs: SamlPreferences,
-	// eslint-disable-next-line @typescript-eslint/consistent-type-imports
-	samlify: typeof import('samlify'),
-): ServiceProviderInstance {
+export function getServiceProviderInstance(prefs: SamlPreferences): ServiceProviderInstance {
 	if (serviceProviderInstance === undefined) {
-		serviceProviderInstance = samlify.ServiceProvider({
+		serviceProviderInstance = ServiceProvider({
 			entityID: getServiceProviderEntityId(),
 			authnRequestsSigned: prefs.authnRequestsSigned,
 			wantAssertionsSigned: prefs.wantAssertionsSigned,

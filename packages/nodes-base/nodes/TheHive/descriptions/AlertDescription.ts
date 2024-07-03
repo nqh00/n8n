@@ -339,10 +339,9 @@ export const alertFields: INodeProperties[] = [
 						default: '',
 					},
 					{
-						displayName: 'Input Binary Field',
+						displayName: 'Binary Property',
 						name: 'binaryProperty',
 						type: 'string',
-						hint: 'The name of the input binary field containing the file to be written',
 						displayOptions: {
 							show: {
 								dataType: ['file'],
@@ -554,10 +553,9 @@ export const alertFields: INodeProperties[] = [
 								default: '',
 							},
 							{
-								displayName: 'Input Binary Field',
+								displayName: 'Binary Property',
 								name: 'binaryProperty',
 								type: 'string',
-								hint: 'The name of the input binary field containing the file to be written',
 								displayOptions: {
 									show: {
 										dataType: ['file'],

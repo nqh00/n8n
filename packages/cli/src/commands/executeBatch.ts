@@ -1,30 +1,23 @@
 /* eslint-disable @typescript-eslint/no-loop-func */
-import { Container } from 'typedi';
-import { Flags } from '@oclif/core';
 import fs from 'fs';
 import os from 'os';
-import type { IRun, ITaskData } from 'n8n-workflow';
-import { ApplicationError, jsonParse } from 'n8n-workflow';
+import { flags } from '@oclif/command';
+import type { ITaskData } from 'n8n-workflow';
+import { sleep } from 'n8n-workflow';
 import { sep } from 'path';
 import { diff } from 'json-diff';
 import pick from 'lodash/pick';
 
 import { ActiveExecutions } from '@/ActiveExecutions';
+import * as Db from '@/Db';
 import { WorkflowRunner } from '@/WorkflowRunner';
 import type { IWorkflowDb, IWorkflowExecutionDataProcess } from '@/Interfaces';
 import type { User } from '@db/entities/User';
-import { WorkflowRepository } from '@db/repositories/workflow.repository';
-import { OwnershipService } from '@/services/ownership.service';
+import { getInstanceOwner } from '@/UserManagement/UserManagementHelper';
 import { findCliWorkflowStart } from '@/utils';
-
+import { initEvents } from '@/events';
 import { BaseCommand } from './BaseCommand';
-import type {
-	IExecutionResult,
-	INodeSpecialCase,
-	INodeSpecialCases,
-	IResult,
-	IWorkflowExecutionProgress,
-} from '../types/commands.types';
+import { Container } from 'typedi';
 
 const re = /\d+/;
 
@@ -61,49 +54,49 @@ export class ExecuteBatch extends BaseCommand {
 	];
 
 	static flags = {
-		help: Flags.help({ char: 'h' }),
-		debug: Flags.boolean({
+		help: flags.help({ char: 'h' }),
+		debug: flags.boolean({
 			description: 'Toggles on displaying all errors and debug messages.',
 		}),
-		ids: Flags.string({
+		ids: flags.string({
 			description:
 				'Specifies workflow IDs to get executed, separated by a comma or a file containing the ids',
 		}),
-		concurrency: Flags.integer({
+		concurrency: flags.integer({
 			default: 1,
 			description:
 				'How many workflows can run in parallel. Defaults to 1 which means no concurrency.',
 		}),
-		output: Flags.string({
+		output: flags.string({
 			description:
 				'Enable execution saving, You must inform an existing folder to save execution via this param',
 		}),
-		snapshot: Flags.string({
+		snapshot: flags.string({
 			description:
 				'Enables snapshot saving. You must inform an existing folder to save snapshots via this param.',
 		}),
-		compare: Flags.string({
+		compare: flags.string({
 			description:
 				'Compares current execution with an existing snapshot. You must inform an existing folder where the snapshots are saved.',
 		}),
-		shallow: Flags.boolean({
+		shallow: flags.boolean({
 			description:
 				'Compares only if attributes output from node are the same, with no regards to nested JSON objects.',
 		}),
 
-		githubWorkflow: Flags.boolean({
+		githubWorkflow: flags.boolean({
 			description:
 				'Enables more lenient comparison for GitHub workflows. This is useful for reducing false positives when comparing Test workflows.',
 		}),
 
-		skipList: Flags.string({
+		skipList: flags.string({
 			description: 'File containing a comma separated list of workflow IDs to skip.',
 		}),
-		retries: Flags.integer({
+		retries: flags.integer({
 			description: 'Retries failed workflows up to N tries. Default is 1. Set 0 to disable.',
 			default: 1,
 		}),
-		shortOutput: Flags.boolean({
+		shortOutput: flags.boolean({
 			description: 'Omits the full execution information from output, displaying only summary.',
 		}),
 	};
@@ -118,9 +111,28 @@ export class ExecuteBatch extends BaseCommand {
 		}
 
 		ExecuteBatch.cancelled = true;
+		const activeExecutionsInstance = Container.get(ActiveExecutions);
+		const stopPromises = activeExecutionsInstance
+			.getActiveExecutions()
+			.map(async (execution) => activeExecutionsInstance.stopExecution(execution.id));
 
-		await Container.get(ActiveExecutions).shutdown(true);
+		await Promise.allSettled(stopPromises);
 
+		setTimeout(() => process.exit(0), 30000);
+
+		let executingWorkflows = activeExecutionsInstance.getActiveExecutions();
+
+		let count = 0;
+		while (executingWorkflows.length !== 0) {
+			if (count++ % 4 === 0) {
+				console.log(`Waiting for ${executingWorkflows.length} active executions to finish...`);
+				executingWorkflows.map((execution) => {
+					console.log(` - Execution ID ${execution.id}, workflow ID: ${execution.workflowId}`);
+				});
+			}
+			await sleep(500);
+			executingWorkflows = activeExecutionsInstance.getActiveExecutions();
+		}
 		// We may receive true but when called from `process.on`
 		// we get the signal (SIGINT, etc.)
 		if (skipExit !== true) {
@@ -162,13 +174,16 @@ export class ExecuteBatch extends BaseCommand {
 
 	async init() {
 		await super.init();
-		await this.initBinaryDataService();
+		await this.initBinaryManager();
 		await this.initExternalHooks();
+
+		// Add event handlers
+		initEvents();
 	}
 
-	// eslint-disable-next-line complexity
 	async run() {
-		const { flags } = await this.parse(ExecuteBatch);
+		// eslint-disable-next-line @typescript-eslint/no-shadow
+		const { flags } = this.parse(ExecuteBatch);
 		ExecuteBatch.debug = flags.debug;
 		ExecuteBatch.concurrency = flags.concurrency || 1;
 
@@ -178,11 +193,11 @@ export class ExecuteBatch extends BaseCommand {
 		if (flags.snapshot !== undefined) {
 			if (fs.existsSync(flags.snapshot)) {
 				if (!fs.lstatSync(flags.snapshot).isDirectory()) {
-					this.logger.error('The parameter --snapshot must be an existing directory');
+					console.log('The parameter --snapshot must be an existing directory');
 					return;
 				}
 			} else {
-				this.logger.error('The parameter --snapshot must be an existing directory');
+				console.log('The parameter --snapshot must be an existing directory');
 				return;
 			}
 
@@ -191,11 +206,11 @@ export class ExecuteBatch extends BaseCommand {
 		if (flags.compare !== undefined) {
 			if (fs.existsSync(flags.compare)) {
 				if (!fs.lstatSync(flags.compare).isDirectory()) {
-					this.logger.error('The parameter --compare must be an existing directory');
+					console.log('The parameter --compare must be an existing directory');
 					return;
 				}
 			} else {
-				this.logger.error('The parameter --compare must be an existing directory');
+				console.log('The parameter --compare must be an existing directory');
 				return;
 			}
 
@@ -205,7 +220,7 @@ export class ExecuteBatch extends BaseCommand {
 		if (flags.output !== undefined) {
 			if (fs.existsSync(flags.output)) {
 				if (fs.lstatSync(flags.output).isDirectory()) {
-					this.logger.error('The parameter --output must be a writable file');
+					console.log('The parameter --output must be a writable file');
 					return;
 				}
 			}
@@ -214,18 +229,13 @@ export class ExecuteBatch extends BaseCommand {
 		if (flags.ids !== undefined) {
 			if (fs.existsSync(flags.ids)) {
 				const contents = fs.readFileSync(flags.ids, { encoding: 'utf-8' });
-				ids.push(
-					...contents
-						.trimEnd()
-						.split(',')
-						.filter((id) => re.exec(id)),
-				);
+				ids.push(...contents.split(',').filter((id) => re.exec(id)));
 			} else {
 				const paramIds = flags.ids.split(',');
 				const matchedIds = paramIds.filter((id) => re.exec(id));
 
 				if (matchedIds.length === 0) {
-					this.logger.error(
+					console.log(
 						'The parameter --ids must be a list of numeric IDs separated by a comma or a file with this content.',
 					);
 					return;
@@ -238,14 +248,9 @@ export class ExecuteBatch extends BaseCommand {
 		if (flags.skipList !== undefined) {
 			if (fs.existsSync(flags.skipList)) {
 				const contents = fs.readFileSync(flags.skipList, { encoding: 'utf-8' });
-				skipIds.push(
-					...contents
-						.trimEnd()
-						.split(',')
-						.filter((id) => re.exec(id)),
-				);
+				skipIds.push(...contents.split(',').filter((id) => re.exec(id)));
 			} else {
-				this.logger.error('Skip list file not found. Exiting.');
+				console.log('Skip list file not found. Exiting.');
 				return;
 			}
 		}
@@ -258,9 +263,9 @@ export class ExecuteBatch extends BaseCommand {
 			ExecuteBatch.githubWorkflow = true;
 		}
 
-		ExecuteBatch.instanceOwner = await Container.get(OwnershipService).getInstanceOwner();
+		ExecuteBatch.instanceOwner = await getInstanceOwner();
 
-		const query = Container.get(WorkflowRepository).createQueryBuilder('workflows');
+		const query = Db.collections.Workflow.createQueryBuilder('workflows');
 
 		if (ids.length > 0) {
 			query.andWhere('workflows.id in (:...ids)', { ids });
@@ -302,18 +307,18 @@ export class ExecuteBatch extends BaseCommand {
 
 		if (flags.output !== undefined) {
 			fs.writeFileSync(flags.output, this.formatJsonOutput(results));
-			this.logger.info('\nExecution finished.');
-			this.logger.info('Summary:');
-			this.logger.info(`\tSuccess: ${results.summary.successfulExecutions}`);
-			this.logger.info(`\tFailures: ${results.summary.failedExecutions}`);
-			this.logger.info(`\tWarnings: ${results.summary.warningExecutions}`);
-			this.logger.info('\nNodes successfully tested:');
+			console.log('\nExecution finished.');
+			console.log('Summary:');
+			console.log(`\tSuccess: ${results.summary.successfulExecutions}`);
+			console.log(`\tFailures: ${results.summary.failedExecutions}`);
+			console.log(`\tWarnings: ${results.summary.warningExecutions}`);
+			console.log('\nNodes successfully tested:');
 			Object.entries(results.coveredNodes).forEach(([nodeName, nodeCount]) => {
-				this.logger.info(`\t${nodeName}: ${nodeCount}`);
+				console.log(`\t${nodeName}: ${nodeCount}`);
 			});
-			this.logger.info('\nCheck the JSON file for more details.');
+			console.log('\nCheck the JSON file for more details.');
 		} else if (flags.shortOutput) {
-			this.logger.info(
+			console.log(
 				this.formatJsonOutput({
 					...results,
 					executions: results.executions.filter(
@@ -322,7 +327,7 @@ export class ExecuteBatch extends BaseCommand {
 				}),
 			);
 		} else {
-			this.logger.info(this.formatJsonOutput(results));
+			console.log(this.formatJsonOutput(results));
 		}
 
 		await this.stopProcess(true);
@@ -392,7 +397,7 @@ export class ExecuteBatch extends BaseCommand {
 			this.initializeLogs();
 		}
 
-		return await new Promise(async (res) => {
+		return new Promise(async (res) => {
 			const promisesArray = [];
 			for (let i = 0; i < ExecuteBatch.concurrency; i++) {
 				const promise = new Promise(async (resolve) => {
@@ -468,7 +473,7 @@ export class ExecuteBatch extends BaseCommand {
 									this.updateStatus();
 								}
 							} else {
-								throw new ApplicationError('Wrong execution status - cannot proceed');
+								throw new Error('Wrong execution status - cannot proceed');
 							}
 						});
 					}
@@ -500,7 +505,7 @@ export class ExecuteBatch extends BaseCommand {
 	setOutput(key: string, value: any) {
 		// Temporary hack until we move to the new action.
 		const output = process.env.GITHUB_OUTPUT;
-
+		// eslint-disable-next-line @typescript-eslint/restrict-template-expressions
 		fs.appendFileSync(output as unknown as fs.PathOrFileDescriptor, `${key}=${value}${os.EOL}`);
 	}
 
@@ -605,7 +610,7 @@ export class ExecuteBatch extends BaseCommand {
 			}
 		});
 
-		return await new Promise(async (resolve) => {
+		return new Promise(async (resolve) => {
 			let gotCancel = false;
 
 			// Timeouts execution after 5 minutes.
@@ -621,12 +626,13 @@ export class ExecuteBatch extends BaseCommand {
 
 				const runData: IWorkflowExecutionDataProcess = {
 					executionMode: 'cli',
-					startNodes: [{ name: startingNode.name, sourceData: null }],
+					startNodes: [startingNode.name],
 					workflowData,
 					userId: ExecuteBatch.instanceOwner.id,
 				};
 
-				const executionId = await Container.get(WorkflowRunner).run(runData);
+				const workflowRunner = new WorkflowRunner();
+				const executionId = await workflowRunner.run(runData);
 
 				const activeExecutions = Container.get(ActiveExecutions);
 				const data = await activeExecutions.getPostExecutePromise(executionId);
@@ -648,7 +654,11 @@ export class ExecuteBatch extends BaseCommand {
 
 					const resultError = data.data.resultData.error;
 					if (resultError) {
-						executionResult.error = resultError.description || resultError.message;
+						// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+						executionResult.error =
+							resultError.hasOwnProperty('description') && resultError.description !== null
+								? resultError.description
+								: resultError.message;
 						if (data.data.resultData.lastNodeExecuted !== undefined) {
 							executionResult.error += ` on node ${data.data.resultData.lastNodeExecuted}`;
 						}
@@ -737,10 +747,8 @@ export class ExecuteBatch extends BaseCommand {
 												return;
 											}
 
-											const capResults = nodeEdgeCases[nodeName].capResults;
-
-											if (capResults !== undefined) {
-												executionDataArray.splice(capResults);
+											if (nodeEdgeCases[nodeName].capResults !== undefined) {
+												executionDataArray.splice(nodeEdgeCases[nodeName].capResults!);
 											}
 
 											if (nodeEdgeCases[nodeName].ignoredProperties !== undefined) {
@@ -770,9 +778,8 @@ export class ExecuteBatch extends BaseCommand {
 							}${workflowData.id}-snapshot.json`;
 							if (fs.existsSync(fileName)) {
 								const contents = fs.readFileSync(fileName, { encoding: 'utf-8' });
-								const expected = jsonParse<IRun>(contents);
-								const received = jsonParse<IRun>(serializedData);
-								const changes = diff(expected, received, { keysOnly: true }) as object;
+
+								const changes = diff(JSON.parse(contents), data, { keysOnly: true });
 
 								if (changes !== undefined) {
 									// If we had only additions with no removals

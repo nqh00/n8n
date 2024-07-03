@@ -15,7 +15,7 @@ export class CalTrigger implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Cal Trigger',
 		name: 'calTrigger',
-		icon: { light: 'file:cal.svg', dark: 'file:cal.dark.svg' },
+		icon: 'file:cal.svg',
 		group: ['trigger'],
 		version: [1, 2],
 		subtitle: '=Events: {{$parameter["events"].join(", ")}}',

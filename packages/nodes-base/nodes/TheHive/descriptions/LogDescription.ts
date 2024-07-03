@@ -206,11 +206,11 @@ export const logFields: INodeProperties[] = [
 						name: 'attachmentValues',
 						values: [
 							{
-								displayName: 'Input Binary Field',
+								displayName: 'Binary Property',
 								name: 'binaryProperty',
 								type: 'string',
 								default: 'data',
-								description: 'The name of the input binary field which holds binary data',
+								description: 'Object property name which holds binary data',
 							},
 						],
 					},

@@ -9,13 +9,12 @@ import type {
 	INodePropertyOptions,
 	INodeType,
 	INodeTypeDescription,
-	IRequestOptions,
 } from 'n8n-workflow';
 import { NodeOperationError } from 'n8n-workflow';
 
-import moment from 'moment-timezone';
-import jwt from 'jsonwebtoken';
 import type { IMessage, IMessageUi } from './MessageInterface';
+
+import type { OptionsWithUri } from 'request';
 
 import {
 	// attachmentFields,
@@ -34,6 +33,9 @@ import {
 
 import { googleApiRequest, googleApiRequestAllItems, validateJSON } from './GenericFunctions';
 
+import moment from 'moment-timezone';
+
+import jwt from 'jsonwebtoken';
 export class GoogleChat implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Google Chat',
@@ -154,7 +156,7 @@ export class GoogleChat implements INodeType {
 						},
 					);
 
-					const options: IRequestOptions = {
+					const options: OptionsWithUri = {
 						headers: {
 							'Content-Type': 'application/x-www-form-urlencoded',
 						},
@@ -538,7 +540,7 @@ export class GoogleChat implements INodeType {
 				);
 				returnData.push(...executionData);
 			} catch (error) {
-				if (this.continueOnFail(error)) {
+				if (this.continueOnFail()) {
 					// Return the actual reason as error
 					if (operation === 'download') {
 						items[i].json = { error: error.message };
@@ -557,10 +559,10 @@ export class GoogleChat implements INodeType {
 
 		if (operation === 'download') {
 			// For file downloads the files get attached to the existing items
-			return [items];
+			return this.prepareOutputData(items);
 		} else {
 			// For all other ones does the output get replaced
-			return [returnData];
+			return this.prepareOutputData(returnData);
 		}
 	}
 }

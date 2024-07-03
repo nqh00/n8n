@@ -1,17 +1,18 @@
-import type { MigrationContext, IrreversibleMigration } from '@db/types';
+import type { MigrationContext, ReversibleMigration } from '@db/types';
 import config from '@/config';
 
 const COLLATION_57 = 'utf8mb4_general_ci';
 const COLLATION_80 = 'utf8mb4_0900_ai_ci';
 
-export class MigrateIntegerKeysToString1690000000001 implements IrreversibleMigration {
+export class MigrateIntegerKeysToString1690000000001 implements ReversibleMigration {
 	async up({ queryRunner, tablePrefix }: MigrationContext) {
 		const databaseType = config.get('database.type');
 		let collation: string;
 		if (databaseType === 'mariadb') {
 			collation = COLLATION_57;
 		} else {
-			const dbVersionQuery = (await queryRunner.query('SELECT @@version')) as
+			// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+			const dbVersionQuery = (await queryRunner.query('SELECT @@version')) as  // eslint-disable-next-line @typescript-eslint/naming-convention
 				| Array<{ '@@version': string }>
 				| undefined;
 			collation = COLLATION_80;
@@ -271,4 +272,7 @@ export class MigrateIntegerKeysToString1690000000001 implements IrreversibleMigr
 		);
 		await queryRunner.query(`ALTER TABLE ${tablePrefix}variables DROP COLUMN \`tmp_id\`;`);
 	}
+
+	// eslint-disable-next-line @typescript-eslint/no-empty-function, @typescript-eslint/no-unused-vars
+	async down({ queryRunner, tablePrefix }: MigrationContext) {}
 }

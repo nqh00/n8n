@@ -1,36 +1,23 @@
 /* eslint-disable @typescript-eslint/no-var-requires */
+/* eslint-disable import/no-dynamic-require */
+/* eslint-disable no-restricted-syntax */
 import { Service } from 'typedi';
-import type { IExternalHooksFileData, IExternalHooksFunctions } from '@/Interfaces';
+import * as Db from '@/Db';
+import type {
+	IExternalHooksClass,
+	IExternalHooksFileData,
+	IExternalHooksFunctions,
+} from '@/Interfaces';
+
 import config from '@/config';
-import { UserRepository } from '@db/repositories/user.repository';
-import { CredentialsRepository } from '@db/repositories/credentials.repository';
-import { SettingsRepository } from '@db/repositories/settings.repository';
-import { WorkflowRepository } from '@db/repositories/workflow.repository';
-import { ApplicationError } from 'n8n-workflow';
 
 @Service()
-export class ExternalHooks {
+export class ExternalHooks implements IExternalHooksClass {
 	externalHooks: {
 		[key: string]: Array<() => {}>;
 	} = {};
 
-	private initDidRun = false;
-
-	private dbCollections: IExternalHooksFunctions['dbCollections'];
-
-	constructor(
-		userRepository: UserRepository,
-		settingsRepository: SettingsRepository,
-		credentialsRepository: CredentialsRepository,
-		workflowRepository: WorkflowRepository,
-	) {
-		this.dbCollections = {
-			User: userRepository,
-			Settings: settingsRepository,
-			Credentials: credentialsRepository,
-			Workflow: workflowRepository,
-		};
-	}
+	initDidRun = false;
 
 	async init(): Promise<void> {
 		if (this.initDidRun) {
@@ -64,15 +51,16 @@ export class ExternalHooks {
 						delete require.cache[require.resolve(hookFilePath)];
 					}
 
+					// eslint-disable-next-line import/no-dynamic-require
+					// eslint-disable-next-line global-require
 					const hookFile = require(hookFilePath) as IExternalHooksFileData;
 					this.loadHooks(hookFile);
-				} catch (e) {
-					const error = e instanceof Error ? e : new Error(`${e}`);
-
-					throw new ApplicationError('Problem loading external hook file', {
-						extra: { errorMessage: error.message, hookFilePath },
-						cause: error,
-					});
+				} catch (error) {
+					throw new Error(
+						// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/restrict-template-expressions
+						`Problem loading external hook file "${hookFilePath}": ${error.message}`,
+						{ cause: error as Error },
+					);
 				}
 			}
 		}
@@ -97,16 +85,18 @@ export class ExternalHooks {
 		}
 	}
 
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	async run(hookName: string, hookParameters?: any[]): Promise<void> {
+		const externalHookFunctions: IExternalHooksFunctions = {
+			dbCollections: Db.collections,
+		};
+
 		if (this.externalHooks[hookName] === undefined) {
 			return;
 		}
 
-		const externalHookFunctions: IExternalHooksFunctions = {
-			dbCollections: this.dbCollections,
-		};
-
 		for (const externalHookFunction of this.externalHooks[hookName]) {
+			// eslint-disable-next-line no-await-in-loop, @typescript-eslint/await-thenable
 			await externalHookFunction.apply(externalHookFunctions, hookParameters);
 		}
 	}

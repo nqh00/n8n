@@ -1,8 +1,6 @@
-import { ApplicationError } from 'n8n-workflow';
 import type { IExecuteFunctions, IDataObject, INodeExecutionData, JsonObject } from 'n8n-workflow';
 import type pgPromise from 'pg-promise';
 import type pg from 'pg-promise/typescript/pg-subset';
-import { getResolvables } from '@utils/utilities';
 
 /**
  * Returns of a shallow copy of the items which only contains the json data and
@@ -120,7 +118,7 @@ export async function pgQuery(
 	if (mode === 'multiple') {
 		return (await db.multi(pgp.helpers.concat(allQueries))).flat(1);
 	} else if (mode === 'transaction') {
-		return await db.tx(async (t) => {
+		return db.tx(async (t) => {
 			const result: IDataObject[] = [];
 			for (let i = 0; i < allQueries.length; i++) {
 				try {
@@ -141,7 +139,7 @@ export async function pgQuery(
 			return result;
 		});
 	} else if (mode === 'independently') {
-		return await db.task(async (t) => {
+		return db.task(async (t) => {
 			const result: IDataObject[] = [];
 			for (let i = 0; i < allQueries.length; i++) {
 				try {
@@ -161,9 +159,7 @@ export async function pgQuery(
 			return result;
 		});
 	}
-	throw new ApplicationError('multiple, independently or transaction are valid options', {
-		level: 'warning',
-	});
+	throw new Error('multiple, independently or transaction are valid options');
 }
 
 export async function pgQueryV2(
@@ -172,10 +168,7 @@ export async function pgQueryV2(
 	db: pgPromise.IDatabase<{}, pg.IClient>,
 	items: INodeExecutionData[],
 	continueOnFail: boolean,
-	options?: {
-		overrideMode?: string;
-		resolveExpression?: boolean;
-	},
+	overrideMode?: string,
 ): Promise<IDataObject[]> {
 	const additionalFields = this.getNodeParameter('additionalFields', 0);
 
@@ -190,22 +183,13 @@ export async function pgQueryV2(
 	type QueryWithValues = { query: string; values?: string[] };
 	const allQueries = new Array<QueryWithValues>();
 	for (let i = 0; i < items.length; i++) {
-		let query = this.getNodeParameter('query', i) as string;
-
-		if (options?.resolveExpression) {
-			for (const resolvable of getResolvables(query)) {
-				query = query.replace(resolvable, this.evaluateExpression(resolvable, i) as string);
-			}
-		}
-
+		const query = this.getNodeParameter('query', i) as string;
 		const values = valuesArray[i];
 		const queryFormat = { query, values };
 		allQueries.push(queryFormat);
 	}
 
-	const mode = options?.overrideMode
-		? options.overrideMode
-		: ((additionalFields.mode ?? 'multiple') as string);
+	const mode = overrideMode ? overrideMode : ((additionalFields.mode ?? 'multiple') as string);
 	if (mode === 'multiple') {
 		return (await db.multi(pgp.helpers.concat(allQueries)))
 			.map((result, i) => {
@@ -215,7 +199,7 @@ export async function pgQueryV2(
 			})
 			.flat();
 	} else if (mode === 'transaction') {
-		return await db.tx(async (t) => {
+		return db.tx(async (t) => {
 			const result: INodeExecutionData[] = [];
 			for (let i = 0; i < allQueries.length; i++) {
 				try {
@@ -239,7 +223,7 @@ export async function pgQueryV2(
 			return result;
 		});
 	} else if (mode === 'independently') {
-		return await db.task(async (t) => {
+		return db.task(async (t) => {
 			const result: INodeExecutionData[] = [];
 			for (let i = 0; i < allQueries.length; i++) {
 				try {
@@ -262,9 +246,7 @@ export async function pgQueryV2(
 			return result;
 		});
 	}
-	throw new ApplicationError('multiple, independently or transaction are valid options', {
-		level: 'warning',
-	});
+	throw new Error('multiple, independently or transaction are valid options');
 }
 
 /**
@@ -308,9 +290,9 @@ export async function pgInsert(
 	if (mode === 'multiple') {
 		const query =
 			pgp.helpers.insert(getItemsCopy(items, columnNames, guardedColumns), cs) + returning;
-		return await db.any(query);
+		return db.any(query);
 	} else if (mode === 'transaction') {
-		return await db.tx(async (t) => {
+		return db.tx(async (t) => {
 			const result: IDataObject[] = [];
 			for (let i = 0; i < items.length; i++) {
 				const itemCopy = getItemCopy(items[i], columnNames, guardedColumns);
@@ -329,7 +311,7 @@ export async function pgInsert(
 			return result;
 		});
 	} else if (mode === 'independently') {
-		return await db.task(async (t) => {
+		return db.task(async (t) => {
 			const result: IDataObject[] = [];
 			for (let i = 0; i < items.length; i++) {
 				const itemCopy = getItemCopy(items[i], columnNames, guardedColumns);
@@ -353,9 +335,7 @@ export async function pgInsert(
 		});
 	}
 
-	throw new ApplicationError('multiple, independently or transaction are valid options', {
-		level: 'warning',
-	});
+	throw new Error('multiple, independently or transaction are valid options');
 }
 
 /**
@@ -407,7 +387,7 @@ export async function pgInsertV2(
 			})
 			.flat();
 	} else if (mode === 'transaction') {
-		return await db.tx(async (t) => {
+		return db.tx(async (t) => {
 			const result: IDataObject[] = [];
 			for (let i = 0; i < items.length; i++) {
 				const itemCopy = getItemCopy(items[i], columnNames, guardedColumns);
@@ -432,7 +412,7 @@ export async function pgInsertV2(
 			return result;
 		});
 	} else if (mode === 'independently') {
-		return await db.task(async (t) => {
+		return db.task(async (t) => {
 			const result: IDataObject[] = [];
 			for (let i = 0; i < items.length; i++) {
 				const itemCopy = getItemCopy(items[i], columnNames, guardedColumns);
@@ -463,9 +443,7 @@ export async function pgInsertV2(
 		});
 	}
 
-	throw new ApplicationError('multiple, independently or transaction are valid options', {
-		level: 'warning',
-	});
+	throw new Error('multiple, independently or transaction are valid options');
 }
 
 /**
@@ -532,14 +510,14 @@ export async function pgUpdate(
 				})
 				.join(' AND ') +
 			returning;
-		return await db.any(query);
+		return db.any(query);
 	} else {
 		const where =
 			' WHERE ' +
 			// eslint-disable-next-line n8n-local-rules/no-interpolation-in-regular-string
 			updateKeys.map((entry) => pgp.as.name(entry.name) + ' = ${' + entry.prop + '}').join(' AND ');
 		if (mode === 'transaction') {
-			return await db.tx(async (t) => {
+			return db.tx(async (t) => {
 				const result: IDataObject[] = [];
 				for (let i = 0; i < items.length; i++) {
 					const itemCopy = getItemCopy(items[i], columnNames, guardedColumns);
@@ -565,7 +543,7 @@ export async function pgUpdate(
 				return result;
 			});
 		} else if (mode === 'independently') {
-			return await db.task(async (t) => {
+			return db.task(async (t) => {
 				const result: IDataObject[] = [];
 				for (let i = 0; i < items.length; i++) {
 					const itemCopy = getItemCopy(items[i], columnNames, guardedColumns);
@@ -591,9 +569,7 @@ export async function pgUpdate(
 			});
 		}
 	}
-	throw new ApplicationError('multiple, independently or transaction are valid options', {
-		level: 'warning',
-	});
+	throw new Error('multiple, independently or transaction are valid options');
 }
 
 /**
@@ -667,7 +643,7 @@ export async function pgUpdateV2(
 			// eslint-disable-next-line n8n-local-rules/no-interpolation-in-regular-string
 			updateKeys.map((entry) => pgp.as.name(entry.name) + ' = ${' + entry.prop + '}').join(' AND ');
 		if (mode === 'transaction') {
-			return await db.tx(async (t) => {
+			return db.tx(async (t) => {
 				const result: IDataObject[] = [];
 				for (let i = 0; i < items.length; i++) {
 					const itemCopy = getItemCopy(items[i], columnNames, guardedColumns);
@@ -695,7 +671,7 @@ export async function pgUpdateV2(
 				return result;
 			});
 		} else if (mode === 'independently') {
-			return await db.task(async (t) => {
+			return db.task(async (t) => {
 				const result: IDataObject[] = [];
 				for (let i = 0; i < items.length; i++) {
 					const itemCopy = getItemCopy(items[i], columnNames, guardedColumns);
@@ -724,7 +700,5 @@ export async function pgUpdateV2(
 			});
 		}
 	}
-	throw new ApplicationError('multiple, independently or transaction are valid options', {
-		level: 'warning',
-	});
+	throw new Error('multiple, independently or transaction are valid options');
 }

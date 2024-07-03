@@ -68,7 +68,7 @@ export const notificationFields: INodeProperties[] = [
 						displayName: 'Image',
 						values: [
 							{
-								displayName: 'Binary File',
+								displayName: 'Binary Data',
 								name: 'binaryData',
 								type: 'boolean',
 								default: false,
@@ -98,7 +98,7 @@ export const notificationFields: INodeProperties[] = [
 								description: 'HTTP/HTTPS URL. Maximum size of 240×240px JPEG.',
 							},
 							{
-								displayName: 'Input Binary Field',
+								displayName: 'Binary Property',
 								name: 'binaryProperty',
 								type: 'string',
 								displayOptions: {
@@ -107,7 +107,7 @@ export const notificationFields: INodeProperties[] = [
 									},
 								},
 								default: 'data',
-								hint: 'The name of the input binary field containing the file to be written',
+								description: 'Name of the property that holds the binary data',
 							},
 						],
 					},

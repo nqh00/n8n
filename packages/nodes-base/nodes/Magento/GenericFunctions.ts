@@ -1,3 +1,5 @@
+import type { OptionsWithUri } from 'request';
+
 import type {
 	IDataObject,
 	IExecuteFunctions,
@@ -7,15 +9,14 @@ import type {
 	INodeProperties,
 	INodePropertyOptions,
 	JsonObject,
-	IHttpRequestMethods,
-	IRequestOptions,
 } from 'n8n-workflow';
-import { ApplicationError, NodeApiError } from 'n8n-workflow';
-import type { Filter, Address, Search, FilterGroup, ProductAttribute } from './types';
+import { NodeApiError } from 'n8n-workflow';
+
+import type { Address, Filter, FilterGroup, ProductAttribute, Search } from './Types';
 
 export async function magentoApiRequest(
 	this: IWebhookFunctions | IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions,
-	method: IHttpRequestMethods,
+	method: string,
 	resource: string,
 
 	body: any = {},
@@ -26,7 +27,7 @@ export async function magentoApiRequest(
 ): Promise<any> {
 	const credentials = await this.getCredentials('magento2Api');
 
-	let options: IRequestOptions = {
+	let options: OptionsWithUri = {
 		method,
 		body,
 		qs,
@@ -49,7 +50,7 @@ export async function magentoApiRequest(
 export async function magentoApiRequestAllItems(
 	this: IHookFunctions | ILoadOptionsFunctions | IExecuteFunctions,
 	propertyName: string,
-	method: IHttpRequestMethods,
+	method: string,
 	resource: string,
 
 	body: any = {},
@@ -480,7 +481,7 @@ export function getFilterQuery(data: {
 	sort: [{ direction: string; field: string }];
 }): Search {
 	if (!data.hasOwnProperty('conditions') || data.conditions?.length === 0) {
-		throw new ApplicationError('At least one filter has to be set', { level: 'warning' });
+		throw new Error('At least one filter has to be set');
 	}
 
 	if (data.matchType === 'anyFilter') {

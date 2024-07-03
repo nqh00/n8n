@@ -8,7 +8,6 @@ import type {
 	INodeTypeDescription,
 } from 'n8n-workflow';
 
-import moment from 'moment-timezone';
 import { clockifyApiRequest, clockifyApiRequestAllItems } from './GenericFunctions';
 
 import type { IClientDto, IWorkspaceDto } from './WorkpaceInterfaces';
@@ -31,11 +30,13 @@ import { userFields, userOperations } from './UserDescription';
 
 import { workspaceFields, workspaceOperations } from './WorkspaceDescription';
 
+import moment from 'moment-timezone';
+
 export class Clockify implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Clockify',
 		name: 'clockify',
-		icon: { light: 'file:clockify.svg', dark: 'file:clockify.dark.svg' },
+		icon: 'file:clockify.svg',
 		group: ['transform'],
 		version: 1,
 		subtitle: '={{$parameter["operation"] + ": " + $parameter["resource"]}}',
@@ -839,7 +840,7 @@ export class Clockify implements INodeType {
 				);
 				returnData.push(...executionData);
 			} catch (error) {
-				if (this.continueOnFail(error)) {
+				if (this.continueOnFail()) {
 					returnData.push({ error: error.message, json: {} });
 					continue;
 				}
@@ -847,6 +848,6 @@ export class Clockify implements INodeType {
 			}
 		}
 
-		return [returnData];
+		return this.prepareOutputData(returnData);
 	}
 }

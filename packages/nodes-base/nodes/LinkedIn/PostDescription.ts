@@ -121,7 +121,7 @@ export const postFields: INodeProperties[] = [
 		},
 	},
 	{
-		displayName: 'Input Binary Field',
+		displayName: 'Binary Property',
 		displayOptions: {
 			show: {
 				operation: ['create'],
@@ -132,7 +132,7 @@ export const postFields: INodeProperties[] = [
 		name: 'binaryPropertyName',
 		type: 'string',
 		default: 'data',
-		hint: 'The name of the input binary field containing the file to be written',
+		description: 'Object property name which holds binary data',
 		required: true,
 	},
 	{
@@ -166,18 +166,6 @@ export const postFields: INodeProperties[] = [
 				type: 'string',
 				default: '',
 				description: 'Provide the URL of the article you would like to share here',
-				displayOptions: {
-					show: {
-						'/shareMediaCategory': ['ARTICLE'],
-					},
-				},
-			},
-			{
-				displayName: 'Input Binary Field',
-				name: 'thumbnailBinaryPropertyName',
-				type: 'string',
-				default: 'data',
-				hint: 'The name of the input binary field containing the file for the article thumbnail',
 				displayOptions: {
 					show: {
 						'/shareMediaCategory': ['ARTICLE'],

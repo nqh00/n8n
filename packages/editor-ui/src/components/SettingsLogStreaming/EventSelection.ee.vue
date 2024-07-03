@@ -6,12 +6,12 @@
 			shadow="never"
 		>
 			<!-- <template #header> -->
-			<Checkbox
-				:model-value="group.selected"
+			<checkbox
+				:value="group.selected"
 				:indeterminate="!group.selected && group.indeterminate"
-				:disabled="readonly"
-				@update:model-value="onInput"
+				@input="onInput"
 				@change="onCheckboxChecked(group.name, $event)"
+				:disabled="readonly"
 			>
 				<strong>{{ groupLabelName(group.name) }}</strong>
 				<n8n-tooltip
@@ -20,27 +20,27 @@
 					:popper-class="$style.tooltipPopper"
 					class="ml-xs"
 				>
-					<n8n-icon icon="question-circle" size="small" class="ml-4xs" />
+					<n8n-icon icon="question-circle" size="small" />
 					<template #content>
 						{{ groupLabelInfo(group.name) }}
 					</template>
 				</n8n-tooltip>
-			</Checkbox>
-			<Checkbox
+			</checkbox>
+			<checkbox
 				v-if="group.name === 'n8n.audit'"
-				:model-value="logStreamingStore.items[destinationId]?.destination.anonymizeAuditMessages"
-				:disabled="readonly"
-				@update:model-value="onInput"
+				:value="logStreamingStore.items[destinationId]?.destination.anonymizeAuditMessages"
+				@input="onInput"
 				@change="anonymizeAuditMessagesChanged"
+				:disabled="readonly"
 			>
 				{{ $locale.baseText('settings.log-streaming.tab.events.anonymize') }}
 				<n8n-tooltip placement="top" :popper-class="$style.tooltipPopper">
-					<n8n-icon icon="question-circle" size="small" class="ml-4xs" />
+					<n8n-icon icon="question-circle" size="small" />
 					<template #content>
 						{{ $locale.baseText('settings.log-streaming.tab.events.anonymize.info') }}
 					</template>
 				</n8n-tooltip>
-			</Checkbox>
+			</checkbox>
 			<!-- </template> -->
 			<ul :class="$style.eventList">
 				<li
@@ -48,11 +48,11 @@
 					:key="event.name"
 					:class="`${$style.eventListItem} ${group.selected ? $style.eventListItemDisabled : ''}`"
 				>
-					<Checkbox
-						:model-value="event.selected || group.selected"
+					<checkbox
+						:value="event.selected || group.selected"
 						:indeterminate="event.indeterminate"
 						:disabled="group.selected || readonly"
-						@update:model-value="onInput"
+						@input="onInput"
 						@change="onCheckboxChecked(event.name, $event)"
 					>
 						{{ event.label }}
@@ -61,7 +61,7 @@
 								{{ event.name }}
 							</template>
 						</n8n-tooltip>
-					</Checkbox>
+					</checkbox>
 				</li>
 			</ul>
 		</div>
@@ -69,22 +69,22 @@
 </template>
 
 <script lang="ts">
-import { ElCheckbox as Checkbox, type CheckboxValueType } from 'element-plus';
+import { Checkbox } from 'element-ui';
 import { mapStores } from 'pinia';
 import type { BaseTextKey } from '@/plugins/i18n';
 import { useLogStreamingStore } from '@/stores/logStreaming.store';
 
 export default {
-	name: 'EventSelection',
-	components: {
-		Checkbox,
-	},
+	name: 'event-selection',
 	props: {
 		destinationId: {
 			type: String,
 			default: 'defaultDestinationId',
 		},
 		readonly: Boolean,
+	},
+	components: {
+		Checkbox,
 	},
 	data() {
 		return {
@@ -101,13 +101,12 @@ export default {
 		onInput() {
 			this.$emit('input');
 		},
-		onCheckboxChecked(eventName: string, checked: CheckboxValueType) {
-			this.logStreamingStore.setSelectedInGroup(this.destinationId, eventName, Boolean(checked));
+		onCheckboxChecked(eventName: string, checked: boolean) {
+			this.logStreamingStore.setSelectedInGroup(this.destinationId, eventName, checked);
 			this.$forceUpdate();
 		},
-		anonymizeAuditMessagesChanged(value: CheckboxValueType) {
-			this.logStreamingStore.items[this.destinationId].destination.anonymizeAuditMessages =
-				Boolean(value);
+		anonymizeAuditMessagesChanged(value: boolean) {
+			this.logStreamingStore.items[this.destinationId].destination.anonymizeAuditMessages = value;
 			this.$emit('change', { name: 'anonymizeAuditMessages', node: this.destinationId, value });
 			this.$forceUpdate();
 		},

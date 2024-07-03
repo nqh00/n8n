@@ -8,7 +8,7 @@
 				</n8n-heading>
 			</div>
 			<div>
-				<n8n-text v-if="errorCode" size="large">
+				<n8n-text size="large" v-if="errorCode">
 					{{ errorCode }} {{ $locale.baseText('error') }}
 				</n8n-text>
 			</div>
@@ -17,22 +17,32 @@
 	</div>
 </template>
 
-<script setup lang="ts">
-import type { BaseTextKey } from '@/plugins/i18n';
-import { useRouter } from 'vue-router';
-import { VIEWS } from '@/constants';
-const router = useRouter();
+<script lang="ts">
+import { defineComponent } from 'vue';
 
-const props = defineProps<{
-	messageKey: BaseTextKey;
-	errorCode: number;
-	redirectTextKey: BaseTextKey;
-	redirectPage?: keyof typeof VIEWS;
-}>();
-
-function onButtonClick() {
-	void router.push({ name: props.redirectPage ?? VIEWS.HOMEPAGE });
-}
+export default defineComponent({
+	name: 'ErrorView',
+	props: {
+		messageKey: {
+			type: String,
+			required: true,
+		},
+		errorCode: {
+			type: Number,
+		},
+		redirectTextKey: {
+			type: String,
+		},
+		redirectPage: {
+			type: String,
+		},
+	},
+	methods: {
+		onButtonClick() {
+			void this.$router.push({ name: this.redirectPage });
+		},
+	},
+});
 </script>
 
 <style lang="scss" module>

@@ -12,7 +12,6 @@ export class SalesmateApi implements ICredentialType {
 			displayName: 'Session Token',
 			name: 'sessionToken',
 			type: 'string',
-			typeOptions: { password: true },
 			default: '',
 		},
 		{

@@ -59,7 +59,7 @@ export const issueAttachmentFields: INodeProperties[] = [
 		default: '',
 	},
 	{
-		displayName: 'Input Binary Field',
+		displayName: 'Binary Property',
 		displayOptions: {
 			show: {
 				resource: ['issueAttachment'],
@@ -69,7 +69,7 @@ export const issueAttachmentFields: INodeProperties[] = [
 		name: 'binaryPropertyName',
 		type: 'string',
 		default: 'data',
-		hint: 'The name of the input binary field containing the file to be written',
+		description: 'Object property name which holds binary data',
 		required: true,
 	},
 
@@ -104,7 +104,7 @@ export const issueAttachmentFields: INodeProperties[] = [
 		},
 	},
 	{
-		displayName: 'Put Output File in Field',
+		displayName: 'Binary Property',
 		name: 'binaryProperty',
 		type: 'string',
 		default: 'data',
@@ -115,7 +115,7 @@ export const issueAttachmentFields: INodeProperties[] = [
 				download: [true],
 			},
 		},
-		hint: 'The name of the output binary field to put the file in',
+		description: 'Object property name which holds binary data',
 		required: true,
 	},
 	/* -------------------------------------------------------------------------- */
@@ -179,7 +179,7 @@ export const issueAttachmentFields: INodeProperties[] = [
 		},
 	},
 	{
-		displayName: 'Put Output File in Field',
+		displayName: 'Binary Property',
 		name: 'binaryProperty',
 		type: 'string',
 		default: 'data',
@@ -190,7 +190,7 @@ export const issueAttachmentFields: INodeProperties[] = [
 				download: [true],
 			},
 		},
-		hint: 'The name of the output binary field to put the file in',
+		description: 'Object property name which holds binary data',
 		required: true,
 	},
 	/* -------------------------------------------------------------------------- */

@@ -181,6 +181,6 @@ export class PhilipsHue implements INodeType {
 			);
 			returnData.push(...executionData);
 		}
-		return [returnData];
+		return this.prepareOutputData(returnData);
 	}
 }

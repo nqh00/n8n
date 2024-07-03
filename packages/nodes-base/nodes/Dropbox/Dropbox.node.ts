@@ -1,7 +1,6 @@
 import type {
 	IDataObject,
 	IExecuteFunctions,
-	IHttpRequestMethods,
 	INodeExecutionData,
 	INodeType,
 	INodeTypeDescription,
@@ -313,7 +312,7 @@ export class Dropbox implements INodeType {
 				description: 'The file path of the file to download. Has to contain the full path.',
 			},
 			{
-				displayName: 'Put Output File in Field',
+				displayName: 'Binary Property',
 				name: 'binaryPropertyName',
 				type: 'string',
 				required: true,
@@ -324,7 +323,7 @@ export class Dropbox implements INodeType {
 						resource: ['file'],
 					},
 				},
-				hint: 'The name of the output binary field to put the file in',
+				description: 'Name of the binary property to which to write the data of the read file',
 			},
 
 			// ----------------------------------
@@ -347,7 +346,7 @@ export class Dropbox implements INodeType {
 					'The file path of the file to upload. Has to contain the full path. The parent folder has to exist. Existing files get overwritten.',
 			},
 			{
-				displayName: 'Binary File',
+				displayName: 'Binary Data',
 				name: 'binaryData',
 				type: 'boolean',
 				default: false,
@@ -375,7 +374,7 @@ export class Dropbox implements INodeType {
 				description: 'The text content of the file to upload',
 			},
 			{
-				displayName: 'Input Binary Field',
+				displayName: 'Binary Property',
 				name: 'binaryPropertyName',
 				type: 'string',
 				default: 'data',
@@ -388,7 +387,8 @@ export class Dropbox implements INodeType {
 					},
 				},
 				placeholder: '',
-				hint: 'The name of the input binary field containing the file to be uploaded',
+				description:
+					'Name of the binary property which contains the data for the file to be uploaded',
 			},
 
 			// ----------------------------------
@@ -698,7 +698,7 @@ export class Dropbox implements INodeType {
 		const operation = this.getNodeParameter('operation', 0);
 
 		let endpoint = '';
-		let requestMethod: IHttpRequestMethods = 'GET';
+		let requestMethod = '';
 		let returnAll = false;
 		let property = '';
 		let body: IDataObject | Buffer;
@@ -1003,7 +1003,7 @@ export class Dropbox implements INodeType {
 					returnData.push(...executionData);
 				}
 			} catch (error) {
-				if (this.continueOnFail(error)) {
+				if (this.continueOnFail()) {
 					if (resource === 'file' && operation === 'download') {
 						items[i].json = { error: error.message };
 					} else {
@@ -1017,10 +1017,10 @@ export class Dropbox implements INodeType {
 
 		if (resource === 'file' && operation === 'download') {
 			// For file downloads the files get attached to the existing items
-			return [items];
+			return this.prepareOutputData(items);
 		} else {
 			// For all other ones does the output items get replaced
-			return [returnData];
+			return this.prepareOutputData(returnData);
 		}
 	}
 }

@@ -4,7 +4,7 @@
 			<n8n-heading size="2xlarge">
 				{{ $locale.baseText('settings.api') }}
 				<span :style="{ fontSize: 'var(--font-size-s)', color: 'var(--color-text-light)' }">
-					({{ $locale.baseText('generic.beta') }})
+					({{ $locale.baseText('beta') }})
 				</span>
 			</n8n-heading>
 		</div>
@@ -12,7 +12,7 @@
 		<div v-if="apiKey">
 			<p class="mb-s">
 				<n8n-info-tip :bold="false">
-					<i18n-t keypath="settings.api.view.info" tag="span">
+					<i18n path="settings.api.view.info" tag="span">
 						<template #apiAction>
 							<a
 								href="https://docs.n8n.io/api"
@@ -27,22 +27,21 @@
 								v-text="$locale.baseText('settings.api.view.info.webhook')"
 							/>
 						</template>
-					</i18n-t>
+					</i18n>
 				</n8n-info-tip>
 			</p>
 			<n8n-card class="mb-4xs" :class="$style.card">
 				<span :class="$style.delete">
-					<n8n-link :bold="true" @click="showDeleteModal">
+					<n8n-link @click="showDeleteModal" :bold="true">
 						{{ $locale.baseText('generic.delete') }}
 					</n8n-link>
 				</span>
-				<div>
+				<div class="ph-no-capture">
 					<CopyInput
 						:label="$locale.baseText('settings.api.view.myKey')"
 						:value="apiKey"
 						:copy-button-text="$locale.baseText('generic.clickToCopy')"
 						:toast-title="$locale.baseText('settings.api.view.copy.toast')"
-						:redact-value="true"
 						@copy="onCopy"
 					/>
 				</div>
@@ -53,8 +52,7 @@
 						$locale.baseText(`settings.api.view.${swaggerUIEnabled ? 'tryapi' : 'more-details'}`)
 					}}
 				</n8n-text>
-				{{ ' ' }}
-				<n8n-link :to="apiDocsURL" :new-window="true" size="small">
+				<n8n-link :to="apiDocsURL" :newWindow="true" size="small">
 					{{
 						$locale.baseText(
 							`settings.api.view.${swaggerUIEnabled ? 'apiPlayground' : 'external-docs'}`,
@@ -64,22 +62,21 @@
 			</div>
 		</div>
 		<n8n-action-box
-			v-else-if="!isPublicApiEnabled && isTrialing"
-			data-test-id="public-api-upgrade-cta"
+			v-else-if="isTrialing"
 			:heading="$locale.baseText('settings.api.trial.upgradePlan.title')"
 			:description="$locale.baseText('settings.api.trial.upgradePlan.description')"
-			:button-text="$locale.baseText('settings.api.trial.upgradePlan.cta')"
-			@click:button="onUpgrade"
+			:buttonText="$locale.baseText('settings.api.trial.upgradePlan.cta')"
+			@click="onUpgrade"
 		/>
 		<n8n-action-box
 			v-else-if="mounted && !isLoadingCloudPlans"
-			:button-text="
+			:buttonText="
 				$locale.baseText(
 					loading ? 'settings.api.create.button.loading' : 'settings.api.create.button',
 				)
 			"
 			:description="$locale.baseText('settings.api.create.description')"
-			@click:button="createApiKey"
+			@click="createApiKey"
 		/>
 	</div>
 </template>
@@ -87,13 +84,12 @@
 <script lang="ts">
 import { defineComponent } from 'vue';
 import type { IUser } from '@/Interface';
-import { useToast } from '@/composables/useToast';
-import { useMessage } from '@/composables/useMessage';
+import { useToast, useMessage } from '@/composables';
 
 import CopyInput from '@/components/CopyInput.vue';
 import { mapStores } from 'pinia';
 import { useSettingsStore } from '@/stores/settings.store';
-import { useRootStore } from '@/stores/root.store';
+import { useRootStore } from '@/stores/n8nRoot.store';
 import { useUIStore } from '@/stores/ui.store';
 import { useUsersStore } from '@/stores/users.store';
 import { useCloudPlanStore } from '@/stores/cloudPlan.store';
@@ -121,8 +117,6 @@ export default defineComponent({
 		};
 	},
 	mounted() {
-		if (!this.isPublicApiEnabled) return;
-
 		void this.getApiKey();
 		const baseUrl = this.rootStore.baseUrl;
 		const apiPath = this.settingsStore.publicApiPath;
@@ -143,13 +137,10 @@ export default defineComponent({
 		isLoadingCloudPlans(): boolean {
 			return this.cloudPlanStore.state.loadingPlan;
 		},
-		isPublicApiEnabled(): boolean {
-			return this.settingsStore.isPublicApiEnabled;
-		},
 	},
 	methods: {
 		onUpgrade() {
-			void this.uiStore.goToUpgrade('settings-n8n-api', 'upgrade-api', 'redirect');
+			this.uiStore.goToUpgrade('settings-n8n-api', 'upgrade-api', 'redirect');
 		},
 		async showDeleteModal() {
 			const confirmed = await this.confirm(

@@ -1,33 +1,31 @@
-import type { Plugin } from 'vue';
+import type { PluginObject } from 'vue';
+import VueAgile from 'vue-agile';
 
 import 'regenerator-runtime/runtime';
 
-import ElementPlus, { ElLoading, ElMessageBox } from 'element-plus';
+import ElementUI from 'element-ui';
+import { Loading, MessageBox, Notification } from 'element-ui';
 import { N8nPlugin } from 'n8n-design-system';
-import { useMessage } from '@/composables/useMessage';
 import EnterpriseEdition from '@/components/EnterpriseEdition.ee.vue';
-import RBAC from '@/components/RBAC.vue';
-import ParameterInputList from '@/components/ParameterInputList.vue';
+import { useMessage } from '@/composables/useMessage';
 
-export const GlobalComponentsPlugin: Plugin = {
+export const GlobalComponentsPlugin: PluginObject<{}> = {
 	install(app) {
 		const messageService = useMessage();
 
-		app.component('EnterpriseEdition', EnterpriseEdition);
-		app.component('RBAC', RBAC);
-		app.component('ParameterInputList', ParameterInputList);
+		app.component('enterprise-edition', EnterpriseEdition);
 
-		app.use(ElementPlus);
-		app.use(N8nPlugin, {});
+		app.use(VueAgile);
+		app.use(ElementUI);
+		app.use(N8nPlugin);
+		app.use(Loading.directive);
 
-		// app.use(ElLoading);
-		// app.use(ElNotification);
-
-		app.config.globalProperties.$loading = ElLoading.service;
-		app.config.globalProperties.$msgbox = ElMessageBox;
-		app.config.globalProperties.$alert = messageService.alert;
-		app.config.globalProperties.$confirm = messageService.confirm;
-		app.config.globalProperties.$prompt = messageService.prompt;
-		app.config.globalProperties.$message = messageService.message;
+		app.prototype.$loading = Loading.service;
+		app.prototype.$msgbox = MessageBox;
+		app.prototype.$alert = messageService.alert;
+		app.prototype.$confirm = messageService.confirm;
+		app.prototype.$prompt = messageService.prompt;
+		app.prototype.$message = messageService.message;
+		app.prototype.$notify = Notification;
 	},
 };

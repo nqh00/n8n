@@ -4,8 +4,9 @@ import type express from 'express';
 import { CredentialsHelper } from '@/CredentialsHelper';
 import { CredentialTypes } from '@/CredentialTypes';
 import type { CredentialsEntity } from '@db/entities/CredentialsEntity';
-import type { CredentialTypeRequest, CredentialRequest } from '../../../types';
-import { projectScope } from '../../shared/middlewares/global.middleware';
+import type { CredentialRequest } from '@/requests';
+import type { CredentialTypeRequest } from '../../../types';
+import { authorize } from '../../shared/middlewares/global.middleware';
 import { validCredentialsProperties, validCredentialType } from './credentials.middleware';
 
 import {
@@ -22,6 +23,7 @@ import { Container } from 'typedi';
 
 export = {
 	createCredential: [
+		authorize(['owner', 'member']),
 		validCredentialType,
 		validCredentialsProperties,
 		async (
@@ -37,6 +39,11 @@ export = {
 
 				const savedCredential = await saveCredential(newCredential, req.user, encryptedData);
 
+				// LoggerProxy.verbose('New credential created', {
+				// 	credentialsId: newCredential.id,
+				// 	ownerId: req.user.id,
+				// });
+
 				return res.json(sanitizeCredentials(savedCredential));
 			} catch ({ message, httpStatusCode }) {
 				// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
@@ -45,7 +52,7 @@ export = {
 		},
 	],
 	deleteCredential: [
-		projectScope('credential:delete', 'credential'),
+		authorize(['owner', 'member']),
 		async (
 			req: CredentialRequest.Delete,
 			res: express.Response,
@@ -53,10 +60,13 @@ export = {
 			const { id: credentialId } = req.params;
 			let credential: CredentialsEntity | undefined;
 
-			if (!['global:owner', 'global:admin'].includes(req.user.role)) {
-				const shared = await getSharedCredentials(req.user.id, credentialId);
+			if (req.user.globalRole.name !== 'owner') {
+				const shared = await getSharedCredentials(req.user.id, credentialId, [
+					'credentials',
+					'role',
+				]);
 
-				if (shared?.role === 'credential:owner') {
+				if (shared?.role.name === 'owner') {
 					credential = shared.credentials;
 				}
 			} else {
@@ -67,12 +77,13 @@ export = {
 				return res.status(404).json({ message: 'Not Found' });
 			}
 
-			await removeCredential(req.user, credential);
+			await removeCredential(credential);
 			return res.json(sanitizeCredentials(credential));
 		},
 	],
 
 	getCredentialType: [
+		authorize(['owner', 'member']),
 		async (req: CredentialTypeRequest.Get, res: express.Response): Promise<express.Response> => {
 			const { credentialTypeName } = req.params;
 
@@ -82,7 +93,7 @@ export = {
 				return res.status(404).json({ message: 'Not Found' });
 			}
 
-			const schema = Container.get(CredentialsHelper)
+			const schema = new CredentialsHelper('')
 				.getCredentialsProperties(credentialTypeName)
 				.filter((property) => property.type !== 'hidden');
 

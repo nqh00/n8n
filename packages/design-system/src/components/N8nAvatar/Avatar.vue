@@ -1,6 +1,6 @@
 <template>
-	<span :class="['n8n-avatar', $style.container]" v-bind="$attrs">
-		<Avatar
+	<span :class="['n8n-avatar', $style.container]" v-on="$listeners">
+		<avatar
 			v-if="firstName"
 			:size="getSize(size)"
 			:name="firstName + ' ' + lastName"
@@ -12,48 +12,61 @@
 	</span>
 </template>
 
-<script lang="ts" setup>
-import { computed } from 'vue';
-import Avatar from 'vue-boring-avatars';
-
-interface AvatarProps {
-	firstName: string;
-	lastName: string;
-	size?: string;
-	colors?: string[];
-}
-
-defineOptions({ name: 'N8nAvatar' });
-const props = withDefaults(defineProps<AvatarProps>(), {
-	firstName: '',
-	lastName: '',
-	size: 'medium',
-	colors: () => [
-		'--color-primary',
-		'--color-secondary',
-		'--color-avatar-accent-1',
-		'--color-avatar-accent-2',
-		'--color-primary-tint-1',
-	],
-});
-
-const initials = computed(
-	() =>
-		(props.firstName ? props.firstName.charAt(0) : '') +
-		(props.lastName ? props.lastName.charAt(0) : ''),
-);
-
-const getColors = (colors: string[]): string[] => {
-	const style = getComputedStyle(document.body);
-	return colors.map((color: string) => style.getPropertyValue(color));
-};
+<script lang="ts">
+import Avatar from 'vue2-boring-avatars';
 
 const sizes: { [size: string]: number } = {
 	small: 28,
 	large: 48,
 	medium: 40,
 };
-const getSize = (size: string): number => sizes[size];
+
+import { defineComponent } from 'vue';
+
+export default defineComponent({
+	name: 'n8n-avatar',
+	props: {
+		firstName: {
+			type: String,
+		},
+		lastName: {
+			type: String,
+		},
+		size: {
+			type: String,
+			default: 'medium',
+		},
+		colors: {
+			default: () => [
+				'--color-primary',
+				'--color-secondary',
+				'--color-avatar-accent-1',
+				'--color-avatar-accent-2',
+				'--color-primary-tint-1',
+			],
+		},
+	},
+	components: {
+		Avatar, // eslint-disable-line @typescript-eslint/no-unsafe-assignment
+	},
+	computed: {
+		initials() {
+			return (
+				(this.firstName ? this.firstName.charAt(0) : '') +
+				(this.lastName ? this.lastName.charAt(0) : '')
+			);
+		},
+	},
+	methods: {
+		getColors(colors: string[]): string[] {
+			const style = getComputedStyle(document.body);
+			return colors.map((color: string) => style.getPropertyValue(color));
+		},
+		getSize(size: string): number {
+			return sizes[size];
+		},
+	},
+});
 </script>
 
 <style lang="scss" module>
@@ -74,7 +87,7 @@ const getSize = (size: string): number => sizes[size];
 	position: absolute;
 	font-size: var(--font-size-2xs);
 	font-weight: var(--font-weight-bold);
-	color: var(--color-avatar-font);
+	color: var(--color-text-xlight);
 	text-shadow: 0px 1px 6px rgba(25, 11, 9, 0.3);
 }
 

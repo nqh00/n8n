@@ -1,12 +1,25 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+import type { IDataObject } from 'n8n-workflow';
+
+import { equalityTest, setup, workflowToTests } from '../../../../../../../test/nodes/Helpers';
+
+// eslint-disable-next-line unused-imports/no-unused-imports
+import * as transport from '../../../../v2/transport';
+
 import nock from 'nock';
-import type { IHttpRequestMethods } from 'n8n-workflow';
-import { equalityTest, setup, workflowToTests } from '@test/nodes/Helpers';
 
 jest.mock('../../../../v2/transport', () => {
 	const originalModule = jest.requireActual('../../../../v2/transport');
 	return {
 		...originalModule,
-		microsoftApiRequest: jest.fn(async function (method: IHttpRequestMethods, resource: string) {
+		microsoftApiRequest: jest.fn(async function (
+			method: string,
+			resource: string,
+			body?: IDataObject,
+			qs?: IDataObject,
+			uri?: string,
+			headers?: IDataObject,
+		) {
 			if (method === 'GET' && resource.includes('usedRange')) {
 				return {
 					address: 'Sheet4!A1:D6',
@@ -50,6 +63,6 @@ describe('Test MicrosoftExcelV2, worksheet => append', () => {
 	const nodeTypes = setup(tests);
 
 	for (const testData of tests) {
-		test(testData.description, async () => await equalityTest(testData, nodeTypes));
+		test(testData.description, async () => equalityTest(testData, nodeTypes));
 	}
 });

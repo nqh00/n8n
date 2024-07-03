@@ -233,7 +233,7 @@ export const responderFields: INodeProperties[] = [
 								name: 'artifactValues',
 								values: [
 									{
-										displayName: 'Binary Field',
+										displayName: 'Binary Property',
 										name: 'binaryProperty',
 										type: 'string',
 										displayOptions: {
@@ -490,7 +490,7 @@ export const responderFields: INodeProperties[] = [
 				name: 'values',
 				values: [
 					{
-						displayName: 'Input Binary Field',
+						displayName: 'Binary Property',
 						name: 'binaryPropertyName',
 						type: 'string',
 						default: 'data',
@@ -499,7 +499,7 @@ export const responderFields: INodeProperties[] = [
 								dataType: ['file'],
 							},
 						},
-						hint: 'The name of the input binary field containing the attachement data',
+						description: 'Name of the binary property which contains the attachement data',
 					},
 					{
 						displayName: 'Data',

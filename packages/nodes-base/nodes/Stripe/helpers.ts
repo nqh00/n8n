@@ -7,8 +7,6 @@ import type {
 	IDataObject,
 	ILoadOptionsFunctions,
 	INodePropertyOptions,
-	IHttpRequestMethods,
-	IRequestOptions,
 } from 'n8n-workflow';
 
 /**
@@ -17,10 +15,10 @@ import type {
  */
 export async function stripeApiRequest(
 	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions,
-	method: IHttpRequestMethods,
+	method: string,
 	endpoint: string,
-	body: IDataObject,
-	query?: IDataObject,
+	body: object,
+	query?: object,
 ) {
 	const options = {
 		method,
@@ -28,13 +26,13 @@ export async function stripeApiRequest(
 		qs: query,
 		uri: `https://api.stripe.com/v1${endpoint}`,
 		json: true,
-	} satisfies IRequestOptions;
+	};
 
 	if (options.qs && Object.keys(options.qs).length === 0) {
 		delete options.qs;
 	}
 
-	return await this.helpers.requestWithAuthentication.call(this, 'stripeApi', options);
+	return this.helpers.requestWithAuthentication.call(this, 'stripeApi', options);
 }
 
 /**

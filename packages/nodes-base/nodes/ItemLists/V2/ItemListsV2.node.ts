@@ -1,25 +1,66 @@
+import type { NodeVMOptions } from 'vm2';
+import { NodeVM } from 'vm2';
+
 import type {
 	IDataObject,
 	IExecuteFunctions,
+	INode,
 	INodeExecutionData,
 	INodeType,
 	INodeTypeBaseDescription,
 	INodeTypeDescription,
-	IPairedItemData,
 } from 'n8n-workflow';
 import { NodeOperationError, deepCopy } from 'n8n-workflow';
 
 import get from 'lodash/get';
 import isEmpty from 'lodash/isEmpty';
 import isEqual from 'lodash/isEqual';
+import isObject from 'lodash/isObject';
 import lt from 'lodash/lt';
+import merge from 'lodash/merge';
 import pick from 'lodash/pick';
+import reduce from 'lodash/reduce';
 import set from 'lodash/set';
 import unset from 'lodash/unset';
 
-import { sortByCode } from '../V3/helpers/utils';
+const compareItems = (
+	obj: INodeExecutionData,
+	obj2: INodeExecutionData,
+	keys: string[],
+	disableDotNotation: boolean,
+	_node: INode,
+) => {
+	let result = true;
+	for (const key of keys) {
+		if (!disableDotNotation) {
+			if (!isEqual(get(obj.json, key), get(obj2.json, key))) {
+				result = false;
+				break;
+			}
+		} else {
+			if (!isEqual(obj.json[key], obj2.json[key])) {
+				result = false;
+				break;
+			}
+		}
+	}
+	return result;
+};
+
+const flattenKeys = (obj: IDataObject, path: string[] = []): IDataObject => {
+	return !isObject(obj)
+		? { [path.join('.')]: obj }
+		: reduce(obj, (cum, next, key) => merge(cum, flattenKeys(next as IDataObject, [...path, key])), {}); //prettier-ignore
+};
+
+const shuffleArray = (array: any[]) => {
+	for (let i = array.length - 1; i > 0; i--) {
+		const j = Math.floor(Math.random() * (i + 1));
+		[array[i], array[j]] = [array[j], array[i]];
+	}
+};
+
 import * as summarize from './summarize.operation';
-import { flattenKeys, shuffleArray, compareItems } from '@utils/utilities';
 
 export class ItemListsV2 implements INodeType {
 	description: INodeTypeDescription;
@@ -558,7 +599,7 @@ export class ItemListsV2 implements INodeType {
 					type: 'string',
 					typeOptions: {
 						alwaysOpenEditWindow: true,
-						editor: 'jsEditor',
+						editor: 'code',
 						rows: 10,
 					},
 					default: `// The two items to compare are in the variables a and b
@@ -918,7 +959,7 @@ return 0;`,
 					}
 				}
 
-				return [returnData];
+				return this.prepareOutputData(returnData);
 			} else if (operation === 'aggregateItems') {
 				const aggregate = this.getNodeParameter('aggregate', 0, '') as string;
 
@@ -1061,10 +1102,9 @@ return 0;`,
 
 					returnData.push(newItem);
 
-					return [returnData];
+					return this.prepareOutputData(returnData);
 				} else {
 					let newItems: IDataObject[] = items.map((item) => item.json);
-					let pairedItem: IPairedItemData[] = [];
 					const destinationFieldName = this.getNodeParameter('destinationFieldName', 0) as string;
 					const fieldsToExclude = (
 						this.getNodeParameter('fieldsToExclude.fields', 0, []) as IDataObject[]
@@ -1074,7 +1114,7 @@ return 0;`,
 					).map((entry) => entry.fieldName);
 
 					if (fieldsToExclude.length || fieldsToInclude.length) {
-						newItems = newItems.reduce((acc, item, index) => {
+						newItems = newItems.reduce((acc, item) => {
 							const newItem: IDataObject = {};
 							let outputFields = Object.keys(item);
 
@@ -1094,16 +1134,13 @@ return 0;`,
 							if (isEmpty(newItem)) {
 								return acc;
 							}
-							pairedItem.push({ item: index });
 							return acc.concat([newItem]);
 						}, [] as IDataObject[]);
-					} else {
-						pairedItem = Array.from({ length: newItems.length }, (_, item) => ({
-							item,
-						}));
 					}
 
-					return [[{ json: { [destinationFieldName]: newItems }, pairedItem }]];
+					const output: INodeExecutionData = { json: { [destinationFieldName]: newItems } };
+
+					return this.prepareOutputData([output]);
 				}
 			} else if (operation === 'removeDuplicates') {
 				const compare = this.getNodeParameter('compare', 0) as string;
@@ -1170,7 +1207,7 @@ return 0;`,
 						({
 							json: { ...item.json, __INDEX: index },
 							pairedItem: { item: index },
-						}) as INodeExecutionData,
+						} as INodeExecutionData),
 				);
 				//sort items using the compare keys
 				newItems.sort((a, b) => {
@@ -1233,7 +1270,7 @@ return 0;`,
 				const removedIndexes: number[] = [];
 				let temp = newItems[0];
 				for (let index = 1; index < newItems.length; index++) {
-					if (compareItems(newItems[index], temp, keys, disableDotNotation)) {
+					if (compareItems(newItems[index], temp, keys, disableDotNotation, this.getNode())) {
 						removedIndexes.push(newItems[index].json.__INDEX as unknown as number);
 					} else {
 						temp = newItems[index];
@@ -1250,7 +1287,7 @@ return 0;`,
 				}
 
 				// return the filtered items
-				return [data];
+				return this.prepareOutputData(data);
 			} else if (operation === 'sort') {
 				let newItems = [...items];
 				const type = this.getNodeParameter('type', 0) as string;
@@ -1262,7 +1299,7 @@ return 0;`,
 
 				if (type === 'random') {
 					shuffleArray(newItems);
-					return [newItems];
+					return this.prepareOutputData(newItems);
 				}
 
 				if (type === 'simple') {
@@ -1372,16 +1409,45 @@ return 0;`,
 						return result;
 					});
 				} else {
-					newItems = sortByCode.call(this, newItems);
+					const code = this.getNodeParameter('code', 0) as string;
+					const regexCheck = /\breturn\b/g.exec(code);
+
+					if (regexCheck?.length) {
+						const sandbox = {
+							newItems,
+						};
+						const mode = this.getMode();
+						const options = {
+							console: mode === 'manual' ? 'redirect' : 'inherit',
+							sandbox,
+						};
+						const vm = new NodeVM(options as unknown as NodeVMOptions);
+
+						newItems = await vm.run(
+							`
+						module.exports = async function() {
+							newItems.sort( (a,b) => {
+								${code}
+							})
+							return newItems;
+						}()`,
+							__dirname,
+						);
+					} else {
+						throw new NodeOperationError(
+							this.getNode(),
+							"Sort code doesn't return. Please add a 'return' statement to your code",
+						);
+					}
 				}
-				return [newItems];
+				return this.prepareOutputData(newItems);
 			} else if (operation === 'limit') {
 				let newItems = items;
 				const maxItems = this.getNodeParameter('maxItems', 0) as number;
 				const keep = this.getNodeParameter('keep', 0) as string;
 
 				if (maxItems > items.length) {
-					return [newItems];
+					return this.prepareOutputData(newItems);
 				}
 
 				if (keep === 'firstItems') {
@@ -1389,9 +1455,9 @@ return 0;`,
 				} else {
 					newItems = items.slice(items.length - maxItems, items.length);
 				}
-				return [newItems];
+				return this.prepareOutputData(newItems);
 			} else if (operation === 'summarize') {
-				return await summarize.execute.call(this, items);
+				return summarize.execute.call(this, items);
 			} else {
 				throw new NodeOperationError(this.getNode(), `Operation '${operation}' is not recognized`);
 			}

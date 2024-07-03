@@ -1,5 +1,3 @@
-import { parse as pathParse } from 'path';
-import { writeFile as fsWriteFile } from 'fs/promises';
 import type {
 	IDataObject,
 	IExecuteFunctions,
@@ -13,6 +11,10 @@ import type {
 import { deepCopy } from 'n8n-workflow';
 import gm from 'gm';
 import { file } from 'tmp-promise';
+import { parse as pathParse } from 'path';
+import { writeFile as fsWriteFile } from 'fs';
+import { promisify } from 'util';
+const fsWriteFileAsync = promisify(fsWriteFile);
 import getSystemFonts from 'get-system-fonts';
 
 const nodeOperations: INodePropertyOptions[] = [
@@ -757,7 +759,6 @@ export class EditImage implements INodeType {
 		displayName: 'Edit Image',
 		name: 'editImage',
 		icon: 'fa:image',
-		iconColor: 'purple',
 		group: ['transform'],
 		version: 1,
 		description: 'Edits an image like blur, resize or adding border and text',
@@ -1029,7 +1030,6 @@ export class EditImage implements INodeType {
 					rotate: ['backgroundColor', 'rotate'],
 					shear: ['degreesX', 'degreesY'],
 					text: ['font', 'fontColor', 'fontSize', 'lineLength', 'positionX', 'positionY', 'text'],
-					transparent: ['color'],
 				};
 
 				let operations: IDataObject[] = [];
@@ -1107,6 +1107,7 @@ export class EditImage implements INodeType {
 						const operator = operationData.operator as string;
 
 						const geometryString =
+							// eslint-disable-next-line @typescript-eslint/restrict-plus-operands
 							(positionX >= 0 ? '+' : '') + positionX + (positionY >= 0 ? '+' : '') + positionY;
 
 						const binaryPropertyName = operationData.dataPropertyNameComposite as string;
@@ -1116,9 +1117,9 @@ export class EditImage implements INodeType {
 							binaryPropertyName,
 						);
 
-						const { path, cleanup } = await file();
+						const { fd, path, cleanup } = await file();
 						cleanupFunctions.push(cleanup);
-						await fsWriteFile(path, binaryDataBuffer);
+						await fsWriteFileAsync(fd, binaryDataBuffer);
 
 						if (operations[0].operation === 'create') {
 							// It seems like if the image gets created newly we have to create a new gm instance
@@ -1282,6 +1283,7 @@ export class EditImage implements INodeType {
 					const fileName = newItem.binary![dataPropertyName].fileName;
 					if (fileName?.includes('.')) {
 						newItem.binary![dataPropertyName].fileName =
+							// eslint-disable-next-line @typescript-eslint/restrict-plus-operands
 							fileName.split('.').slice(0, -1).join('.') + '.' + options.format;
 					}
 				}
@@ -1310,7 +1312,7 @@ export class EditImage implements INodeType {
 					}),
 				);
 			} catch (error) {
-				if (this.continueOnFail(error)) {
+				if (this.continueOnFail()) {
 					returnData.push({
 						json: {
 							error: error.message,
@@ -1324,6 +1326,6 @@ export class EditImage implements INodeType {
 				throw error;
 			}
 		}
-		return [returnData];
+		return this.prepareOutputData(returnData);
 	}
 }

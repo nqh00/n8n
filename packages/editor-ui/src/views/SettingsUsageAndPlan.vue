@@ -1,20 +1,18 @@
 <script lang="ts" setup>
 import { computed, onMounted, ref } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router/composables';
+import { Notification } from 'element-ui';
 import type { UsageTelemetry } from '@/stores/usage.store';
 import { useUsageStore } from '@/stores/usage.store';
 import { telemetry } from '@/plugins/telemetry';
 import { i18n as locale } from '@/plugins/i18n';
-import { useUIStore } from '@/stores/ui.store';
+import { useUIStore } from '@/stores';
 import { N8N_PRICING_PAGE_URL } from '@/constants';
-import { useToast } from '@/composables/useToast';
-import { hasPermission } from '@/utils/rbac/permissions';
 
 const usageStore = useUsageStore();
 const route = useRoute();
 const router = useRouter();
 const uiStore = useUIStore();
-const toast = useToast();
 
 const queryParamCallback = ref<string>(
 	`callback=${encodeURIComponent(`${window.location.origin}${window.location.pathname}`)}`,
@@ -27,13 +25,8 @@ const activationKeyModal = ref(false);
 const activationKey = ref('');
 const activationKeyInput = ref<HTMLInputElement | null>(null);
 
-const canUserActivateLicense = computed(() =>
-	hasPermission(['rbac'], { rbac: { scope: 'license:manage' } }),
-);
-
 const showActivationSuccess = () => {
-	toast.showMessage({
-		type: 'success',
+	Notification.success({
 		title: locale.baseText('settings.usageAndPlan.license.activation.success.title'),
 		message: locale.baseText('settings.usageAndPlan.license.activation.success.message', {
 			interpolate: {
@@ -43,15 +36,16 @@ const showActivationSuccess = () => {
 					: locale.baseText('settings.usageAndPlan.edition'),
 			},
 		}),
+		position: 'bottom-right',
 	});
 };
 
 const showActivationError = (error: Error) => {
-	toast.showError(
-		error,
-		locale.baseText('settings.usageAndPlan.license.activation.error.title'),
-		error.message,
-	);
+	Notification.error({
+		title: locale.baseText('settings.usageAndPlan.license.activation.error.title'),
+		message: error.message,
+		position: 'bottom-right',
+	});
 };
 
 const onLicenseActivation = async () => {
@@ -82,7 +76,7 @@ onMounted(async () => {
 		}
 	}
 	try {
-		if (!route.query.key && canUserActivateLicense.value) {
+		if (!route.query.key && usageStore.canUserActivateLicense) {
 			await usageStore.refreshLicenseManagementToken();
 		} else {
 			await usageStore.getLicenseInfo();
@@ -92,7 +86,11 @@ onMounted(async () => {
 		if (!error.name) {
 			error.name = locale.baseText('settings.usageAndPlan.error');
 		}
-		toast.showError(error, error.name, error.message);
+		Notification.error({
+			title: error.name,
+			message: error.message,
+			position: 'bottom-right',
+		});
 	}
 });
 
@@ -108,7 +106,7 @@ const onAddActivationKey = () => {
 };
 
 const onViewPlans = () => {
-	void uiStore.goToUpgrade('usage_page', 'open');
+	uiStore.goToUpgrade('usage_page', 'open');
 	sendUsageTelemetry('view_plans');
 };
 
@@ -131,19 +129,19 @@ const openPricingPage = () => {
 </script>
 
 <template>
-	<div class="settings-usage-and-plan">
+	<div>
 		<n8n-heading size="2xlarge">{{ locale.baseText('settings.usageAndPlan.title') }}</n8n-heading>
 		<n8n-action-box
 			v-if="usageStore.isDesktop"
 			:class="$style.actionBox"
 			:heading="locale.baseText('settings.usageAndPlan.desktop.title')"
 			:description="locale.baseText('settings.usageAndPlan.desktop.description')"
-			:button-text="locale.baseText('settings.usageAndPlan.button.plans')"
-			@click:button="openPricingPage"
+			:buttonText="locale.baseText('settings.usageAndPlan.button.plans')"
+			@click="openPricingPage"
 		/>
 		<div v-if="!usageStore.isDesktop && !usageStore.isLoading">
 			<n8n-heading :class="$style.title" size="large">
-				<i18n-t keypath="settings.usageAndPlan.description" tag="span">
+				<i18n path="settings.usageAndPlan.description">
 					<template #name>{{ usageStore.planName }}</template>
 					<template #type>
 						<span v-if="usageStore.planId">{{
@@ -151,7 +149,7 @@ const openPricingPage = () => {
 						}}</span>
 						<span v-else>{{ locale.baseText('settings.usageAndPlan.edition') }}</span>
 					</template>
-				</i18n-t>
+				</i18n>
 			</n8n-heading>
 
 			<div :class="$style.quota">
@@ -165,11 +163,7 @@ const openPricingPage = () => {
 							:style="{ width: `${usageStore.executionPercentage}%` }"
 						></span>
 					</span>
-					<i18n-t
-						tag="span"
-						:class="$style.count"
-						keypath="settings.usageAndPlan.activeWorkflows.count"
-					>
+					<i18n :class="$style.count" path="settings.usageAndPlan.activeWorkflows.count">
 						<template #count>{{ usageStore.executionCount }}</template>
 						<template #limit>
 							<span v-if="usageStore.executionLimit < 0">{{
@@ -177,7 +171,7 @@ const openPricingPage = () => {
 							}}</span>
 							<span v-else>{{ usageStore.executionLimit }}</span>
 						</template>
-					</i18n-t>
+					</i18n>
 				</div>
 			</div>
 
@@ -187,20 +181,20 @@ const openPricingPage = () => {
 
 			<div :class="$style.buttons">
 				<n8n-button
-					v-if="canUserActivateLicense"
 					:class="$style.buttonTertiary"
+					@click="onAddActivationKey"
+					v-if="usageStore.canUserActivateLicense"
 					type="tertiary"
 					size="large"
-					@click="onAddActivationKey"
 				>
-					<span>{{ locale.baseText('settings.usageAndPlan.button.activation') }}</span>
+					<strong>{{ locale.baseText('settings.usageAndPlan.button.activation') }}</strong>
 				</n8n-button>
-				<n8n-button v-if="usageStore.managementToken" size="large" @click="onManagePlan">
+				<n8n-button v-if="usageStore.managementToken" @click="onManagePlan" size="large">
 					<a :href="managePlanUrl" target="_blank">{{
 						locale.baseText('settings.usageAndPlan.button.manage')
 					}}</a>
 				</n8n-button>
-				<n8n-button v-else size="large" @click.prevent="onViewPlans">
+				<n8n-button v-else @click="onViewPlans" size="large">
 					<a :href="viewPlansUrl" target="_blank">{{
 						locale.baseText('settings.usageAndPlan.button.plans')
 					}}</a>
@@ -208,26 +202,26 @@ const openPricingPage = () => {
 			</div>
 
 			<el-dialog
-				v-model="activationKeyModal"
 				width="480px"
 				top="0"
-				:title="locale.baseText('settings.usageAndPlan.dialog.activation.title')"
-				:modal-class="$style.center"
 				@closed="onDialogClosed"
 				@opened="onDialogOpened"
+				:visible.sync="activationKeyModal"
+				:title="locale.baseText('settings.usageAndPlan.dialog.activation.title')"
 			>
 				<template #default>
 					<n8n-input
 						ref="activationKeyInput"
 						v-model="activationKey"
+						size="medium"
 						:placeholder="locale.baseText('settings.usageAndPlan.dialog.activation.label')"
 					/>
 				</template>
 				<template #footer>
-					<n8n-button type="secondary" @click="activationKeyModal = false">
+					<n8n-button @click="activationKeyModal = false" size="medium" type="secondary">
 						{{ locale.baseText('settings.usageAndPlan.dialog.activation.cancel') }}
 					</n8n-button>
-					<n8n-button @click="onLicenseActivation">
+					<n8n-button @click="onLicenseActivation" size="medium">
 						{{ locale.baseText('settings.usageAndPlan.dialog.activation.activate') }}
 					</n8n-button>
 				</template>
@@ -237,11 +231,7 @@ const openPricingPage = () => {
 </template>
 
 <style lang="scss" module>
-@import '@/styles/variables';
-
-.center > div {
-	justify-content: center;
-}
+@import '@/styles/css-animation-helpers.scss';
 
 .actionBox {
 	margin: var(--spacing-2xl) 0 0;
@@ -267,7 +257,7 @@ const openPricingPage = () => {
 	margin: 0 0 var(--spacing-xs);
 	background: var(--color-background-xlight);
 	border-radius: var(--border-radius-large);
-	border: 1px solid var(--color-foreground-base);
+	border: 1px solid var(--color-light-grey);
 	white-space: nowrap;
 
 	.count {
@@ -324,22 +314,27 @@ div[class*='info'] > span > span:last-child {
 	line-height: 1.4;
 	padding: 0 0 0 var(--spacing-4xs);
 }
+
+.buttonTertiary {
+	&,
+	&:hover {
+		background: transparent;
+	}
+}
 </style>
 
 <style lang="scss" scoped>
-.settings-usage-and-plan {
-	:deep(.el-dialog__wrapper) {
-		display: flex;
-		align-items: center;
-		justify-content: center;
+:deep(.el-dialog__wrapper) {
+	display: flex;
+	align-items: center;
+	justify-content: center;
 
-		.el-dialog {
-			margin: 0;
+	.el-dialog {
+		margin: 0;
 
-			.el-dialog__footer {
-				button {
-					margin-left: var(--spacing-xs);
-				}
+		.el-dialog__footer {
+			button {
+				margin-left: var(--spacing-xs);
 			}
 		}
 	}

@@ -2,23 +2,22 @@
 	<div class="titled-list">
 		<p v-text="title" />
 		<ul>
-			<li v-for="item in items" :key="item" class="titled-list-item" v-html="item" />
+			<li v-for="item in items" class="titled-list-item" :key="item" v-html="item" />
 		</ul>
 	</div>
 </template>
 
 <script lang="ts">
-import { type PropType, defineComponent } from 'vue';
+import { defineComponent } from 'vue';
 
 export default defineComponent({
 	name: 'TitledList',
 	props: {
 		title: {
 			type: String,
-			required: true,
 		},
 		items: {
-			type: Array as PropType<string[]>,
+			type: Array,
 			default: () => [],
 		},
 	},

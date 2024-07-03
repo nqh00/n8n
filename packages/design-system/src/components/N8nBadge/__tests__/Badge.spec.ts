@@ -14,9 +14,7 @@ describe('components', () => {
 					slots: {
 						default: '<n8n-text>Default badge</n8n-text>',
 					},
-					global: {
-						stubs: ['n8n-text'],
-					},
+					stubs: ['n8n-text'],
 				});
 				expect(wrapper.html()).toMatchSnapshot();
 			});
@@ -30,9 +28,7 @@ describe('components', () => {
 					slots: {
 						default: '<n8n-text>Secondary badge</n8n-text>',
 					},
-					global: {
-						stubs: ['n8n-text'],
-					},
+					stubs: ['n8n-text'],
 				});
 				expect(wrapper.html()).toMatchSnapshot();
 			});
@@ -41,9 +37,7 @@ describe('components', () => {
 					slots: {
 						default: '<n8n-text>A Badge</n8n-text>',
 					},
-					global: {
-						stubs: ['n8n-text'],
-					},
+					stubs: ['n8n-text'],
 				});
 				expect(wrapper.html()).toMatchSnapshot();
 			});

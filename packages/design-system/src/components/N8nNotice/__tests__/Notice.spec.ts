@@ -1,6 +1,5 @@
 import { render } from '@testing-library/vue';
 import N8nNotice from '../Notice.vue';
-import { N8nText } from 'n8n-design-system/components';
 
 describe('components', () => {
 	describe('N8nNotice', () => {
@@ -12,9 +11,7 @@ describe('components', () => {
 				slots: {
 					default: 'This is a notice.',
 				},
-				global: {
-					stubs: ['n8n-text'],
-				},
+				stubs: ['n8n-text'],
 			});
 			expect(wrapper.html()).toMatchSnapshot();
 		});
@@ -27,9 +24,7 @@ describe('components', () => {
 							id: 'notice',
 							content: 'This is a notice.',
 						},
-						global: {
-							stubs: ['n8n-text'],
-						},
+						stubs: ['n8n-text'],
 					});
 					expect(wrapper.html()).toMatchSnapshot();
 				});
@@ -40,11 +35,7 @@ describe('components', () => {
 							id: 'notice',
 							content: '<strong>Hello world!</strong> This is a notice.',
 						},
-						global: {
-							components: {
-								'n8n-text': N8nText,
-							},
-						},
+						stubs: ['n8n-text'],
 					});
 
 					expect(wrapper.container.querySelectorAll('strong')).toHaveLength(1);
@@ -57,9 +48,7 @@ describe('components', () => {
 							id: 'notice',
 							content: '<script>alert(1);</script> This is a notice.',
 						},
-						global: {
-							stubs: ['n8n-text'],
-						},
+						stubs: ['n8n-text'],
 					});
 
 					expect(wrapper.container.querySelector('script')).not.toBeTruthy();

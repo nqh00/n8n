@@ -1,10 +1,6 @@
-import type {
-	IDataObject,
-	IExecuteFunctions,
-	IHttpRequestMethods,
-	ILoadOptionsFunctions,
-	IRequestOptions,
-} from 'n8n-workflow';
+import type { IDataObject, IExecuteFunctions, ILoadOptionsFunctions } from 'n8n-workflow';
+
+import type { OptionsWithUri } from 'request';
 
 import flow from 'lodash/flow';
 import omit from 'lodash/omit';
@@ -21,12 +17,12 @@ import type {
 
 export async function actionNetworkApiRequest(
 	this: IExecuteFunctions | ILoadOptionsFunctions,
-	method: IHttpRequestMethods,
+	method: string,
 	endpoint: string,
 	body: IDataObject = {},
 	qs: IDataObject = {},
 ) {
-	const options: IRequestOptions = {
+	const options: OptionsWithUri = {
 		method,
 		body,
 		qs,
@@ -42,7 +38,7 @@ export async function actionNetworkApiRequest(
 		delete options.qs;
 	}
 
-	return await this.helpers.requestWithAuthentication.call(this, 'actionNetworkApi', options);
+	return this.helpers.requestWithAuthentication.call(this, 'actionNetworkApi', options);
 }
 
 /**
@@ -63,7 +59,7 @@ const toItemsKey = (endpoint: string) => {
 
 export async function handleListing(
 	this: IExecuteFunctions | ILoadOptionsFunctions,
-	method: IHttpRequestMethods,
+	method: string,
 	endpoint: string,
 	body: IDataObject = {},
 	qs: IDataObject = {},
@@ -81,13 +77,7 @@ export async function handleListing(
 	const itemsKey = toItemsKey(endpoint);
 
 	do {
-		responseData = await actionNetworkApiRequest.call(
-			this,
-			method as IHttpRequestMethods,
-			endpoint,
-			body,
-			qs,
-		);
+		responseData = await actionNetworkApiRequest.call(this, method, endpoint, body, qs);
 		const items = responseData._embedded[itemsKey];
 		returnData.push(...(items as IDataObject[]));
 
@@ -228,7 +218,7 @@ export const adjustEventPayload = adjustLocation;
 // ----------------------------------------
 
 async function loadResource(this: ILoadOptionsFunctions, resource: string) {
-	return await handleListing.call(this, 'GET', `/${resource}`, {}, {}, { returnAll: true });
+	return handleListing.call(this, 'GET', `/${resource}`, {}, {}, { returnAll: true });
 }
 
 export const resourceLoaders = {

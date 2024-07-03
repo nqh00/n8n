@@ -1,11 +1,12 @@
+import type { OptionsWithUrl } from 'request';
+
 import type {
 	IDataObject,
 	IExecuteFunctions,
+	IExecuteSingleFunctions,
 	IHookFunctions,
 	ILoadOptionsFunctions,
 	JsonObject,
-	IRequestOptions,
-	IHttpRequestMethods,
 } from 'n8n-workflow';
 import { NodeApiError } from 'n8n-workflow';
 
@@ -20,8 +21,8 @@ const fieldCache: {
 } = {};
 
 export async function egoiApiRequest(
-	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions,
-	method: IHttpRequestMethods,
+	this: IHookFunctions | IExecuteFunctions | IExecuteSingleFunctions | ILoadOptionsFunctions,
+	method: string,
 	endpoint: string,
 
 	body: any = {},
@@ -30,7 +31,7 @@ export async function egoiApiRequest(
 ): Promise<any> {
 	const credentials = await this.getCredentials('egoiApi');
 
-	const options: IRequestOptions = {
+	const options: OptionsWithUrl = {
 		headers: {
 			accept: 'application/json',
 			Apikey: `${credentials.apiKey}`,
@@ -64,7 +65,7 @@ export async function getFields(this: IExecuteFunctions, listId: string) {
 export async function egoiApiRequestAllItems(
 	this: IExecuteFunctions | ILoadOptionsFunctions,
 	propertyName: string,
-	method: IHttpRequestMethods,
+	method: string,
 	endpoint: string,
 
 	body: any = {},

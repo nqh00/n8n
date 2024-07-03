@@ -4,9 +4,9 @@
 
 <script lang="ts">
 import { defineComponent } from 'vue';
-import type { NotificationHandle } from 'element-plus';
-import { sanitizeHtml } from '@/utils/htmlUtils';
-import { useToast } from '@/composables/useToast';
+import type { ElNotificationComponent } from 'element-ui/types/notification';
+import { sanitizeHtml } from '@/utils';
+import { useToast } from '@/composables';
 
 export default defineComponent({
 	name: 'PageAlert',
@@ -21,16 +21,16 @@ export default defineComponent({
 	},
 	setup() {
 		return {
-			toast: useToast(),
+			...useToast(),
 		};
 	},
 	data() {
 		return {
-			alert: null as NotificationHandle | null,
+			alert: null as null | ElNotificationComponent,
 		};
 	},
 	mounted() {
-		this.alert = this.toast.showAlert({
+		this.alert = this.showAlert({
 			title: '',
 			message: sanitizeHtml(this.message),
 			type: 'warning',
@@ -40,7 +40,7 @@ export default defineComponent({
 			customClass: this.popupClass || '',
 		});
 	},
-	beforeUnmount() {
+	beforeDestroy() {
 		if (this.alert) {
 			this.alert.close();
 		}

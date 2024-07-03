@@ -74,27 +74,7 @@ export class ApiTemplateIo implements INodeType {
 				],
 				displayOptions: {
 					show: {
-						resource: ['image'],
-					},
-				},
-			},
-			{
-				displayName: 'Operation',
-				name: 'operation',
-				type: 'options',
-				noDataExpression: true,
-				default: 'create',
-				required: true,
-				options: [
-					{
-						name: 'Create',
-						value: 'create',
-						action: 'Create a pdf',
-					},
-				],
-				displayOptions: {
-					show: {
-						resource: ['pdf'],
+						resource: ['image', 'pdf'],
 					},
 				},
 			},
@@ -181,12 +161,12 @@ export class ApiTemplateIo implements INodeType {
 				description: 'Name of the binary property to which to write the data of the read file',
 			},
 			{
-				displayName: 'Put Output File in Field',
+				displayName: 'Binary Property',
 				name: 'binaryProperty',
 				type: 'string',
 				required: true,
 				default: 'data',
-				hint: 'The name of the output binary field to put the file in',
+				description: 'Name of the binary property to which to write to',
 				displayOptions: {
 					show: {
 						resource: ['pdf', 'image'],
@@ -350,11 +330,11 @@ export class ApiTemplateIo implements INodeType {
 	methods = {
 		loadOptions: {
 			async getImageTemplates(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
-				return await loadResource.call(this, 'image');
+				return loadResource.call(this, 'image');
 			},
 
 			async getPdfTemplates(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
-				return await loadResource.call(this, 'pdf');
+				return loadResource.call(this, 'pdf');
 			},
 		},
 	};
@@ -385,7 +365,7 @@ export class ApiTemplateIo implements INodeType {
 
 						returnData.push(responseData as IDataObject);
 					} catch (error) {
-						if (this.continueOnFail(error)) {
+						if (this.continueOnFail()) {
 							returnData.push({ json: { error: error.message } });
 							continue;
 						}
@@ -471,7 +451,7 @@ export class ApiTemplateIo implements INodeType {
 						}
 						returnData.push(responseData as IDataObject);
 					} catch (error) {
-						if (this.continueOnFail(error)) {
+						if (this.continueOnFail()) {
 							returnData.push({ json: { error: error.message } });
 							continue;
 						}
@@ -480,7 +460,7 @@ export class ApiTemplateIo implements INodeType {
 				}
 
 				if (download) {
-					return [returnData as unknown as INodeExecutionData[]];
+					return this.prepareOutputData(returnData as unknown as INodeExecutionData[]);
 				}
 			}
 		} else if (resource === 'pdf') {
@@ -561,7 +541,7 @@ export class ApiTemplateIo implements INodeType {
 						}
 						returnData.push(responseData as IDataObject);
 					} catch (error) {
-						if (this.continueOnFail(error)) {
+						if (this.continueOnFail()) {
 							returnData.push({ json: { error: error.message } });
 							continue;
 						}
@@ -569,7 +549,7 @@ export class ApiTemplateIo implements INodeType {
 					}
 				}
 				if (download) {
-					return [returnData as unknown as INodeExecutionData[]];
+					return this.prepareOutputData(returnData as unknown as INodeExecutionData[]);
 				}
 			}
 		}

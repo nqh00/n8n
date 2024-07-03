@@ -1,6 +1,11 @@
-import { Container } from 'typedi';
-import { Flags } from '@oclif/core';
-import { WorkflowRepository } from '@db/repositories/workflow.repository';
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable no-console */
+import { flags } from '@oclif/command';
+import type { FindOptionsWhere } from 'typeorm';
+import type { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
+import * as Db from '@/Db';
+import type { WorkflowEntity } from '@db/entities/WorkflowEntity';
 import { BaseCommand } from '../BaseCommand';
 
 export class UpdateWorkflowCommand extends BaseCommand {
@@ -12,60 +17,58 @@ export class UpdateWorkflowCommand extends BaseCommand {
 	];
 
 	static flags = {
-		help: Flags.help({ char: 'h' }),
-		active: Flags.string({
+		help: flags.help({ char: 'h' }),
+		active: flags.string({
 			description: 'Active state the workflow/s should be set to',
 		}),
-		all: Flags.boolean({
+		all: flags.boolean({
 			description: 'Operate on all workflows',
 		}),
-		id: Flags.string({
+		id: flags.string({
 			description: 'The ID of the workflow to operate on',
 		}),
 	};
 
 	async run() {
-		const { flags } = await this.parse(UpdateWorkflowCommand);
+		// eslint-disable-next-line @typescript-eslint/no-shadow
+		const { flags } = this.parse(UpdateWorkflowCommand);
 
 		if (!flags.all && !flags.id) {
-			this.logger.error('Either option "--all" or "--id" have to be set!');
+			console.info('Either option "--all" or "--id" have to be set!');
 			return;
 		}
 
 		if (flags.all && flags.id) {
-			this.logger.error(
+			console.info(
 				'Either something else on top should be "--all" or "--id" can be set never both!',
 			);
 			return;
 		}
 
+		const updateQuery: QueryDeepPartialEntity<WorkflowEntity> = {};
 		if (flags.active === undefined) {
-			this.logger.error('No update flag like "--active=true" has been set!');
+			console.info('No update flag like "--active=true" has been set!');
 			return;
 		}
 
 		if (!['false', 'true'].includes(flags.active)) {
-			this.logger.error('Valid values for flag "--active" are only "false" or "true"!');
+			console.info('Valid values for flag "--active" are only "false" or "true"!');
 			return;
 		}
 
-		const newState = flags.active === 'true';
-		const action = newState ? 'Activating' : 'Deactivating';
+		updateQuery.active = flags.active === 'true';
 
+		const findQuery: FindOptionsWhere<WorkflowEntity> = {};
 		if (flags.id) {
-			this.logger.info(`${action} workflow with ID: ${flags.id}`);
-			await Container.get(WorkflowRepository).updateActiveState(flags.id, newState);
+			this.logger.info(`Deactivating workflow with ID: ${flags.id}`);
+			findQuery.id = flags.id;
 		} else {
-			this.logger.info(`${action} all workflows`);
-			if (newState) {
-				await Container.get(WorkflowRepository).activateAll();
-			} else {
-				await Container.get(WorkflowRepository).deactivateAll();
-			}
+			this.logger.info('Deactivating all workflows');
+			findQuery.active = true;
 		}
 
-		this.logger.info('Activation or deactivation will not take effect if n8n is running.');
-		this.logger.info('Please restart n8n for changes to take effect if n8n is currently running.');
+		await Db.collections.Workflow.update(findQuery, updateQuery);
+		this.logger.info('Done');
 	}
 
 	async catch(error: Error) {

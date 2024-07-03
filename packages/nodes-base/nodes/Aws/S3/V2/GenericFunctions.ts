@@ -9,13 +9,12 @@ import type {
 	ILoadOptionsFunctions,
 	IWebhookFunctions,
 	IHttpRequestOptions,
-	IHttpRequestMethods,
 } from 'n8n-workflow';
 
 export async function awsApiRequest(
 	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions | IWebhookFunctions,
 	service: string,
-	method: IHttpRequestMethods,
+	method: string,
 	path: string,
 	body?: string | Buffer | any,
 	query: IDataObject = {},
@@ -29,24 +28,22 @@ export async function awsApiRequest(
 			service,
 			path,
 			query,
-			_region,
 		},
 		method,
 		body,
 		url: '',
 		headers,
 	} as IHttpRequestOptions;
-
 	if (Object.keys(option).length !== 0) {
 		Object.assign(requestOptions, option);
 	}
-	return await this.helpers.requestWithAuthentication.call(this, 'aws', requestOptions);
+	return this.helpers.requestWithAuthentication.call(this, 'aws', requestOptions);
 }
 
 export async function awsApiRequestREST(
 	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions,
 	service: string,
-	method: IHttpRequestMethods,
+	method: string,
 	path: string,
 	body?: string | Buffer | any,
 	query: IDataObject = {},
@@ -86,7 +83,7 @@ export async function awsApiRequestRESTAllItems(
 	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions,
 	propertyName: string,
 	service: string,
-	method: IHttpRequestMethods,
+	method: string,
 	path: string,
 	body?: string,
 	query: IDataObject = {},
@@ -110,11 +107,11 @@ export async function awsApiRequestRESTAllItems(
 			region,
 		);
 		//https://forums.aws.amazon.com/thread.jspa?threadID=55746
-		if (get(responseData, [propertyName.split('.')[0], 'NextContinuationToken'])) {
-			query['continuation-token'] = get(responseData, [
-				propertyName.split('.')[0],
-				'NextContinuationToken',
-			]);
+		if (get(responseData, `${propertyName.split('.')[0]}.NextContinuationToken`)) {
+			query['continuation-token'] = get(
+				responseData,
+				`${propertyName.split('.')[0]}.NextContinuationToken`,
+			);
 		}
 		if (get(responseData, propertyName)) {
 			if (Array.isArray(get(responseData, propertyName))) {
@@ -128,8 +125,8 @@ export async function awsApiRequestRESTAllItems(
 			return returnData;
 		}
 	} while (
-		get(responseData, [propertyName.split('.')[0], 'IsTruncated']) !== undefined &&
-		get(responseData, [propertyName.split('.')[0], 'IsTruncated']) !== 'false'
+		get(responseData, `${propertyName.split('.')[0]}.IsTruncated`) !== undefined &&
+		get(responseData, `${propertyName.split('.')[0]}.IsTruncated`) !== 'false'
 	);
 	return returnData;
 }

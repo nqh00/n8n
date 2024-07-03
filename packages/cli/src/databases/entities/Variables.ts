@@ -1,8 +1,25 @@
-import { Column, Entity } from '@n8n/typeorm';
-import { WithStringId } from './AbstractEntity';
+import { BeforeInsert, Column, Entity, PrimaryColumn } from 'typeorm';
+import { generateNanoId } from '../utils/generators';
 
 @Entity()
-export class Variables extends WithStringId {
+export class Variables {
+	constructor(data?: Partial<Variables>) {
+		Object.assign(this, data);
+		if (!this.id) {
+			this.id = generateNanoId();
+		}
+	}
+
+	@BeforeInsert()
+	nanoId() {
+		if (!this.id) {
+			this.id = generateNanoId();
+		}
+	}
+
+	@PrimaryColumn('varchar')
+	id: string;
+
 	@Column('text')
 	key: string;
 

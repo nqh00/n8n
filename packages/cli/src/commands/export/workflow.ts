@@ -1,10 +1,10 @@
-import { Flags } from '@oclif/core';
+import { flags } from '@oclif/command';
 import fs from 'fs';
 import path from 'path';
+import type { FindOptionsWhere } from 'typeorm';
+import * as Db from '@/Db';
+import type { WorkflowEntity } from '@db/entities/WorkflowEntity';
 import { BaseCommand } from '../BaseCommand';
-import { WorkflowRepository } from '@db/repositories/workflow.repository';
-import Container from 'typedi';
-import { ApplicationError } from 'n8n-workflow';
 
 export class ExportWorkflowsCommand extends BaseCommand {
 	static description = 'Export workflows';
@@ -17,33 +17,33 @@ export class ExportWorkflowsCommand extends BaseCommand {
 	];
 
 	static flags = {
-		help: Flags.help({ char: 'h' }),
-		all: Flags.boolean({
+		help: flags.help({ char: 'h' }),
+		all: flags.boolean({
 			description: 'Export all workflows',
 		}),
-		backup: Flags.boolean({
+		backup: flags.boolean({
 			description:
 				'Sets --all --pretty --separate for simple backups. Only --output has to be set additionally.',
 		}),
-		id: Flags.string({
+		id: flags.string({
 			description: 'The ID of the workflow to export',
 		}),
-		output: Flags.string({
+		output: flags.string({
 			char: 'o',
 			description: 'Output file name or directory if using separate files',
 		}),
-		pretty: Flags.boolean({
+		pretty: flags.boolean({
 			description: 'Format the output in an easier to read fashion',
 		}),
-		separate: Flags.boolean({
+		separate: flags.boolean({
 			description:
 				'Exports one file per workflow (useful for versioning). Must inform a directory via --output.',
 		}),
 	};
 
-	// eslint-disable-next-line complexity
 	async run() {
-		const { flags } = await this.parse(ExportWorkflowsCommand);
+		// eslint-disable-next-line @typescript-eslint/no-shadow
+		const { flags } = this.parse(ExportWorkflowsCommand);
 
 		if (flags.backup) {
 			flags.all = true;
@@ -99,13 +99,18 @@ export class ExportWorkflowsCommand extends BaseCommand {
 			}
 		}
 
-		const workflows = await Container.get(WorkflowRepository).find({
-			where: flags.id ? { id: flags.id } : {},
+		const findQuery: FindOptionsWhere<WorkflowEntity> = {};
+		if (flags.id) {
+			findQuery.id = flags.id;
+		}
+
+		const workflows = await Db.collections.Workflow.find({
+			where: findQuery,
 			relations: ['tags'],
 		});
 
 		if (workflows.length === 0) {
-			throw new ApplicationError('No workflows found with specified filters');
+			throw new Error('No workflows found with specified filters.');
 		}
 
 		if (flags.separate) {
@@ -114,6 +119,7 @@ export class ExportWorkflowsCommand extends BaseCommand {
 			for (i = 0; i < workflows.length; i++) {
 				fileContents = JSON.stringify(workflows[i], null, flags.pretty ? 2 : undefined);
 				const filename = `${
+					// eslint-disable-next-line @typescript-eslint/restrict-plus-operands, @typescript-eslint/no-non-null-assertion
 					(flags.output!.endsWith(path.sep) ? flags.output! : flags.output + path.sep) +
 					workflows[i].id
 				}.json`;

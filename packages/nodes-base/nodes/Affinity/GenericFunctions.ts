@@ -1,3 +1,5 @@
+import type { OptionsWithUri } from 'request';
+
 import type {
 	IDataObject,
 	IExecuteFunctions,
@@ -5,14 +7,12 @@ import type {
 	IHookFunctions,
 	IWebhookFunctions,
 	JsonObject,
-	IRequestOptions,
-	IHttpRequestMethods,
 } from 'n8n-workflow';
 import { BINARY_ENCODING, NodeApiError } from 'n8n-workflow';
 
 export async function affinityApiRequest(
 	this: IExecuteFunctions | IWebhookFunctions | IHookFunctions | ILoadOptionsFunctions,
-	method: IHttpRequestMethods,
+	method: string,
 	resource: string,
 	body: any = {},
 	query: IDataObject = {},
@@ -25,7 +25,7 @@ export async function affinityApiRequest(
 
 	const endpoint = 'https://api.affinity.co';
 
-	let options: IRequestOptions = {
+	let options: OptionsWithUri = {
 		headers: {
 			'Content-Type': 'application/json',
 			Authorization: `Basic ${Buffer.from(apiKey).toString(BINARY_ENCODING)}`,
@@ -53,7 +53,7 @@ export async function affinityApiRequest(
 export async function affinityApiRequestAllItems(
 	this: IHookFunctions | ILoadOptionsFunctions | IExecuteFunctions,
 	propertyName: string,
-	method: IHttpRequestMethods,
+	method: string,
 	resource: string,
 	body: any = {},
 	query: IDataObject = {},

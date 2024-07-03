@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { IUpdateInformation, DynamicNodeParameters } from '@/Interface';
-import { resolveRequiredParameters } from '@/composables/useWorkflowHelpers';
+import type { IUpdateInformation, ResourceMapperReqParams } from '@/Interface';
+import { resolveParameter } from '@/mixins/workflowHelpers';
 import { useNodeTypesStore } from '@/stores/nodeTypes.store';
 import type {
 	INode,
@@ -15,11 +15,9 @@ import { computed, onMounted, reactive, watch } from 'vue';
 import MappingModeSelect from './MappingModeSelect.vue';
 import MatchingColumnsSelect from './MatchingColumnsSelect.vue';
 import MappingFields from './MappingFields.vue';
-import { fieldCannotBeDeleted, parseResourceMapperFieldName } from '@/utils/nodeTypesUtils';
-import { isFullExecutionResponse, isResourceMapperValue } from '@/utils/typeGuards';
+import { fieldCannotBeDeleted, isResourceMapperValue, parseResourceMapperFieldName } from '@/utils';
 import { i18n as locale } from '@/plugins/i18n';
 import { useNDVStore } from '@/stores/ndv.store';
-import { useWorkflowsStore } from '@/stores/workflows.store';
 
 type Props = {
 	parameter: INodeProperties;
@@ -28,17 +26,12 @@ type Props = {
 	inputSize: string;
 	labelSize: string;
 	dependentParametersValues?: string | null;
-	teleported: boolean;
 };
 
 const nodeTypesStore = useNodeTypesStore();
 const ndvStore = useNDVStore();
-const workflowsStore = useWorkflowsStore();
 
-const props = withDefaults(defineProps<Props>(), {
-	teleported: true,
-	dependentParametersValues: null,
-});
+const props = defineProps<Props>();
 
 const emit = defineEmits<{
 	(event: 'valueChanged', value: IUpdateInformation): void;
@@ -70,21 +63,6 @@ watch(
 			emitValueChanged();
 			await initFetching();
 			setDefaultFieldValues(true);
-		}
-	},
-);
-
-// Reload fields to map when node is executed
-watch(
-	() => workflowsStore.getWorkflowExecution,
-	async (data) => {
-		if (
-			data &&
-			isFullExecutionResponse(data) &&
-			data.status === 'success' &&
-			state.paramValue.mappingMode === 'autoMapInputData'
-		) {
-			await initFetching(true);
 		}
 	},
 );
@@ -133,10 +111,7 @@ onMounted(async () => {
 			matchingColumns: nodeValues.matchingColumns,
 		};
 	}
-	if (!hasSchema) {
-		// Only fetch a schema if it's not already set
-		await initFetching();
-	}
+	await initFetching(hasSchema);
 	// Set default values if this is the first time the parameter is being set
 	if (!state.paramValue.value) {
 		setDefaultFieldValues();
@@ -192,7 +167,7 @@ const hasAvailableMatchingColumns = computed<boolean>(() => {
 		return (
 			state.paramValue.schema.filter(
 				(field) =>
-					(field.canBeUsedToMatch || field.defaultMatch) && field.display && field.removed !== true,
+					field.canBeUsedToMatch !== false && field.display !== false && field.removed !== true,
 			).length > 0
 		);
 	}
@@ -203,11 +178,11 @@ const defaultSelectedMatchingColumns = computed<string[]>(() => {
 	return state.paramValue.schema.length === 1
 		? [state.paramValue.schema[0].id]
 		: state.paramValue.schema.reduce((acc, field) => {
-				if (field.defaultMatch) {
+				if (field.defaultMatch && field.canBeUsedToMatch === true) {
 					acc.push(field.id);
 				}
 				return acc;
-			}, [] as string[]);
+		  }, [] as string[]);
 });
 
 const pluralFieldWord = computed<string>(() => {
@@ -217,9 +192,9 @@ const pluralFieldWord = computed<string>(() => {
 	);
 });
 
-async function initFetching(inlineLoading = false): Promise<void> {
+async function initFetching(inlineLading = false): Promise<void> {
 	state.loadingError = false;
-	if (inlineLoading) {
+	if (inlineLading) {
 		state.refreshInProgress = true;
 	} else {
 		state.loading = true;
@@ -241,23 +216,14 @@ async function loadFieldsToMap(): Promise<void> {
 	if (!props.node) {
 		return;
 	}
-
-	const methodName = props.parameter.typeOptions?.resourceMapper?.resourceMapperMethod;
-	if (typeof methodName !== 'string') {
-		return;
-	}
-
-	const requestParams: DynamicNodeParameters.ResourceMapperFieldsRequest = {
+	const requestParams: ResourceMapperReqParams = {
 		nodeTypeAndVersion: {
 			name: props.node?.type,
 			version: props.node.typeVersion,
 		},
-		currentNodeParameters: resolveRequiredParameters(
-			props.parameter,
-			props.node.parameters,
-		) as INodeParameters,
+		currentNodeParameters: resolveParameter(props.node.parameters) as INodeParameters,
 		path: props.path,
-		methodName,
+		methodName: props.parameter.typeOptions?.resourceMapper?.resourceMapperMethod,
 		credentials: props.node.credentials,
 	};
 	const fetchedFields = await nodeTypesStore.getResourceMapperFields(requestParams);
@@ -322,7 +288,7 @@ function setDefaultFieldValues(forceMatchingFieldsUpdate = false): void {
 function updateNodeIssues(): void {
 	if (props.node) {
 		const parameterIssues = NodeHelpers.getNodeParametersIssues(
-			nodeType.value?.properties ?? [],
+			nodeType.value?.properties || [],
 			props.node,
 		);
 		if (parameterIssues) {
@@ -331,10 +297,10 @@ function updateNodeIssues(): void {
 	}
 }
 
-function onMatchingColumnsChanged(columns: string[]): void {
+function onMatchingColumnsChanged(matchingColumns: string[]): void {
 	state.paramValue = {
 		...state.paramValue,
-		matchingColumns: columns,
+		matchingColumns,
 	};
 	// Set all matching fields to be visible
 	state.paramValue.schema.forEach((field) => {
@@ -374,37 +340,15 @@ function removeField(name: string): void {
 	}
 	const fieldName = parseResourceMapperFieldName(name);
 	if (fieldName) {
-		const field = state.paramValue.schema.find((f) => f.id === fieldName);
-		if (field) {
-			deleteField(field);
+		if (state.paramValue.value) {
+			delete state.paramValue.value[fieldName];
+			const field = state.paramValue.schema.find((f) => f.id === fieldName);
+			if (field) {
+				field.removed = true;
+				state.paramValue.schema.splice(state.paramValue.schema.indexOf(field), 1, field);
+			}
 			emitValueChanged();
 		}
-	}
-}
-
-function removeAllFields(): void {
-	state.paramValue.schema.forEach((field) => {
-		if (
-			!fieldCannotBeDeleted(
-				field,
-				showMatchingColumnsSelector.value,
-				resourceMapperMode.value,
-				matchingColumns.value,
-			)
-		) {
-			deleteField(field);
-		}
-	});
-	emitValueChanged();
-}
-
-// Delete a single field from the mapping (set removed flag to true and delete from value)
-// Used when removing one or all fields
-function deleteField(field: ResourceMapperField): void {
-	if (state.paramValue.value) {
-		delete state.paramValue.value[field.id];
-		field.removed = true;
-		state.paramValue.schema.splice(state.paramValue.schema.indexOf(field), 1, field);
 	}
 }
 
@@ -443,6 +387,23 @@ function addAllFields(): void {
 	emitValueChanged();
 }
 
+function removeAllFields(): void {
+	state.paramValue.schema.forEach((field) => {
+		if (
+			!fieldCannotBeDeleted(
+				field,
+				showMatchingColumnsSelector.value,
+				resourceMapperMode.value,
+				matchingColumns.value,
+			)
+		) {
+			field.removed = true;
+			state.paramValue.schema.splice(state.paramValue.schema.indexOf(field), 1, field);
+		}
+	});
+	emitValueChanged();
+}
+
 function emitValueChanged(): void {
 	pruneParamValues();
 	emit('valueChanged', {
@@ -454,17 +415,15 @@ function emitValueChanged(): void {
 }
 
 function pruneParamValues(): void {
-	const { value, schema } = state.paramValue;
-	if (!value) {
+	if (!state.paramValue.value) {
 		return;
 	}
-
-	const schemaKeys = new Set(schema.map((s) => s.id));
-	for (const key of Object.keys(value)) {
-		if (value[key] === null || !schemaKeys.has(key)) {
-			delete value[key];
+	const valueKeys = Object.keys(state.paramValue.value);
+	valueKeys.forEach((key) => {
+		if (state.paramValue.value && state.paramValue.value[key] === null) {
+			delete state.paramValue.value[key];
 		}
-	}
+	});
 }
 
 defineExpose({
@@ -474,34 +433,29 @@ defineExpose({
 
 <template>
 	<div class="mt-4xs" data-test-id="resource-mapper-container">
-		<MappingModeSelect
+		<mapping-mode-select
 			v-if="showMappingModeSelect"
-			:input-size="inputSize"
-			:label-size="labelSize"
-			:initial-value="state.paramValue.mappingMode || 'defineBelow'"
-			:type-options="props.parameter.typeOptions"
-			:service-name="nodeType?.displayName || locale.baseText('generic.service')"
+			:inputSize="inputSize"
+			:labelSize="labelSize"
+			:initialValue="state.paramValue.mappingMode || 'defineBelow'"
+			:typeOptions="props.parameter.typeOptions"
+			:serviceName="nodeType?.displayName || locale.baseText('generic.service')"
 			:loading="state.loading"
-			:loading-error="state.loadingError"
-			:fields-to-map="state.paramValue.schema"
-			:teleported="teleported"
-			@mode-changed="onModeChanged"
-			@retry-fetch="initFetching"
+			:loadingError="state.loadingError"
+			:fieldsToMap="state.paramValue.schema"
+			@modeChanged="onModeChanged"
+			@retryFetch="initFetching"
 		/>
-		<MatchingColumnsSelect
+		<matching-columns-select
 			v-if="showMatchingColumnsSelector"
-			:parameter="props.parameter"
 			:label-size="labelSize"
-			:fields-to-map="state.paramValue.schema"
-			:type-options="props.parameter.typeOptions"
-			:input-size="inputSize"
+			:fieldsToMap="state.paramValue.schema"
+			:typeOptions="props.parameter.typeOptions"
+			:inputSize="inputSize"
 			:loading="state.loading"
-			:initial-value="matchingColumns"
-			:service-name="nodeType?.displayName || locale.baseText('generic.service')"
-			:teleported="teleported"
-			:refresh-in-progress="state.refreshInProgress"
-			@matching-columns-changed="onMatchingColumnsChanged"
-			@refresh-field-list="initFetching(true)"
+			:initialValue="matchingColumns"
+			:serviceName="nodeType?.displayName || locale.baseText('generic.service')"
+			@matchingColumnsChanged="onMatchingColumnsChanged"
 		/>
 		<n8n-text v-if="!showMappingModeSelect && state.loading" size="small">
 			<n8n-icon icon="sync-alt" size="xsmall" :spin="true" />
@@ -513,23 +467,22 @@ defineExpose({
 				})
 			}}
 		</n8n-text>
-		<MappingFields
+		<mapping-fields
 			v-if="showMappingFields"
 			:parameter="props.parameter"
 			:path="props.path"
-			:node-values="state.parameterValues"
-			:fields-to-map="state.paramValue.schema"
-			:param-value="state.paramValue"
-			:label-size="labelSize"
-			:show-matching-columns-selector="showMatchingColumnsSelector"
-			:show-mapping-mode-select="showMappingModeSelect"
+			:nodeValues="state.parameterValues"
+			:fieldsToMap="state.paramValue.schema"
+			:paramValue="state.paramValue"
+			:labelSize="labelSize"
+			:showMatchingColumnsSelector="showMatchingColumnsSelector"
+			:showMappingModeSelect="showMappingModeSelect"
 			:loading="state.loading"
-			:teleported="teleported"
-			:refresh-in-progress="state.refreshInProgress"
-			@field-value-changed="fieldValueChanged"
-			@remove-field="removeField"
-			@add-field="addField"
-			@refresh-field-list="initFetching(true)"
+			:refreshInProgress="state.refreshInProgress"
+			@fieldValueChanged="fieldValueChanged"
+			@removeField="removeField"
+			@addField="addField"
+			@refreshFieldList="initFetching(true)"
 		/>
 		<n8n-notice
 			v-if="state.paramValue.mappingMode === 'autoMapInputData' && hasAvailableMatchingColumns"

@@ -4,8 +4,7 @@ import type {
 	INodeType,
 	INodeTypeDescription,
 } from 'n8n-workflow';
-import { ApplicationError, NodeApiError, NodeOperationError } from 'n8n-workflow';
-import { setSeed, array as mfArray } from 'minifaker';
+import { NodeApiError, NodeOperationError } from 'n8n-workflow';
 import {
 	generateCreditCard,
 	generateIPv4,
@@ -20,13 +19,14 @@ import {
 	generateUUID,
 	generateVersion,
 } from './randomData';
+import { setSeed, array as mfArray } from 'minifaker';
 import { generateGarbageMemory, runGarbageCollector } from './functions';
 
 export class DebugHelper implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'DebugHelper',
 		name: 'debugHelper',
-		icon: { light: 'file:DebugHelper.svg', dark: 'file:DebugHelper.dark.svg' },
+		icon: 'file:DebugHelper.svg',
 		group: ['output'],
 		subtitle: '={{$parameter["category"]}}',
 		description: 'Causes problems intentionally and generates useful data for debugging',
@@ -273,7 +273,7 @@ export class DebugHelper implements INodeType {
 								});
 							case 'Error':
 								// eslint-disable-next-line n8n-nodes-base/node-execute-block-wrong-error-thrown
-								throw new ApplicationError(throwErrorMessage);
+								throw new Error(throwErrorMessage);
 							default:
 								break;
 						}
@@ -358,7 +358,7 @@ export class DebugHelper implements INodeType {
 						break;
 				}
 			} catch (error) {
-				if (this.continueOnFail(error)) {
+				if (this.continueOnFail()) {
 					const executionErrorData = this.helpers.constructExecutionMetaData(
 						this.helpers.returnJsonArray({ error: error.message }),
 						{ itemData: { item: i } },
@@ -369,6 +369,6 @@ export class DebugHelper implements INodeType {
 				throw error;
 			}
 		}
-		return [returnData];
+		return this.prepareOutputData(returnData);
 	}
 }

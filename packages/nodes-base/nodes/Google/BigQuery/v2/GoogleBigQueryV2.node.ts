@@ -1,5 +1,7 @@
+/* eslint-disable n8n-nodes-base/node-filename-against-convention */
+import type { IExecuteFunctions } from 'n8n-core';
+
 import type {
-	IExecuteFunctions,
 	INodeExecutionData,
 	INodeType,
 	INodeTypeBaseDescription,
@@ -23,6 +25,6 @@ export class GoogleBigQueryV2 implements INodeType {
 	methods = { loadOptions, listSearch };
 
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
-		return await router.call(this);
+		return router.call(this);
 	}
 }

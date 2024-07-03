@@ -1,16 +1,18 @@
-import type { IHttpRequestMethods, INodeTypes } from 'n8n-workflow';
+import type { INodeTypes } from 'n8n-workflow';
+
+import { getResultNodeData, setup, workflowToTests } from '../../../../../../../test/nodes/Helpers';
+import type { WorkflowTestData } from '../../../../../../../test/nodes/types';
+import { executeWorkflow } from '../../../../../../../test/nodes/ExecuteWorkflow';
+
+import * as transport from '../../../../v2/transport';
 
 import nock from 'nock';
-import * as transport from '../../../../v2/transport';
-import { getResultNodeData, setup, workflowToTests } from '@test/nodes/Helpers';
-import type { WorkflowTestData } from '@test/nodes/types';
-import { executeWorkflow } from '@test/nodes/ExecuteWorkflow';
 
 jest.mock('../../../../v2/transport', () => {
 	const originalModule = jest.requireActual('../../../../v2/transport');
 	return {
 		...originalModule,
-		microsoftApiRequest: jest.fn(async function (method: IHttpRequestMethods) {
+		microsoftApiRequest: jest.fn(async function (method: string) {
 			if (method === 'DELETE') {
 				return {
 					values: [
@@ -60,6 +62,6 @@ describe('Test MicrosoftExcelV2, worksheet => deleteWorksheet', () => {
 	};
 
 	for (const testData of tests) {
-		test(testData.description, async () => await testNode(testData, nodeTypes));
+		test(testData.description, async () => testNode(testData, nodeTypes));
 	}
 });

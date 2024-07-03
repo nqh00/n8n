@@ -1,15 +1,15 @@
+import type { OptionsWithUri } from 'request';
+
 import type {
 	IDataObject,
 	IExecuteFunctions,
 	IHookFunctions,
-	IHttpRequestMethods,
 	ILoadOptionsFunctions,
-	IRequestOptions,
 } from 'n8n-workflow';
 
 export async function apiRequest(
 	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions,
-	method: IHttpRequestMethods,
+	method: string,
 	endpoint: string,
 	body: object,
 	query?: IDataObject,
@@ -18,7 +18,7 @@ export async function apiRequest(
 
 	query = query || {};
 
-	const options: IRequestOptions = {
+	const options: OptionsWithUri = {
 		headers: {
 			Accept: 'application/json',
 		},
@@ -29,5 +29,5 @@ export async function apiRequest(
 		json: true,
 	};
 
-	return await this.helpers.requestWithAuthentication.call(this, 'wekanApi', options);
+	return this.helpers.requestWithAuthentication.call(this, 'wekanApi', options);
 }

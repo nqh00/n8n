@@ -1,13 +1,10 @@
-import type {
-	IDataObject,
-	IExecuteFunctions,
-	INodeExecutionData,
-	INodeProperties,
-} from 'n8n-workflow';
+import type { IExecuteFunctions } from 'n8n-core';
+import type { IDataObject, INodeExecutionData, INodeProperties } from 'n8n-workflow';
+
+import { updateDisplayOptions } from '../../../../../utils/utilities';
 
 import type {
 	PgpDatabase,
-	PostgresNodeOptions,
 	QueriesRunner,
 	QueryValues,
 	QueryWithValues,
@@ -23,7 +20,6 @@ import {
 	sortFixedCollection,
 	whereFixedCollection,
 } from '../common.descriptions';
-import { updateDisplayOptions } from '@utils/utilities';
 
 const properties: INodeProperties[] = [
 	{
@@ -76,7 +72,7 @@ export async function execute(
 	this: IExecuteFunctions,
 	runQueries: QueriesRunner,
 	items: INodeExecutionData[],
-	nodeOptions: PostgresNodeOptions,
+	nodeOptions: IDataObject,
 	_db?: PgpDatabase,
 ): Promise<INodeExecutionData[]> {
 	items = replaceEmptyStringsByNulls(items, nodeOptions.replaceEmptyStrings as boolean);
@@ -134,5 +130,5 @@ export async function execute(
 		queries.push(queryWithValues);
 	}
 
-	return await runQueries(queries, items, nodeOptions);
+	return runQueries(queries, items, nodeOptions);
 }

@@ -74,6 +74,7 @@ export const rowFields: INodeProperties[] = [
 	...getFilters(['row'], ['update'], {
 		includeNoneOption: false,
 		filterTypeDisplayName: 'Select Type',
+		filterStringDisplayName: 'Select Condition (String)',
 		filterFixedCollectionDisplayName: 'Select Conditions',
 		mustMatchOptions: [
 			{
@@ -176,6 +177,7 @@ export const rowFields: INodeProperties[] = [
 	...getFilters(['row'], ['delete'], {
 		includeNoneOption: false,
 		filterTypeDisplayName: 'Select Type',
+		filterStringDisplayName: 'Select Condition (String)',
 		filterFixedCollectionDisplayName: 'Select Conditions',
 		mustMatchOptions: [
 			{

@@ -1,48 +1,55 @@
-import { Container } from 'typedi';
+import type { Application } from 'express';
+import type { SuperAgentTest } from 'supertest';
 import validator from 'validator';
-
 import config from '@/config';
+import * as Db from '@/Db';
 import { AUTH_COOKIE_NAME } from '@/constants';
+import type { Role } from '@db/entities/Role';
 import type { User } from '@db/entities/User';
-import { UserRepository } from '@db/repositories/user.repository';
-import { MfaService } from '@/Mfa/mfa.service';
-
 import { LOGGED_OUT_RESPONSE_BODY } from './shared/constants';
 import { randomValidPassword } from './shared/random';
 import * as testDb from './shared/testDb';
-import * as utils from './shared/utils/';
-import { createUser, createUserShell } from './shared/db/users';
-import type { SuperAgentTest } from './shared/types';
+import type { AuthAgent } from './shared/types';
+import * as utils from './shared/utils';
 
+let app: Application;
+let globalOwnerRole: Role;
+let globalMemberRole: Role;
 let owner: User;
+let authAgent: AuthAgent;
+let authlessAgent: SuperAgentTest;
 let authOwnerAgent: SuperAgentTest;
 const ownerPassword = randomValidPassword();
 
-const testServer = utils.setupTestServer({ endpointGroups: ['auth'] });
-const license = testServer.license;
-
-let mfaService: MfaService;
-
 beforeAll(async () => {
-	mfaService = Container.get(MfaService);
+	app = await utils.initTestServer({ endpointGroups: ['auth'] });
+	authAgent = utils.createAuthAgent(app);
+
+	globalOwnerRole = await testDb.getGlobalOwnerRole();
+	globalMemberRole = await testDb.getGlobalMemberRole();
 });
 
 beforeEach(async () => {
 	await testDb.truncate(['User']);
+	authlessAgent = utils.createAgent(app);
 	config.set('ldap.disabled', true);
 	await utils.setInstanceOwnerSetUp(true);
 });
 
+afterAll(async () => {
+	await testDb.terminate();
+});
+
 describe('POST /login', () => {
 	beforeEach(async () => {
-		owner = await createUser({
+		owner = await testDb.createUser({
 			password: ownerPassword,
-			role: 'global:owner',
+			globalRole: globalOwnerRole,
 		});
 	});
 
 	test('should log user in', async () => {
-		const response = await testServer.authlessAgent.post('/login').send({
+		const response = await authlessAgent.post('/login').send({
 			email: owner.email,
 			password: ownerPassword,
 		});
@@ -56,11 +63,9 @@ describe('POST /login', () => {
 			lastName,
 			password,
 			personalizationAnswers,
-			role,
+			globalRole,
+			resetPasswordToken,
 			apiKey,
-			globalScopes,
-			mfaSecret,
-			mfaRecoveryCodes,
 		} = response.body.data;
 
 		expect(validator.isUUID(id)).toBe(true);
@@ -70,88 +75,20 @@ describe('POST /login', () => {
 		expect(password).toBeUndefined();
 		expect(personalizationAnswers).toBeNull();
 		expect(password).toBeUndefined();
-		expect(role).toBe('global:owner');
+		expect(resetPasswordToken).toBeUndefined();
+		expect(globalRole).toBeDefined();
+		expect(globalRole.name).toBe('owner');
+		expect(globalRole.scope).toBe('global');
 		expect(apiKey).toBeUndefined();
-		expect(globalScopes).toBeDefined();
-		expect(mfaRecoveryCodes).toBeUndefined();
-		expect(mfaSecret).toBeUndefined();
 
 		const authToken = utils.getAuthToken(response);
 		expect(authToken).toBeDefined();
-	});
-
-	test('should log user with MFA enabled', async () => {
-		const secret = 'test';
-		const recoveryCodes = ['1'];
-		await mfaService.saveSecretAndRecoveryCodes(owner.id, secret, recoveryCodes);
-		await mfaService.enableMfa(owner.id);
-
-		const response = await testServer.authlessAgent.post('/login').send({
-			email: owner.email,
-			password: ownerPassword,
-			mfaToken: mfaService.totp.generateTOTP(secret),
-		});
-
-		expect(response.statusCode).toBe(200);
-
-		const {
-			id,
-			email,
-			firstName,
-			lastName,
-			password,
-			personalizationAnswers,
-			role,
-			apiKey,
-			mfaRecoveryCodes,
-			mfaSecret,
-		} = response.body.data;
-
-		expect(validator.isUUID(id)).toBe(true);
-		expect(email).toBe(owner.email);
-		expect(firstName).toBe(owner.firstName);
-		expect(lastName).toBe(owner.lastName);
-		expect(password).toBeUndefined();
-		expect(personalizationAnswers).toBeNull();
-		expect(password).toBeUndefined();
-		expect(role).toBe('global:owner');
-		expect(apiKey).toBeUndefined();
-		expect(mfaRecoveryCodes).toBeUndefined();
-		expect(mfaSecret).toBeUndefined();
-
-		const authToken = utils.getAuthToken(response);
-		expect(authToken).toBeDefined();
-	});
-
-	test('should throw AuthError for non-owner if not within users limit quota', async () => {
-		license.setQuota('quota:users', 0);
-		const password = 'testpassword';
-		const member = await createUser({
-			password,
-		});
-
-		const response = await testServer.authlessAgent.post('/login').send({
-			email: member.email,
-			password,
-		});
-		expect(response.statusCode).toBe(403);
-	});
-
-	test('should not throw AuthError for owner if not within users limit quota', async () => {
-		license.setQuota('quota:users', 0);
-		const ownerUser = await createUser({
-			password: randomValidPassword(),
-			role: 'global:owner',
-		});
-
-		const response = await testServer.authAgentFor(ownerUser).get('/login');
-		expect(response.statusCode).toBe(200);
 	});
 });
 
 describe('GET /login', () => {
 	test('should return 401 Unauthorized if no cookie', async () => {
-		const response = await testServer.authlessAgent.get('/login');
+		const response = await authlessAgent.get('/login');
 
 		expect(response.statusCode).toBe(401);
 
@@ -159,10 +96,22 @@ describe('GET /login', () => {
 		expect(authToken).toBeUndefined();
 	});
 
-	test('should return 401 Unauthorized if invalid cookie', async () => {
-		testServer.authlessAgent.jar.setCookie(`${AUTH_COOKIE_NAME}=invalid`);
+	test('should return cookie if UM is disabled and no cookie is already set', async () => {
+		await testDb.createUserShell(globalOwnerRole);
+		await utils.setInstanceOwnerSetUp(false);
 
-		const response = await testServer.authlessAgent.get('/login');
+		const response = await authlessAgent.get('/login');
+
+		expect(response.statusCode).toBe(200);
+
+		const authToken = utils.getAuthToken(response);
+		expect(authToken).toBeDefined();
+	});
+
+	test('should return 401 Unauthorized if invalid cookie', async () => {
+		authlessAgent.jar.setCookie(`${AUTH_COOKIE_NAME}=invalid`);
+
+		const response = await authlessAgent.get('/login');
 
 		expect(response.statusCode).toBe(401);
 
@@ -171,9 +120,9 @@ describe('GET /login', () => {
 	});
 
 	test('should return logged-in owner shell', async () => {
-		const ownerShell = await createUserShell('global:owner');
+		const ownerShell = await testDb.createUserShell(globalOwnerRole);
 
-		const response = await testServer.authAgentFor(ownerShell).get('/login');
+		const response = await authAgent(ownerShell).get('/login');
 
 		expect(response.statusCode).toBe(200);
 
@@ -184,9 +133,9 @@ describe('GET /login', () => {
 			lastName,
 			password,
 			personalizationAnswers,
-			role,
+			globalRole,
+			resetPasswordToken,
 			apiKey,
-			globalScopes,
 		} = response.body.data;
 
 		expect(validator.isUUID(id)).toBe(true);
@@ -196,19 +145,20 @@ describe('GET /login', () => {
 		expect(password).toBeUndefined();
 		expect(personalizationAnswers).toBeNull();
 		expect(password).toBeUndefined();
-		expect(role).toBe('global:owner');
+		expect(resetPasswordToken).toBeUndefined();
+		expect(globalRole).toBeDefined();
+		expect(globalRole.name).toBe('owner');
+		expect(globalRole.scope).toBe('global');
 		expect(apiKey).toBeUndefined();
-		expect(globalScopes).toBeDefined();
-		expect(globalScopes).toContain('workflow:read');
 
 		const authToken = utils.getAuthToken(response);
 		expect(authToken).toBeUndefined();
 	});
 
 	test('should return logged-in member shell', async () => {
-		const memberShell = await createUserShell('global:member');
+		const memberShell = await testDb.createUserShell(globalMemberRole);
 
-		const response = await testServer.authAgentFor(memberShell).get('/login');
+		const response = await authAgent(memberShell).get('/login');
 
 		expect(response.statusCode).toBe(200);
 
@@ -219,9 +169,9 @@ describe('GET /login', () => {
 			lastName,
 			password,
 			personalizationAnswers,
-			role,
+			globalRole,
+			resetPasswordToken,
 			apiKey,
-			globalScopes,
 		} = response.body.data;
 
 		expect(validator.isUUID(id)).toBe(true);
@@ -231,19 +181,20 @@ describe('GET /login', () => {
 		expect(password).toBeUndefined();
 		expect(personalizationAnswers).toBeNull();
 		expect(password).toBeUndefined();
-		expect(role).toBe('global:member');
+		expect(resetPasswordToken).toBeUndefined();
+		expect(globalRole).toBeDefined();
+		expect(globalRole.name).toBe('member');
+		expect(globalRole.scope).toBe('global');
 		expect(apiKey).toBeUndefined();
-		expect(globalScopes).toBeDefined();
-		expect(globalScopes).not.toContain('workflow:read');
 
 		const authToken = utils.getAuthToken(response);
 		expect(authToken).toBeUndefined();
 	});
 
 	test('should return logged-in owner', async () => {
-		const owner = await createUser({ role: 'global:owner' });
+		const owner = await testDb.createUser({ globalRole: globalOwnerRole });
 
-		const response = await testServer.authAgentFor(owner).get('/login');
+		const response = await authAgent(owner).get('/login');
 
 		expect(response.statusCode).toBe(200);
 
@@ -254,9 +205,9 @@ describe('GET /login', () => {
 			lastName,
 			password,
 			personalizationAnswers,
-			role,
+			globalRole,
+			resetPasswordToken,
 			apiKey,
-			globalScopes,
 		} = response.body.data;
 
 		expect(validator.isUUID(id)).toBe(true);
@@ -266,19 +217,20 @@ describe('GET /login', () => {
 		expect(password).toBeUndefined();
 		expect(personalizationAnswers).toBeNull();
 		expect(password).toBeUndefined();
-		expect(role).toBe('global:owner');
+		expect(resetPasswordToken).toBeUndefined();
+		expect(globalRole).toBeDefined();
+		expect(globalRole.name).toBe('owner');
+		expect(globalRole.scope).toBe('global');
 		expect(apiKey).toBeUndefined();
-		expect(globalScopes).toBeDefined();
-		expect(globalScopes).toContain('workflow:read');
 
 		const authToken = utils.getAuthToken(response);
 		expect(authToken).toBeUndefined();
 	});
 
 	test('should return logged-in member', async () => {
-		const member = await createUser({ role: 'global:member' });
+		const member = await testDb.createUser({ globalRole: globalMemberRole });
 
-		const response = await testServer.authAgentFor(member).get('/login');
+		const response = await authAgent(member).get('/login');
 
 		expect(response.statusCode).toBe(200);
 
@@ -289,9 +241,9 @@ describe('GET /login', () => {
 			lastName,
 			password,
 			personalizationAnswers,
-			role,
+			globalRole,
+			resetPasswordToken,
 			apiKey,
-			globalScopes,
 		} = response.body.data;
 
 		expect(validator.isUUID(id)).toBe(true);
@@ -301,10 +253,11 @@ describe('GET /login', () => {
 		expect(password).toBeUndefined();
 		expect(personalizationAnswers).toBeNull();
 		expect(password).toBeUndefined();
-		expect(role).toBe('global:member');
+		expect(resetPasswordToken).toBeUndefined();
+		expect(globalRole).toBeDefined();
+		expect(globalRole.name).toBe('member');
+		expect(globalRole.scope).toBe('global');
 		expect(apiKey).toBeUndefined();
-		expect(globalScopes).toBeDefined();
-		expect(globalScopes).not.toContain('workflow:read');
 
 		const authToken = utils.getAuthToken(response);
 		expect(authToken).toBeUndefined();
@@ -313,15 +266,15 @@ describe('GET /login', () => {
 
 describe('GET /resolve-signup-token', () => {
 	beforeEach(async () => {
-		owner = await createUser({
+		owner = await testDb.createUser({
 			password: ownerPassword,
-			role: 'global:owner',
+			globalRole: globalOwnerRole,
 		});
-		authOwnerAgent = testServer.authAgentFor(owner);
+		authOwnerAgent = authAgent(owner);
 	});
 
 	test('should validate invite token', async () => {
-		const memberShell = await createUserShell('global:member');
+		const memberShell = await testDb.createUserShell(globalMemberRole);
 
 		const response = await authOwnerAgent
 			.get('/resolve-signup-token')
@@ -339,20 +292,8 @@ describe('GET /resolve-signup-token', () => {
 		});
 	});
 
-	test('should return 403 if user quota reached', async () => {
-		license.setQuota('quota:users', 0);
-		const memberShell = await createUserShell('global:member');
-
-		const response = await authOwnerAgent
-			.get('/resolve-signup-token')
-			.query({ inviterId: owner.id })
-			.query({ inviteeId: memberShell.id });
-
-		expect(response.statusCode).toBe(403);
-	});
-
 	test('should fail with invalid inputs', async () => {
-		const { id: inviteeId } = await createUser({ role: 'global:member' });
+		const { id: inviteeId } = await testDb.createUser({ globalRole: globalMemberRole });
 
 		const first = await authOwnerAgent.get('/resolve-signup-token').query({ inviterId: owner.id });
 
@@ -370,8 +311,7 @@ describe('GET /resolve-signup-token', () => {
 			.query({ inviteeId });
 
 		// cause inconsistent DB state
-		owner.email = '';
-		await Container.get(UserRepository).save(owner);
+		await Db.collections.User.update(owner.id, { email: '' });
 		const fifth = await authOwnerAgent
 			.get('/resolve-signup-token')
 			.query({ inviterId: owner.id })
@@ -385,9 +325,9 @@ describe('GET /resolve-signup-token', () => {
 
 describe('POST /logout', () => {
 	test('should log user out', async () => {
-		const owner = await createUser({ role: 'global:owner' });
+		const owner = await testDb.createUser({ globalRole: globalOwnerRole });
 
-		const response = await testServer.authAgentFor(owner).post('/logout');
+		const response = await authAgent(owner).post('/logout');
 
 		expect(response.statusCode).toBe(200);
 		expect(response.body).toEqual(LOGGED_OUT_RESPONSE_BODY);

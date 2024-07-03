@@ -121,7 +121,7 @@ export const fileFields: INodeProperties[] = [
 		},
 		options: [
 			{
-				name: 'Binary File',
+				name: 'Binary Data',
 				value: 'binary',
 			},
 			{

@@ -1,8 +1,9 @@
 import type { IExecuteFunctions, IDataObject, INodeExecutionData } from 'n8n-workflow';
 import { NodeOperationError } from 'n8n-workflow';
 
-import { snakeCase } from 'change-case';
 import { apiRequest, apiRequestAllItems } from '../../../transport';
+
+import { snakeCase } from 'change-case';
 
 export async function getAll(
 	this: IExecuteFunctions,

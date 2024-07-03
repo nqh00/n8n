@@ -12,7 +12,6 @@ export class PagerDutyApi implements ICredentialType {
 			displayName: 'API Token',
 			name: 'apiToken',
 			type: 'string',
-			typeOptions: { password: true },
 			default: '',
 		},
 	];

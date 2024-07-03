@@ -13,7 +13,8 @@ export class FlowTrigger implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Flow Trigger',
 		name: 'flowTrigger',
-		icon: 'file:flow.svg',
+		// eslint-disable-next-line n8n-nodes-base/node-class-description-icon-not-svg
+		icon: 'file:flow.png',
 		group: ['trigger'],
 		version: 1,
 		description: 'Handle Flow events via webhooks',

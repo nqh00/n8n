@@ -1,5 +1,6 @@
-import type { INodeProperties } from 'n8n-workflow';
+/* eslint-disable n8n-nodes-base/node-param-default-missing */
 import { getCursorPaginator } from './GenericFunctions';
+import type { INodeProperties } from 'n8n-workflow';
 import { workflowIdLocator } from './WorkflowLocator';
 
 export const executionOperations: INodeProperties[] = [

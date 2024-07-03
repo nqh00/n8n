@@ -1,7 +1,6 @@
 import type {
 	IDataObject,
 	IExecuteFunctions,
-	IHttpRequestMethods,
 	ILoadOptionsFunctions,
 	INodeExecutionData,
 	INodePropertyOptions,
@@ -39,7 +38,7 @@ function addAdditionalFields(body: IDataObject, additionalFields: IDataObject) {
 			key === 'customProperties' &&
 			(additionalFields.customProperties as IDataObject).property !== undefined
 		) {
-			for (const customProperty of (additionalFields.customProperties as IDataObject)
+			for (const customProperty of (additionalFields.customProperties as IDataObject)!
 				.property! as CustomProperty[]) {
 				body[customProperty.name] = customProperty.value;
 			}
@@ -359,12 +358,6 @@ export class Pipedrive implements INodeType {
 						value: 'get',
 						description: 'Get data of a file',
 						action: 'Get a file',
-					},
-					{
-						name: 'Update',
-						value: 'update',
-						description: 'Update file details',
-						action: 'update details of a file',
 					},
 					// {
 					// 	name: 'Get All',
@@ -819,13 +812,6 @@ export class Pipedrive implements INodeType {
 				default: {},
 				options: [
 					{
-						displayName: 'Busy Flag',
-						name: 'busy_flag',
-						type: 'boolean',
-						default: false,
-						description: 'Whether the user is set to busy during the activity',
-					},
-					{
 						displayName: 'Deal ID',
 						name: 'deal_id',
 						type: 'number',
@@ -856,6 +842,7 @@ export class Pipedrive implements INodeType {
 						default: '0',
 						description: 'Whether the activity is done or not',
 					},
+
 					{
 						displayName: 'Note',
 						name: 'note',
@@ -883,14 +870,6 @@ export class Pipedrive implements INodeType {
 						type: 'number',
 						default: 0,
 						description: 'ID of the person this activity will be associated with',
-					},
-					{
-						displayName: 'Public Description',
-						name: 'public_description',
-						type: 'string',
-						default: '',
-						description:
-							'Additional details about the activity that is synced to your external calendar',
 					},
 					{
 						displayName: 'Subject',
@@ -1905,7 +1884,7 @@ export class Pipedrive implements INodeType {
 			//         file:create
 			// ----------------------------------
 			{
-				displayName: 'Input Binary Field',
+				displayName: 'Binary Property',
 				name: 'binaryPropertyName',
 				type: 'string',
 				default: 'data',
@@ -1917,7 +1896,8 @@ export class Pipedrive implements INodeType {
 					},
 				},
 				placeholder: '',
-				hint: 'The name of the input binary field containing the file to be written',
+				description:
+					'Name of the binary property which contains the data for the file to be created',
 			},
 			{
 				displayName: 'Additional Fields',
@@ -2010,7 +1990,7 @@ export class Pipedrive implements INodeType {
 				description: 'ID of the file to download',
 			},
 			{
-				displayName: 'Put Output File in Field',
+				displayName: 'Binary Property',
 				name: 'binaryPropertyName',
 				type: 'string',
 				required: true,
@@ -2021,7 +2001,8 @@ export class Pipedrive implements INodeType {
 						resource: ['file'],
 					},
 				},
-				hint: 'The name of the output binary field to put the file in',
+				description:
+					'Name of the binary property to which to write the data of the downloaded file',
 			},
 
 			// ----------------------------------
@@ -2041,57 +2022,6 @@ export class Pipedrive implements INodeType {
 				required: true,
 				description: 'ID of the file to get',
 			},
-
-			// ----------------------------------
-			//         file:update
-			// ----------------------------------
-			{
-				displayName: 'File ID',
-				name: 'fileId',
-				type: 'number',
-				displayOptions: {
-					show: {
-						operation: ['update'],
-						resource: ['file'],
-					},
-				},
-				default: 0,
-				required: true,
-				description: 'ID of the file to update',
-			},
-			{
-				displayName: 'Update Fields',
-				name: 'updateFields',
-				type: 'collection',
-				placeholder: 'Add Field',
-				displayOptions: {
-					show: {
-						operation: ['update'],
-						resource: ['file'],
-					},
-				},
-				default: {},
-				options: [
-					{
-						displayName: 'Name',
-						name: 'name',
-						type: 'string',
-						default: '',
-						description: 'The updated visible name of the file',
-					},
-					{
-						displayName: 'Description',
-						name: 'description',
-						type: 'string',
-						default: '',
-						description: 'The updated description of the file',
-					},
-				],
-			},
-
-			// ----------------------------------
-			//         lead
-			// ----------------------------------
 
 			// ----------------------------------------
 			//               lead: create
@@ -3515,14 +3445,6 @@ export class Pipedrive implements INodeType {
 						description:
 							'If supplied, only persons whose name starts with the specified letter will be returned',
 					},
-					{
-						displayName: 'Sort',
-						name: 'sort',
-						type: 'string',
-						default: '',
-						description:
-							'The field names and sorting mode separated by a comma (field_name_1 ASC, field_name_2 DESC). Only first-level field keys are supported (no nested keys).',
-					},
 				],
 			},
 
@@ -4107,7 +4029,7 @@ export class Pipedrive implements INodeType {
 
 		let downloadFile: boolean;
 
-		let requestMethod: IHttpRequestMethods;
+		let requestMethod: string;
 		let endpoint: string;
 		let returnAll = false;
 
@@ -4458,16 +4380,6 @@ export class Pipedrive implements INodeType {
 
 						const fileId = this.getNodeParameter('fileId', i) as number;
 						endpoint = `/files/${fileId}`;
-					} else if (operation === 'update') {
-						// ----------------------------------
-						//         file:update
-						// ----------------------------------
-						requestMethod = 'PUT';
-
-						const fileId = this.getNodeParameter('fileId', i) as number;
-						const updateFields = this.getNodeParameter('updateFields', i);
-						endpoint = `/files/${fileId}`;
-						addAdditionalFields(body, updateFields);
 					}
 				} else if (resource === 'note') {
 					if (operation === 'create') {
@@ -4809,10 +4721,6 @@ export class Pipedrive implements INodeType {
 							qs.first_char = additionalFields.firstChar as string;
 						}
 
-						if (additionalFields.sort) {
-							qs.sort = additionalFields.sort as string;
-						}
-
 						endpoint = '/persons';
 					} else if (operation === 'search') {
 						// ----------------------------------
@@ -4912,7 +4820,6 @@ export class Pipedrive implements INodeType {
 				if (resource === 'file' && operation === 'download') {
 					const newItem: INodeExecutionData = {
 						json: items[i].json,
-						pairedItem: { item: i },
 						binary: {},
 					};
 
@@ -4935,7 +4842,7 @@ export class Pipedrive implements INodeType {
 						responseData.data = [];
 					}
 
-					if (operation === 'search' && responseData.data?.items) {
+					if (operation === 'search' && responseData.data && responseData.data.items) {
 						responseData.data = responseData.data.items;
 						const additionalFields = this.getNodeParameter('additionalFields', i);
 						if (additionalFields.rawData !== true) {
@@ -4962,11 +4869,11 @@ export class Pipedrive implements INodeType {
 					returnData.push(...executionData);
 				}
 			} catch (error) {
-				if (this.continueOnFail(error)) {
+				if (this.continueOnFail()) {
 					if (resource === 'file' && operation === 'download') {
 						items[i].json = { error: error.message };
 					} else {
-						returnData.push({ json: { error: error.message }, pairedItem: { item: i } });
+						returnData.push({ json: { error: error.message } });
 					}
 					continue;
 				}
@@ -4982,10 +4889,10 @@ export class Pipedrive implements INodeType {
 
 		if (resource === 'file' && operation === 'download') {
 			// For file downloads the files get attached to the existing items
-			return [items];
+			return this.prepareOutputData(items);
 		} else {
 			// For all other ones does the output items get replaced
-			return [returnData];
+			return this.prepareOutputData(returnData);
 		}
 	}
 }

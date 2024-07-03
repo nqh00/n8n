@@ -13,8 +13,6 @@ import type {
 } from 'n8n-workflow';
 import { NodeOperationError } from 'n8n-workflow';
 
-import { getGoogleAccessToken } from '../../GenericFunctions';
-import { generatePairedItemData } from '../../../../utils/utilities';
 import type {
 	ILookupValues,
 	ISheetUpdateData,
@@ -27,6 +25,7 @@ import { GoogleSheet } from './GoogleSheet';
 import { googleApiRequest, hexToRgb } from './GenericFunctions';
 
 import { versionDescription } from './versionDescription';
+import { getGoogleAccessToken } from '../../GenericFunctions';
 
 export class GoogleSheetsV1 implements INodeType {
 	description: INodeTypeDescription;
@@ -131,7 +130,7 @@ export class GoogleSheetsV1 implements INodeType {
 					const usePathForKeyRow = (options.usePathForKeyRow || false) as boolean;
 
 					// Convert data into array format
-					await sheet.appendSheetData(
+					const _data = await sheet.appendSheetData(
 						setData,
 						sheet.encodeRange(range),
 						keyRow,
@@ -142,10 +141,10 @@ export class GoogleSheetsV1 implements INodeType {
 					// TODO: Should add this data somewhere
 					// TODO: Should have something like add metadata which does not get passed through
 
-					return [items];
+					return await this.prepareOutputData(items);
 				} catch (error) {
-					if (this.continueOnFail(error)) {
-						return [[{ json: { error: error.message } }]];
+					if (this.continueOnFail()) {
+						return this.prepareOutputData([{ json: { error: error.message } }]);
 					}
 					throw error;
 				}
@@ -157,10 +156,10 @@ export class GoogleSheetsV1 implements INodeType {
 					await sheet.clearData(sheet.encodeRange(range));
 
 					const items = this.getInputData();
-					return [items];
+					return await this.prepareOutputData(items);
 				} catch (error) {
-					if (this.continueOnFail(error)) {
-						return [[{ json: { error: error.message } }]];
+					if (this.continueOnFail()) {
+						return this.prepareOutputData([{ json: { error: error.message } }]);
 					}
 					throw error;
 				}
@@ -201,7 +200,7 @@ export class GoogleSheetsV1 implements INodeType {
 						}
 						returnData.push(responseData as IDataObject);
 					} catch (error) {
-						if (this.continueOnFail(error)) {
+						if (this.continueOnFail()) {
 							returnData.push({ error: error.message });
 							continue;
 						}
@@ -243,13 +242,13 @@ export class GoogleSheetsV1 implements INodeType {
 						}
 					}
 
-					await sheet.spreadsheetBatchUpdate(requests);
+					const _data = await sheet.spreadsheetBatchUpdate(requests);
 
 					const items = this.getInputData();
-					return [items];
+					return await this.prepareOutputData(items);
 				} catch (error) {
-					if (this.continueOnFail(error)) {
-						return [[{ json: { error: error.message } }]];
+					if (this.continueOnFail()) {
+						return this.prepareOutputData([{ json: { error: error.message } }]);
 					}
 					throw error;
 				}
@@ -296,18 +295,9 @@ export class GoogleSheetsV1 implements INodeType {
 						returnData = [];
 					}
 
-					const pairedItem = generatePairedItemData(items.length);
-
-					const lookupOutput = returnData.map((item) => {
-						return {
-							json: item,
-							pairedItem,
-						};
-					});
-
-					return [lookupOutput];
+					return [this.helpers.returnJsonArray(returnData)];
 				} catch (error) {
-					if (this.continueOnFail(error)) {
+					if (this.continueOnFail()) {
 						return [this.helpers.returnJsonArray({ error: error.message })];
 					}
 					throw error;
@@ -344,7 +334,7 @@ export class GoogleSheetsV1 implements INodeType {
 
 					return [this.helpers.returnJsonArray(returnData)];
 				} catch (error) {
-					if (this.continueOnFail(error)) {
+					if (this.continueOnFail()) {
 						return [this.helpers.returnJsonArray({ error: error.message })];
 					}
 					throw error;
@@ -375,7 +365,7 @@ export class GoogleSheetsV1 implements INodeType {
 						delete responseData.replies;
 						returnData.push(responseData as IDataObject);
 					} catch (error) {
-						if (this.continueOnFail(error)) {
+						if (this.continueOnFail()) {
 							returnData.push({ error: error.message });
 							continue;
 						}
@@ -405,7 +395,7 @@ export class GoogleSheetsV1 implements INodeType {
 							});
 						}
 
-						await sheet.batchUpdate(updateData, valueInputMode);
+						const _data = await sheet.batchUpdate(updateData, valueInputMode);
 					} else {
 						const keyName = this.getNodeParameter('key', 0) as string;
 						const keyRow = parseInt(this.getNodeParameter('keyRow', 0) as string, 10);
@@ -416,7 +406,7 @@ export class GoogleSheetsV1 implements INodeType {
 							setData.push(item.json);
 						});
 
-						await sheet.updateSheetData(
+						const _data = await sheet.updateSheetData(
 							setData,
 							keyName,
 							range,
@@ -430,10 +420,10 @@ export class GoogleSheetsV1 implements INodeType {
 					// TODO: Should add this data somewhere
 					// TODO: Should have something like add metadata which does not get passed through
 
-					return [items];
+					return await this.prepareOutputData(items);
 				} catch (error) {
-					if (this.continueOnFail(error)) {
-						return [[{ json: { error: error.message } }]];
+					if (this.continueOnFail()) {
+						return this.prepareOutputData([{ json: { error: error.message } }]);
 					}
 					throw error;
 				}
@@ -488,7 +478,7 @@ export class GoogleSheetsV1 implements INodeType {
 
 						returnData.push(responseData as IDataObject);
 					} catch (error) {
-						if (this.continueOnFail(error)) {
+						if (this.continueOnFail()) {
 							returnData.push({ error: error.message });
 							continue;
 						}

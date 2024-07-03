@@ -1,22 +1,23 @@
 <template>
 	<div
-		ref="container"
 		:class="$style.canvasAddButton"
 		:style="containerCssVars"
+		ref="container"
 		data-test-id="canvas-add-button"
 	>
 		<n8n-tooltip
 			placement="top"
-			:visible="showTooltip"
+			:value="showTooltip"
+			manual
 			:disabled="nodeCreatorStore.showScrim"
 			:popper-class="$style.tooltip"
-			:show-after="700"
+			:open-delay="700"
 		>
-			<button :class="$style.button" data-test-id="canvas-plus-button" @click="$emit('click')">
+			<button :class="$style.button" @click="$emit('click')" data-test-id="canvas-plus-button">
 				<font-awesome-icon icon="plus" size="lg" />
 			</button>
 			<template #content>
-				{{ $locale.baseText('nodeView.canvasAddButton.addATriggerNodeBeforeExecuting') }}
+				<p v-text="$locale.baseText('nodeView.canvasAddButton.addATriggerNodeBeforeExecuting')" />
 			</template>
 		</n8n-tooltip>
 		<p :class="$style.label" v-text="$locale.baseText('nodeView.canvasAddButton.addFirstStep')" />
@@ -54,7 +55,7 @@ const containerCssVars = computed(() => ({
 	top: var(--trigger-placeholder-top-position);
 	left: var(--trigger-placeholder-left-position);
 	// We have to increase z-index to make sure it's higher than selecting box in NodeView
-	// otherwise the clicks wouldn't register
+	// otherwise the clics wouldn't register
 	z-index: 101;
 
 	&:hover .button svg path {
@@ -79,6 +80,10 @@ const containerCssVars = computed(() => ({
 			fill: var(--color-foreground-xdark);
 		}
 	}
+}
+
+:root .tooltip {
+	max-width: 180px;
 }
 
 .label {

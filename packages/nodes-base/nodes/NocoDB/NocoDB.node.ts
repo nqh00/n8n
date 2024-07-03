@@ -2,7 +2,6 @@
 import type {
 	IDataObject,
 	IExecuteFunctions,
-	IHttpRequestMethods,
 	ILoadOptionsFunctions,
 	INodeExecutionData,
 	INodeType,
@@ -21,7 +20,7 @@ export class NocoDB implements INodeType {
 		name: 'nocoDb',
 		icon: 'file:nocodb.svg',
 		group: ['input'],
-		version: [1, 2, 3],
+		version: [1, 2],
 		subtitle: '={{$parameter["operation"] + ": " + $parameter["resource"]}}',
 		description: 'Read, update, write and delete data from NocoDB',
 		defaults: {
@@ -56,12 +55,12 @@ export class NocoDB implements INodeType {
 				type: 'options',
 				options: [
 					{
-						name: 'API Token',
-						value: 'nocoDbApiToken',
-					},
-					{
 						name: 'User Token',
 						value: 'nocoDb',
+					},
+					{
+						name: 'API Token',
+						value: 'nocoDbApiToken',
 					},
 				],
 				default: 'nocoDb',
@@ -70,6 +69,11 @@ export class NocoDB implements INodeType {
 				displayName: 'API Version',
 				name: 'version',
 				type: 'options',
+				displayOptions: {
+					show: {
+						'@version': [1],
+					},
+				},
 				isNodeSetting: true,
 				options: [
 					{
@@ -80,48 +84,18 @@ export class NocoDB implements INodeType {
 						name: 'v0.90.0 Onwards',
 						value: 2,
 					},
-					{
-						name: 'v0.200.0 Onwards',
-						value: 3,
-					},
 				],
-				displayOptions: {
-					show: {
-						'@version': [1],
-					},
-				},
 				default: 1,
 			},
 			{
 				displayName: 'API Version',
 				name: 'version',
 				type: 'options',
-				isNodeSetting: true,
-				options: [
-					{
-						name: 'Before v0.90.0',
-						value: 1,
-					},
-					{
-						name: 'v0.90.0 Onwards',
-						value: 2,
-					},
-					{
-						name: 'v0.200.0 Onwards',
-						value: 3,
-					},
-				],
 				displayOptions: {
 					show: {
 						'@version': [2],
 					},
 				},
-				default: 2,
-			},
-			{
-				displayName: 'API Version',
-				name: 'version',
-				type: 'options',
 				isNodeSetting: true,
 				options: [
 					{
@@ -132,17 +106,8 @@ export class NocoDB implements INodeType {
 						name: 'v0.90.0 Onwards',
 						value: 2,
 					},
-					{
-						name: 'v0.200.0 Onwards',
-						value: 3,
-					},
 				],
-				displayOptions: {
-					show: {
-						'@version': [3],
-					},
-				},
-				default: 3,
+				default: 2,
 			},
 			{
 				displayName: 'Resource',
@@ -207,51 +172,26 @@ export class NocoDB implements INodeType {
 
 	methods = {
 		loadOptions: {
-			async getWorkspaces(this: ILoadOptionsFunctions) {
+			async getProjects(this: ILoadOptionsFunctions) {
 				try {
 					const requestMethod = 'GET';
-					const endpoint = '/api/v1/workspaces/';
+					const endpoint = '/api/v1/db/meta/projects/';
 					const responseData = await apiRequest.call(this, requestMethod, endpoint, {}, {});
 					return responseData.list.map((i: IDataObject) => ({ name: i.title, value: i.id }));
 				} catch (e) {
-					return [{ name: 'No Workspace', value: 'none' }];
-				}
-			},
-			async getBases(this: ILoadOptionsFunctions) {
-				const version = this.getNodeParameter('version', 0) as number;
-				const workspaceId = this.getNodeParameter('workspaceId', 0) as string;
-				try {
-					if (workspaceId && workspaceId !== 'none') {
-						const requestMethod = 'GET';
-						const endpoint = `/api/v1/workspaces/${workspaceId}/bases/`;
-						const responseData = await apiRequest.call(this, requestMethod, endpoint, {}, {});
-						return responseData.list.map((i: IDataObject) => ({ name: i.title, value: i.id }));
-					} else {
-						const requestMethod = 'GET';
-						const endpoint = version === 3 ? '/api/v2/meta/bases/' : '/api/v1/db/meta/projects/';
-						const responseData = await apiRequest.call(this, requestMethod, endpoint, {}, {});
-						return responseData.list.map((i: IDataObject) => ({ name: i.title, value: i.id }));
-					}
-				} catch (e) {
 					throw new NodeOperationError(
 						this.getNode(),
-						new Error(`Error while fetching ${version === 3 ? 'bases' : 'projects'}!`, {
-							cause: e,
-						}),
+						new Error('Error while fetching projects!', { cause: e }),
 					);
 				}
 			},
-			// This only supports using the Base ID
+			// This only supports using the Project ID
 			async getTables(this: ILoadOptionsFunctions) {
-				const version = this.getNodeParameter('version', 0) as number;
-				const baseId = this.getNodeParameter('projectId', 0) as string;
-				if (baseId) {
+				const projectId = this.getNodeParameter('projectId', 0) as string;
+				if (projectId) {
 					try {
 						const requestMethod = 'GET';
-						const endpoint =
-							version === 3
-								? `/api/v2/meta/bases/${baseId}/tables`
-								: `/api/v1/db/meta/projects/${baseId}/tables`;
+						const endpoint = `/api/v1/db/meta/projects/${projectId}/tables`;
 						const responseData = await apiRequest.call(this, requestMethod, endpoint, {}, {});
 						return responseData.list.map((i: IDataObject) => ({ name: i.title, value: i.id }));
 					} catch (e) {
@@ -261,10 +201,7 @@ export class NocoDB implements INodeType {
 						);
 					}
 				} else {
-					throw new NodeOperationError(
-						this.getNode(),
-						`No  ${version === 3 ? 'base' : 'project'} selected!`,
-					);
+					throw new NodeOperationError(this.getNode(), 'No project selected!');
 				}
 			},
 		},
@@ -280,13 +217,13 @@ export class NocoDB implements INodeType {
 		const operation = this.getNodeParameter('operation', 0);
 
 		let returnAll = false;
-		let requestMethod: IHttpRequestMethods = 'GET';
+		let requestMethod = '';
 
 		let qs: IDataObject = {};
 
 		let endPoint = '';
 
-		const baseId = this.getNodeParameter('projectId', 0) as string;
+		const projectId = this.getNodeParameter('projectId', 0) as string;
 		const table = this.getNodeParameter('table', 0) as string;
 
 		if (resource === 'row') {
@@ -294,11 +231,9 @@ export class NocoDB implements INodeType {
 				requestMethod = 'POST';
 
 				if (version === 1) {
-					endPoint = `/nc/${baseId}/api/v1/${table}/bulk`;
+					endPoint = `/nc/${projectId}/api/v1/${table}/bulk`;
 				} else if (version === 2) {
-					endPoint = `/api/v1/db/data/bulk/noco/${baseId}/${table}`;
-				} else if (version === 3) {
-					endPoint = `/api/v2/tables/${table}/records`;
+					endPoint = `/api/v1/db/data/bulk/noco/${projectId}/${table}`;
 				}
 
 				const body: IDataObject[] = [];
@@ -343,7 +278,7 @@ export class NocoDB implements INodeType {
 									},
 									json: JSON.stringify({
 										api: 'xcAttachmentUpload',
-										project_id: baseId,
+										project_id: projectId,
 										dbAlias: 'db',
 										args: {},
 									}),
@@ -354,8 +289,6 @@ export class NocoDB implements INodeType {
 									postUrl = '/dashboard';
 								} else if (version === 2) {
 									postUrl = '/api/v1/db/storage/upload';
-								} else if (version === 3) {
-									postUrl = '/api/v2/storage/upload';
 								}
 
 								responseData = await apiRequest.call(
@@ -363,15 +296,13 @@ export class NocoDB implements INodeType {
 									'POST',
 									postUrl,
 									{},
-									version === 3 ? { base_id: baseId } : { project_id: baseId },
+									{ project_id: projectId },
 									undefined,
 									{
 										formData,
 									},
 								);
-								newItem[field.fieldName] = JSON.stringify(
-									Array.isArray(responseData) ? responseData : [responseData],
-								);
+								newItem[field.fieldName] = JSON.stringify([responseData]);
 							}
 						}
 					}
@@ -380,23 +311,15 @@ export class NocoDB implements INodeType {
 				try {
 					responseData = await apiRequest.call(this, requestMethod, endPoint, body, qs);
 
-					if (version === 3) {
-						for (let i = body.length - 1; i >= 0; i--) {
-							body[i] = { ...body[i], ...responseData[i] };
-						}
-
-						returnData.push(...body);
-					} else {
-						// Calculate ID manually and add to return data
-						let id = responseData[0];
-						for (let i = body.length - 1; i >= 0; i--) {
-							body[i].id = id--;
-						}
-
-						returnData.push(...body);
+					// Calculate ID manually and add to return data
+					let id = responseData[0];
+					for (let i = body.length - 1; i >= 0; i--) {
+						body[i].id = id--;
 					}
+
+					returnData.push(...body);
 				} catch (error) {
-					if (this.continueOnFail(error)) {
+					if (this.continueOnFail()) {
 						returnData.push({ error: error.toString() });
 					}
 					throw new NodeApiError(this.getNode(), error as JsonObject);
@@ -408,16 +331,9 @@ export class NocoDB implements INodeType {
 				let primaryKey = 'id';
 
 				if (version === 1) {
-					endPoint = `/nc/${baseId}/api/v1/${table}/bulk`;
+					endPoint = `/nc/${projectId}/api/v1/${table}/bulk`;
 				} else if (version === 2) {
-					endPoint = `/api/v1/db/data/bulk/noco/${baseId}/${table}`;
-
-					primaryKey = this.getNodeParameter('primaryKey', 0) as string;
-					if (primaryKey === 'custom') {
-						primaryKey = this.getNodeParameter('customPrimaryKey', 0) as string;
-					}
-				} else if (version === 3) {
-					endPoint = `/api/v2/tables/${table}/records`;
+					endPoint = `/api/v1/db/data/bulk/noco/${projectId}/${table}`;
 
 					primaryKey = this.getNodeParameter('primaryKey', 0) as string;
 					if (primaryKey === 'custom') {
@@ -433,7 +349,13 @@ export class NocoDB implements INodeType {
 				}
 
 				try {
-					responseData = (await apiRequest.call(this, requestMethod, endPoint, body, qs)) as any[];
+					responseData = (await apiRequest.call(
+						this,
+						requestMethod,
+						endPoint,
+						body,
+						qs,
+					)) as number[];
 					if (version === 1) {
 						returnData.push(...items.map((item) => item.json));
 					} else if (version === 2) {
@@ -455,11 +377,9 @@ export class NocoDB implements INodeType {
 								};
 							}),
 						);
-					} else if (version === 3) {
-						returnData.push(...responseData);
 					}
 				} catch (error) {
-					if (this.continueOnFail(error)) {
+					if (this.continueOnFail()) {
 						returnData.push({ error: error.toString() });
 					}
 					throw new NodeApiError(this.getNode(), error as JsonObject);
@@ -474,11 +394,9 @@ export class NocoDB implements INodeType {
 						requestMethod = 'GET';
 
 						if (version === 1) {
-							endPoint = `/nc/${baseId}/api/v1/${table}`;
+							endPoint = `/nc/${projectId}/api/v1/${table}`;
 						} else if (version === 2) {
-							endPoint = `/api/v1/db/data/noco/${baseId}/${table}`;
-						} else if (version === 3) {
-							endPoint = `/api/v2/tables/${table}/records`;
+							endPoint = `/api/v1/db/data/noco/${projectId}/${table}`;
 						}
 
 						returnAll = this.getNodeParameter('returnAll', 0);
@@ -503,7 +421,7 @@ export class NocoDB implements INodeType {
 						} else {
 							qs.limit = this.getNodeParameter('limit', 0);
 							responseData = await apiRequest.call(this, requestMethod, endPoint, {}, qs);
-							if (version === 2 || version === 3) {
+							if (version === 2) {
 								responseData = responseData.list;
 							}
 						}
@@ -522,7 +440,6 @@ export class NocoDB implements INodeType {
 								this,
 								responseData as IDataObject[],
 								downloadFieldNames,
-								[{ item: i }],
 							);
 							data.push(...response);
 						}
@@ -532,14 +449,14 @@ export class NocoDB implements INodeType {
 						return [data];
 					}
 				} catch (error) {
-					if (this.continueOnFail(error)) {
+					if (this.continueOnFail()) {
 						returnData.push({ json: { error: error.toString() } });
 					} else {
 						throw error;
 					}
 				}
 
-				return [returnData as INodeExecutionData[]];
+				return this.prepareOutputData(returnData as INodeExecutionData[]);
 			}
 
 			if (operation === 'get') {
@@ -551,11 +468,9 @@ export class NocoDB implements INodeType {
 						const id = this.getNodeParameter('id', i) as string;
 
 						if (version === 1) {
-							endPoint = `/nc/${baseId}/api/v1/${table}/${id}`;
+							endPoint = `/nc/${projectId}/api/v1/${table}/${id}`;
 						} else if (version === 2) {
-							endPoint = `/api/v1/db/data/noco/${baseId}/${table}/${id}`;
-						} else if (version === 3) {
-							endPoint = `/api/v2/tables/${table}/records/${id}`;
+							endPoint = `/api/v1/db/data/noco/${projectId}/${table}/${id}`;
 						}
 
 						responseData = await apiRequest.call(this, requestMethod, endPoint, {}, qs);
@@ -586,7 +501,6 @@ export class NocoDB implements INodeType {
 								this,
 								[responseData as IDataObject],
 								downloadFieldNames,
-								[{ item: i }],
 							);
 							const newItem = {
 								binary: data[0].binary,
@@ -608,7 +522,7 @@ export class NocoDB implements INodeType {
 							newItems.push(...executionData);
 						}
 					} catch (error) {
-						if (this.continueOnFail(error)) {
+						if (this.continueOnFail()) {
 							const executionData = this.helpers.constructExecutionMetaData(
 								this.helpers.returnJsonArray({ error: error.toString() }),
 								{ itemData: { item: i } },
@@ -620,7 +534,7 @@ export class NocoDB implements INodeType {
 						throw new NodeApiError(this.getNode(), error as JsonObject, { itemIndex: i });
 					}
 				}
-				return [newItems];
+				return this.prepareOutputData(newItems);
 			}
 
 			if (operation === 'update') {
@@ -628,24 +542,22 @@ export class NocoDB implements INodeType {
 				let primaryKey = 'id';
 
 				if (version === 1) {
-					endPoint = `/nc/${baseId}/api/v1/${table}/bulk`;
+					endPoint = `/nc/${projectId}/api/v1/${table}/bulk`;
 					requestMethod = 'PUT';
 				} else if (version === 2) {
-					endPoint = `/api/v1/db/data/bulk/noco/${baseId}/${table}`;
+					endPoint = `/api/v1/db/data/bulk/noco/${projectId}/${table}`;
 
 					primaryKey = this.getNodeParameter('primaryKey', 0) as string;
 					if (primaryKey === 'custom') {
 						primaryKey = this.getNodeParameter('customPrimaryKey', 0) as string;
 					}
-				} else if (version === 3) {
-					endPoint = `/api/v2/tables/${table}/records`;
 				}
 
 				const body: IDataObject[] = [];
 
 				for (let i = 0; i < items.length; i++) {
-					const id = version === 3 ? null : (this.getNodeParameter('id', i) as string);
-					const newItem: IDataObject = version === 3 ? {} : { [primaryKey]: id };
+					const id = this.getNodeParameter('id', i) as string;
+					const newItem: IDataObject = { [primaryKey]: id };
 					const dataToSend = this.getNodeParameter('dataToSend', i) as
 						| 'defineBelow'
 						| 'autoMapInputData';
@@ -684,7 +596,7 @@ export class NocoDB implements INodeType {
 									},
 									json: JSON.stringify({
 										api: 'xcAttachmentUpload',
-										project_id: baseId,
+										project_id: projectId,
 										dbAlias: 'db',
 										args: {},
 									}),
@@ -694,24 +606,19 @@ export class NocoDB implements INodeType {
 									postUrl = '/dashboard';
 								} else if (version === 2) {
 									postUrl = '/api/v1/db/storage/upload';
-								} else if (version === 3) {
-									postUrl = '/api/v2/storage/upload';
 								}
-
 								responseData = await apiRequest.call(
 									this,
 									'POST',
 									postUrl,
 									{},
-									version === 3 ? { base_id: baseId } : { project_id: baseId },
+									{ project_id: projectId },
 									undefined,
 									{
 										formData,
 									},
 								);
-								newItem[field.fieldName] = JSON.stringify(
-									Array.isArray(responseData) ? responseData : [responseData],
-								);
+								newItem[field.fieldName] = JSON.stringify([responseData]);
 							}
 						}
 					}
@@ -719,7 +626,13 @@ export class NocoDB implements INodeType {
 				}
 
 				try {
-					responseData = (await apiRequest.call(this, requestMethod, endPoint, body, qs)) as any[];
+					responseData = (await apiRequest.call(
+						this,
+						requestMethod,
+						endPoint,
+						body,
+						qs,
+					)) as number[];
 
 					if (version === 1) {
 						returnData.push(...body);
@@ -742,15 +655,9 @@ export class NocoDB implements INodeType {
 								};
 							}),
 						);
-					} else if (version === 3) {
-						for (let i = body.length - 1; i >= 0; i--) {
-							body[i] = { ...body[i], ...responseData[i] };
-						}
-
-						returnData.push(...body);
 					}
 				} catch (error) {
-					if (this.continueOnFail(error)) {
+					if (this.continueOnFail()) {
 						returnData.push({ error: error.toString() });
 					}
 					throw new NodeApiError(this.getNode(), error as JsonObject);

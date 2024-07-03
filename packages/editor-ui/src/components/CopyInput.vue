@@ -2,14 +2,9 @@
 	<div>
 		<n8n-input-label :label="label">
 			<div
-				:class="{
-					[$style.copyText]: true,
-					[$style[size]]: true,
-					[$style.collapsed]: collapse,
-					'ph-no-capture': redactValue,
-				}"
-				data-test-id="copy-input"
+				:class="{ [$style.copyText]: true, [$style[size]]: true, [$style.collapsed]: collapse }"
 				@click="copy"
+				data-test-id="copy-input"
 			>
 				<span ref="copyInputValue">{{ value }}</span>
 				<div :class="$style.copyButton">
@@ -21,49 +16,65 @@
 	</div>
 </template>
 
-<script setup lang="ts">
-import { useClipboard } from '@/composables/useClipboard';
-import { useI18n } from '@/composables/useI18n';
-import { useToast } from '@/composables/useToast';
+<script lang="ts">
+import { defineComponent } from 'vue';
+import { copyPaste } from '@/mixins/copyPaste';
+import { useToast } from '@/composables';
 
-type Props = {
-	label?: string;
-	hint?: string;
-	value?: string;
-	copyButtonText: string;
-	toastTitle?: string;
-	toastMessage?: string;
-	size?: 'medium' | 'large';
-	collapse?: boolean;
-	redactValue?: boolean;
-};
+export default defineComponent({
+	mixins: [copyPaste],
+	props: {
+		label: {
+			type: String,
+		},
+		hint: {
+			type: String,
+		},
+		value: {
+			type: String,
+		},
+		copyButtonText: {
+			type: String,
+			default(): string {
+				return this.$locale.baseText('generic.copy');
+			},
+		},
+		toastTitle: {
+			type: String,
+			default(): string {
+				return this.$locale.baseText('generic.copiedToClipboard');
+			},
+		},
+		toastMessage: {
+			type: String,
+		},
+		collapse: {
+			type: Boolean,
+			default: false,
+		},
+		size: {
+			type: String,
+			default: 'large',
+		},
+	},
+	setup() {
+		return {
+			...useToast(),
+		};
+	},
+	methods: {
+		copy(): void {
+			this.$emit('copy');
+			this.copyToClipboard(this.value);
 
-const props = withDefaults(defineProps<Props>(), {
-	value: '',
-	placeholder: '',
-	label: '',
-	hint: '',
-	size: 'medium',
-	copyButtonText: useI18n().baseText('generic.copy'),
-	toastTitle: useI18n().baseText('generic.copiedToClipboard'),
+			this.showMessage({
+				title: this.toastTitle,
+				message: this.toastMessage,
+				type: 'success',
+			});
+		},
+	},
 });
-const emit = defineEmits<{
-	(event: 'copy'): void;
-}>();
-
-const clipboard = useClipboard();
-const { showMessage } = useToast();
-
-function copy() {
-	emit('copy');
-	void clipboard.copy(props.value ?? '');
-
-	showMessage({
-		title: props.toastTitle,
-		message: props.toastMessage,
-		type: 'success',
-	});
-}
 </script>
 
 <style lang="scss" module>

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/naming-convention */
 import { registerDecorator } from 'class-validator';
 
 export function NoXss() {
@@ -10,7 +11,7 @@ export function NoXss() {
 			options: { message: `Malicious ${propertyName}` },
 			validator: {
 				validate(value: string) {
-					return !/(^http|^www)|<(\s*)?(script|a)|(\.[\p{L}\d-]+)/u.test(value);
+					return !/<(\s*)?(script|a|http)/.test(value);
 				},
 			},
 		});

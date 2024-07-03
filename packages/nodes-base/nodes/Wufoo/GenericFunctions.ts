@@ -1,24 +1,26 @@
+import type { OptionsWithUri } from 'request';
+
 import type {
 	IDataObject,
 	IExecuteFunctions,
+	IExecuteSingleFunctions,
 	IHookFunctions,
-	IHttpRequestMethods,
 	ILoadOptionsFunctions,
-	IRequestOptions,
 } from 'n8n-workflow';
 
 export async function wufooApiRequest(
-	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions,
-	method: IHttpRequestMethods,
+	this: IHookFunctions | IExecuteFunctions | IExecuteSingleFunctions | ILoadOptionsFunctions,
+	method: string,
 	resource: string,
 
 	body: any = {},
 	qs: IDataObject = {},
+	uri?: string,
 	option: IDataObject = {},
 ): Promise<any> {
 	const credentials = await this.getCredentials('wufooApi');
 
-	let options: IRequestOptions = {
+	let options: OptionsWithUri = {
 		method,
 		form: body,
 		body,
@@ -32,5 +34,5 @@ export async function wufooApiRequest(
 		delete options.body;
 	}
 
-	return await this.helpers.requestWithAuthentication.call(this, 'wufooApi', options);
+	return this.helpers.requestWithAuthentication.call(this, 'wufooApi', options);
 }

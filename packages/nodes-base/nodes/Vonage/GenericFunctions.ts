@@ -1,17 +1,19 @@
+import type { OptionsWithUri } from 'request';
+
 import type {
 	IExecuteFunctions,
+	IExecuteSingleFunctions,
 	ILoadOptionsFunctions,
 	IDataObject,
 	JsonObject,
-	IRequestOptions,
-	IHttpRequestMethods,
 } from 'n8n-workflow';
 import { NodeApiError } from 'n8n-workflow';
 
 export async function vonageApiRequest(
-	this: IExecuteFunctions | ILoadOptionsFunctions,
-	method: IHttpRequestMethods,
+	this: IExecuteFunctions | IExecuteSingleFunctions | ILoadOptionsFunctions,
+	method: string,
 	path: string,
+
 	body: any = {},
 	qs: IDataObject = {},
 	_option = {},
@@ -22,7 +24,7 @@ export async function vonageApiRequest(
 
 	body.api_secret = credentials.apiSecret as string;
 
-	const options: IRequestOptions = {
+	const options: OptionsWithUri = {
 		method,
 		form: body,
 		qs,

@@ -4,7 +4,7 @@ import { setupServer } from '@/__tests__/server';
 import { useEnvironmentsStore } from '@/stores/environments.ee.store';
 import type { EnvironmentVariable } from '@/Interface';
 
-describe('environments.store', () => {
+describe('store', () => {
 	let server: ReturnType<typeof setupServer>;
 	const seedRecordsCount = 3;
 

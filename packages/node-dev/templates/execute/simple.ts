@@ -48,6 +48,6 @@ export class ClassNameReplace implements INodeType {
 			item.json.myString = myString;
 		}
 
-		return [items];
+		return this.prepareOutputData(items);
 	}
 }

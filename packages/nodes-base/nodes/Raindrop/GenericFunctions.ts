@@ -4,23 +4,23 @@ import type {
 	IDataObject,
 	ILoadOptionsFunctions,
 	JsonObject,
-	IHttpRequestMethods,
-	IRequestOptions,
 } from 'n8n-workflow';
 import { NodeApiError } from 'n8n-workflow';
+
+import type { OptionsWithUri } from 'request';
 
 /**
  * Make an authenticated API request to Raindrop.
  */
 export async function raindropApiRequest(
 	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions,
-	method: IHttpRequestMethods,
+	method: string,
 	endpoint: string,
 	qs: IDataObject,
 	body: IDataObject,
 	option: IDataObject = {},
 ) {
-	const options: IRequestOptions = {
+	const options: OptionsWithUri = {
 		headers: {
 			'user-agent': 'n8n',
 			'Content-Type': 'application/json',

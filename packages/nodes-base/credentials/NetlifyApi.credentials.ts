@@ -1,4 +1,4 @@
-import type { ICredentialType, INodeProperties } from 'n8n-workflow';
+import type { ICredentialType, NodePropertyTypes } from 'n8n-workflow';
 
 export class NetlifyApi implements ICredentialType {
 	name = 'netlifyApi';
@@ -7,12 +7,11 @@ export class NetlifyApi implements ICredentialType {
 
 	documentationUrl = 'netlify';
 
-	properties: INodeProperties[] = [
+	properties = [
 		{
 			displayName: 'Access Token',
 			name: 'accessToken',
-			type: 'string',
-			typeOptions: { password: true },
+			type: 'string' as NodePropertyTypes,
 			default: '',
 		},
 	];

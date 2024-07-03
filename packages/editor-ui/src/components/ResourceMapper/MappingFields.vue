@@ -10,17 +10,13 @@ import type {
 	ResourceMapperValue,
 } from 'n8n-workflow';
 import ParameterInputFull from '@/components/ParameterInputFull.vue';
-import ParameterIssues from '@/components//ParameterIssues.vue';
-import ParameterOptions from '@/components//ParameterOptions.vue';
+import ParameterIssues from '../ParameterIssues.vue';
+import ParameterOptions from '../ParameterOptions.vue';
 import { computed } from 'vue';
 import { i18n as locale } from '@/plugins/i18n';
-import { useNDVStore } from '@/stores/ndv.store';
-import {
-	fieldCannotBeDeleted,
-	isMatchingField,
-	parseResourceMapperFieldName,
-} from '@/utils/nodeTypesUtils';
-import { useNodeSpecificationValues } from '@/composables/useNodeSpecificationValues';
+import { useNDVStore } from '@/stores';
+import { fieldCannotBeDeleted, isMatchingField, parseResourceMapperFieldName } from '@/utils';
+import { useNodeSpecificationValues } from '@/composables';
 
 interface Props {
 	parameter: INodeProperties;
@@ -33,12 +29,9 @@ interface Props {
 	showMappingModeSelect: boolean;
 	loading: boolean;
 	refreshInProgress: boolean;
-	teleported?: boolean;
 }
 
-const props = withDefaults(defineProps<Props>(), {
-	teleported: true,
-});
+const props = defineProps<Props>();
 const FORCE_TEXT_INPUT_FOR_TYPES: FieldType[] = ['time', 'object', 'array'];
 
 const {
@@ -58,18 +51,9 @@ const emit = defineEmits<{
 
 const ndvStore = useNDVStore();
 
-function markAsReadOnly(field: ResourceMapperField): boolean {
-	if (
-		isMatchingField(field.id, props.paramValue.matchingColumns, props.showMatchingColumnsSelector)
-	) {
-		return false;
-	}
-	return field.readOnly || false;
-}
-
-const fieldsUi = computed<Array<INodeProperties & { readOnly: boolean }>>(() => {
+const fieldsUi = computed<INodeProperties[]>(() => {
 	return props.fieldsToMap
-		.filter((field) => field.display && field.removed !== true)
+		.filter((field) => field.display !== false && field.removed !== true)
 		.map((field) => {
 			return {
 				displayName: getFieldLabel(field),
@@ -80,16 +64,15 @@ const fieldsUi = computed<Array<INodeProperties & { readOnly: boolean }>>(() => 
 				required: field.required,
 				description: getFieldDescription(field),
 				options: field.options,
-				readOnly: markAsReadOnly(field),
 			};
 		});
 });
 
-const orderedFields = computed<Array<INodeProperties & { readOnly: boolean }>>(() => {
+const orderedFields = computed<INodeProperties[]>(() => {
 	// Sort so that matching columns are first
 	if (props.paramValue.matchingColumns) {
 		fieldsUi.value.forEach((field, i) => {
-			const fieldName = field.name && parseResourceMapperFieldName(field.name);
+			const fieldName = parseResourceMapperFieldName(field.name);
 			if (fieldName) {
 				if (props.paramValue.matchingColumns.includes(fieldName)) {
 					fieldsUi.value.splice(i, 1);
@@ -102,7 +85,7 @@ const orderedFields = computed<Array<INodeProperties & { readOnly: boolean }>>((
 });
 
 const removedFields = computed<ResourceMapperField[]>(() => {
-	return props.fieldsToMap.filter((field) => field.removed === true && field.display);
+	return props.fieldsToMap.filter((field) => field.removed === true && field.display !== false);
 });
 
 const addFieldOptions = computed<Array<{ name: string; value: string; disabled?: boolean }>>(() => {
@@ -136,7 +119,7 @@ const parameterActions = computed<Array<{ label: string; value: string; disabled
 					interpolate: { fieldWord: pluralFieldWordCapitalized.value },
 				}),
 				value: 'removeAllFields',
-				disabled: !isRemoveAllAvailable.value,
+				disabled: isRemoveAllAvailable.value === false,
 			},
 		];
 	},
@@ -163,14 +146,7 @@ const resourceMapperMode = computed<string | undefined>(() => {
 	return resourceMapperTypeOptions.value?.mode;
 });
 
-const resourceMapperValuesLabel = computed<string | undefined>(() => {
-	return resourceMapperTypeOptions.value?.valuesLabel;
-});
-
 const valuesLabel = computed<string>(() => {
-	if (resourceMapperValuesLabel.value) {
-		return resourceMapperValuesLabel.value;
-	}
 	if (resourceMapperMode.value && resourceMapperMode.value === 'update') {
 		return locale.baseText('resourceMapper.valuesToUpdate.label');
 	}
@@ -233,8 +209,8 @@ function getFieldIssues(field: INodeProperties): string[] {
 
 	let fieldIssues: string[] = [];
 	const key = `${props.parameter.name}.${fieldName}`;
-	if (nodeIssues.parameters && key in nodeIssues.parameters) {
-		fieldIssues = fieldIssues.concat(nodeIssues.parameters[key]);
+	if (nodeIssues['parameters'] && key in nodeIssues['parameters']) {
+		fieldIssues = fieldIssues.concat(nodeIssues['parameters'][key]);
 	}
 	return fieldIssues;
 }
@@ -244,10 +220,6 @@ function getParamType(field: ResourceMapperField): NodePropertyTypes {
 		return field.type as NodePropertyTypes;
 	}
 	return 'string';
-}
-
-function getParsedFieldName(fullName: string): string {
-	return parseResourceMapperFieldName(fullName) ?? fullName;
 }
 
 function onValueChanged(value: IUpdateInformation): void {
@@ -289,18 +261,17 @@ defineExpose({
 			:label="valuesLabel"
 			:underline="true"
 			:size="labelSize"
-			:show-options="true"
-			:show-expression-selector="false"
-			input-name="columns"
+			:showOptions="true"
+			:showExpressionSelector="false"
 			color="text-dark"
 		>
 			<template #options>
-				<ParameterOptions
+				<parameter-options
 					:parameter="parameter"
-					:custom-actions="parameterActions"
+					:customActions="parameterActions"
 					:loading="props.refreshInProgress"
-					:loading-message="fetchingFieldsLabel"
-					@update:model-value="onParameterActionSelected"
+					:loadingMessage="fetchingFieldsLabel"
+					@optionSelected="onParameterActionSelected"
 				/>
 			</template>
 		</n8n-input-label>
@@ -341,14 +312,10 @@ defineExpose({
 						props.showMatchingColumnsSelector,
 					)
 				"
-				:class="['delete-option', 'mt-5xs']"
+				:class="['delete-option', 'clickable', 'mt-5xs']"
 			>
-				<n8n-icon-button
-					type="tertiary"
-					text
-					size="mini"
+				<font-awesome-icon
 					icon="trash"
-					:data-test-id="`remove-field-button-${getParsedFieldName(field.name)}`"
 					:title="
 						locale.baseText('resourceMapper.removeField', {
 							interpolate: {
@@ -356,23 +323,24 @@ defineExpose({
 							},
 						})
 					"
+					data-test-id="remove-field-button"
 					@click="removeField(field.name)"
-				></n8n-icon-button>
-			</div>
-			<div :class="$style.parameterInput">
-				<ParameterInputFull
-					:parameter="field"
-					:value="getParameterValue(field.name)"
-					:display-options="true"
-					:path="`${props.path}.${field.name}`"
-					:is-read-only="refreshInProgress || field.readOnly"
-					:hide-issues="true"
-					:node-values="nodeValues"
-					:class="$style.parameterInputFull"
-					@update="onValueChanged"
 				/>
 			</div>
-			<ParameterIssues
+			<div :class="$style.parameterInput">
+				<parameter-input-full
+					:parameter="field"
+					:value="getParameterValue(field.name)"
+					:displayOptions="true"
+					:path="`${props.path}.${field.name}`"
+					:isReadOnly="refreshInProgress"
+					:hideIssues="true"
+					:nodeValues="nodeValues"
+					:class="$style.parameterInputFull"
+					@valueChanged="onValueChanged"
+				/>
+			</div>
+			<parameter-issues
 				v-if="getFieldIssues(field).length > 0"
 				:issues="getFieldIssues(field)"
 				:class="[$style.parameterIssues, 'ml-5xs']"
@@ -386,9 +354,8 @@ defineExpose({
 					})
 				"
 				size="small"
-				:teleported="teleported"
 				:disabled="addFieldOptions.length == 0"
-				@update:model-value="addField"
+				@change="addField"
 			>
 				<n8n-option
 					v-for="item in addFieldOptions"

@@ -10,14 +10,13 @@ import type {
 	IWebhookFunctions,
 	IHttpRequestOptions,
 	JsonObject,
-	IHttpRequestMethods,
 } from 'n8n-workflow';
 import { NodeApiError } from 'n8n-workflow';
 
 export async function awsApiRequest(
 	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions | IWebhookFunctions,
 	service: string,
-	method: IHttpRequestMethods,
+	method: string,
 	path: string,
 	body?: string | Buffer,
 	query: IDataObject = {},
@@ -50,7 +49,7 @@ export async function awsApiRequest(
 export async function awsApiRequestREST(
 	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions,
 	service: string,
-	method: IHttpRequestMethods,
+	method: string,
 	path: string,
 	body?: string,
 	query: IDataObject = {},
@@ -79,7 +78,7 @@ export async function awsApiRequestREST(
 export async function awsApiRequestSOAP(
 	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions | IWebhookFunctions,
 	service: string,
-	method: IHttpRequestMethods,
+	method: string,
 	path: string,
 	body?: string | Buffer,
 	query: IDataObject = {},
@@ -116,7 +115,7 @@ export async function awsApiRequestSOAPAllItems(
 	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions | IWebhookFunctions,
 	propertyName: string,
 	service: string,
-	method: IHttpRequestMethods,
+	method: string,
 	path: string,
 	body?: string,
 	query: IDataObject = {},
@@ -143,8 +142,11 @@ export async function awsApiRequestSOAPAllItems(
 			region,
 		);
 
-		if (get(responseData, [propertyNameArray[0], propertyNameArray[1], 'NextMarker'])) {
-			query.Marker = get(responseData, [propertyNameArray[0], propertyNameArray[1], 'NextMarker']);
+		if (get(responseData, `${propertyNameArray[0]}.${propertyNameArray[1]}.NextMarker`)) {
+			query.Marker = get(
+				responseData,
+				`${propertyNameArray[0]}.${propertyNameArray[1]}.NextMarker`,
+			);
 		}
 		if (get(responseData, propertyName)) {
 			if (Array.isArray(get(responseData, propertyName))) {
@@ -154,7 +156,7 @@ export async function awsApiRequestSOAPAllItems(
 			}
 		}
 	} while (
-		get(responseData, [propertyNameArray[0], propertyNameArray[1], 'NextMarker']) !== undefined
+		get(responseData, `${propertyNameArray[0]}.${propertyNameArray[1]}.NextMarker`) !== undefined
 	);
 
 	return returnData;

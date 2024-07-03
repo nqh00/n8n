@@ -34,7 +34,6 @@ export class TwilioApi implements ICredentialType {
 			displayName: 'Auth Token',
 			name: 'authToken',
 			type: 'string',
-			typeOptions: { password: true },
 			default: '',
 			displayOptions: {
 				show: {
@@ -46,7 +45,6 @@ export class TwilioApi implements ICredentialType {
 			displayName: 'API Key SID',
 			name: 'apiKeySid',
 			type: 'string',
-			typeOptions: { password: true },
 			default: '',
 			displayOptions: {
 				show: {

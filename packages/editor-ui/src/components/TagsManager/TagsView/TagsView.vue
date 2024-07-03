@@ -3,21 +3,21 @@
 		<TagsTableHeader
 			:search="search"
 			:disabled="isHeaderDisabled()"
-			@search-change="onSearchChange"
-			@create-enable="onCreateEnable"
+			@searchChange="onSearchChange"
+			@createEnable="onCreateEnable"
 		/>
 		<TagsTable
-			ref="tagsTable"
 			:rows="rows"
-			:is-loading="isLoading"
-			:is-saving="isSaving"
-			:new-name="newName"
+			:isLoading="isLoading"
+			:isSaving="isSaving"
+			:newName="newName"
+			@newNameChange="onNewNameChange"
+			@updateEnable="onUpdateEnable"
+			@deleteEnable="onDeleteEnable"
+			@cancelOperation="cancelOperation"
+			@applyOperation="applyOperation"
+			ref="tagsTable"
 			data-test-id="tags-table"
-			@new-name-change="onNewNameChange"
-			@update-enable="onUpdateEnable"
-			@delete-enable="onDeleteEnable"
-			@cancel-operation="cancelOperation"
-			@apply-operation="applyOperation"
 		/>
 	</div>
 </template>
@@ -30,7 +30,6 @@ import TagsTableHeader from '@/components/TagsManager/TagsView/TagsTableHeader.v
 import TagsTable from '@/components/TagsManager/TagsView/TagsTable.vue';
 import { mapStores } from 'pinia';
 import { useUsersStore } from '@/stores/users.store';
-import { useRBACStore } from '@/stores/rbac.store';
 
 const matches = (name: string, filter: string) =>
 	name.toLowerCase().trim().includes(filter.toLowerCase().trim());
@@ -38,22 +37,7 @@ const matches = (name: string, filter: string) =>
 export default defineComponent({
 	name: 'TagsView',
 	components: { TagsTableHeader, TagsTable },
-	props: {
-		tags: {
-			type: Array as () => ITag[],
-			required: true,
-		},
-		isLoading: {
-			type: Boolean,
-			required: true,
-		},
-	},
-	emits: {
-		update: null,
-		delete: null,
-		create: null,
-		disableCreate: null,
-	},
+	props: ['tags', 'isLoading'],
 	data() {
 		return {
 			createEnabled: false,
@@ -66,9 +50,9 @@ export default defineComponent({
 		};
 	},
 	computed: {
-		...mapStores(useUsersStore, useRBACStore),
+		...mapStores(useUsersStore),
 		isCreateEnabled(): boolean {
-			return (this.tags || []).length === 0 || this.createEnabled;
+			return (this.tags || []).length === 0 || this.$data.createEnabled;
 		},
 		rows(): ITagRow[] {
 			const getUsage = (count: number | undefined) =>
@@ -76,17 +60,17 @@ export default defineComponent({
 					? this.$locale.baseText('tagsView.inUse', { adjustToNumber: count })
 					: this.$locale.baseText('tagsView.notBeingUsed');
 
-			const disabled = this.isCreateEnabled || !!this.updateId || !!this.deleteId;
-			const tagRows = (this.tags ?? [])
-				.filter((tag) => this.stickyIds.has(tag.id) || matches(tag.name, this.search))
+			const disabled = this.isCreateEnabled || this.$data.updateId || this.$data.deleteId;
+			const tagRows = (this.tags || [])
+				.filter((tag: ITag) => this.stickyIds.has(tag.id) || matches(tag.name, this.$data.search))
 				.map(
-					(tag): ITagRow => ({
+					(tag: ITag): ITagRow => ({
 						tag,
 						usage: getUsage(tag.usageCount),
-						disable: disabled && tag.id !== this.deleteId && tag.id !== this.updateId,
-						update: disabled && tag.id === this.updateId,
-						delete: disabled && tag.id === this.deleteId,
-						canDelete: this.rbacStore.hasScope('tag:delete'),
+						disable: disabled && tag.id !== this.deleteId && tag.id !== this.$data.updateId,
+						update: disabled && tag.id === this.$data.updateId,
+						delete: disabled && tag.id === this.$data.deleteId,
+						canDelete: this.usersStore.canUserDeleteTags,
 					}),
 				);
 
@@ -98,11 +82,13 @@ export default defineComponent({
 			this.newName = name;
 		},
 		onSearchChange(search: string): void {
-			this.stickyIds.clear();
-			this.search = search;
+			this.$data.stickyIds.clear();
+			this.$data.search = search;
 		},
 		isHeaderDisabled(): boolean {
-			return this.isLoading || !!(this.isCreateEnabled || this.updateId || this.deleteId);
+			return (
+				this.isLoading || !!(this.isCreateEnabled || this.$data.updateId || this.$data.deleteId)
+			);
 		},
 
 		onUpdateEnable(updateId: string): void {
@@ -113,10 +99,10 @@ export default defineComponent({
 			this.newName = '';
 		},
 		updateTag(): void {
-			this.isSaving = true;
+			this.$data.isSaving = true;
 			const name = this.newName.trim();
 			const onUpdate = (updated: boolean) => {
-				this.isSaving = false;
+				this.$data.isSaving = false;
 				if (updated) {
 					this.stickyIds.add(this.updateId);
 					this.disableUpdate();
@@ -133,58 +119,58 @@ export default defineComponent({
 			this.deleteId = '';
 		},
 		deleteTag(): void {
-			this.isSaving = true;
+			this.$data.isSaving = true;
 			const onDelete = (deleted: boolean) => {
 				if (deleted) {
 					this.disableDelete();
 				}
-				this.isSaving = false;
+				this.$data.isSaving = false;
 			};
 
 			this.$emit('delete', this.deleteId, onDelete);
 		},
 
 		onCreateEnable(): void {
-			this.createEnabled = true;
-			this.newName = '';
+			this.$data.createEnabled = true;
+			this.$data.newName = '';
 		},
 		disableCreate(): void {
-			this.createEnabled = false;
+			this.$data.createEnabled = false;
 			this.$emit('disableCreate');
 		},
 		createTag(): void {
-			this.isSaving = true;
-			const name = this.newName.trim();
-			const onCreate = (created: ITag | null) => {
+			this.$data.isSaving = true;
+			const name = this.$data.newName.trim();
+			const onCreate = (created: ITag | null, error?: Error) => {
 				if (created) {
 					this.stickyIds.add(created.id);
 					this.disableCreate();
 				}
-				this.isSaving = false;
+				this.$data.isSaving = false;
 			};
 
 			this.$emit('create', name, onCreate);
 		},
 
 		applyOperation(): void {
-			if (this.isSaving) {
+			if (this.$data.isSaving) {
 				return;
 			} else if (this.isCreateEnabled) {
 				this.createTag();
-			} else if (this.updateId) {
+			} else if (this.$data.updateId) {
 				this.updateTag();
-			} else if (this.deleteId) {
+			} else if (this.$data.deleteId) {
 				this.deleteTag();
 			}
 		},
 		cancelOperation(): void {
-			if (this.isSaving) {
+			if (this.$data.isSaving) {
 				return;
 			} else if (this.isCreateEnabled) {
 				this.disableCreate();
-			} else if (this.updateId) {
+			} else if (this.$data.updateId) {
 				this.disableUpdate();
-			} else if (this.deleteId) {
+			} else if (this.$data.deleteId) {
 				this.disableDelete();
 			}
 		},

@@ -8,9 +8,7 @@ describe('components', () => {
 				props: {
 					theme: 'info',
 				},
-				global: {
-					stubs: ['n8n-icon', 'n8n-text'],
-				},
+				stubs: ['n8n-icon', 'n8n-text'],
 				slots: {
 					default: '<n8n-text size="small">This is an info callout.</n8n-text>',
 				},
@@ -22,9 +20,7 @@ describe('components', () => {
 				props: {
 					theme: 'success',
 				},
-				global: {
-					stubs: ['n8n-icon', 'n8n-text'],
-				},
+				stubs: ['n8n-icon', 'n8n-text'],
 				slots: {
 					default: '<n8n-text size="small">This is a success callout.</n8n-text>',
 				},
@@ -36,9 +32,7 @@ describe('components', () => {
 				props: {
 					theme: 'warning',
 				},
-				global: {
-					stubs: ['n8n-icon', 'n8n-text'],
-				},
+				stubs: ['n8n-icon', 'n8n-text'],
 				slots: {
 					default: '<n8n-text size="small">This is a warning callout.</n8n-text>',
 				},
@@ -50,9 +44,7 @@ describe('components', () => {
 				props: {
 					theme: 'danger',
 				},
-				global: {
-					stubs: ['n8n-icon', 'n8n-text'],
-				},
+				stubs: ['n8n-icon', 'n8n-text'],
 				slots: {
 					default: '<n8n-text size="small">This is a danger callout.</n8n-text>',
 				},
@@ -64,9 +56,7 @@ describe('components', () => {
 				props: {
 					theme: 'secondary',
 				},
-				global: {
-					stubs: ['n8n-icon', 'n8n-text'],
-				},
+				stubs: ['n8n-icon', 'n8n-text'],
 				slots: {
 					default: '<n8n-text size="small">This is a secondary callout.</n8n-text>',
 				},
@@ -79,9 +69,7 @@ describe('components', () => {
 					theme: 'custom',
 					icon: 'code-branch',
 				},
-				global: {
-					stubs: ['n8n-icon', 'n8n-text'],
-				},
+				stubs: ['n8n-icon', 'n8n-text'],
 				slots: {
 					default: '<n8n-text size="small">This is a secondary callout.</n8n-text>',
 				},
@@ -94,9 +82,7 @@ describe('components', () => {
 					theme: 'custom',
 					icon: 'code-branch',
 				},
-				global: {
-					stubs: ['n8n-icon', 'n8n-text', 'n8n-link'],
-				},
+				stubs: ['n8n-icon', 'n8n-text', 'n8n-link'],
 				slots: {
 					default: '<n8n-text size="small">This is a secondary callout.</n8n-text>',
 					actions: '<n8n-link size="small">Do something!</n8n-link>',

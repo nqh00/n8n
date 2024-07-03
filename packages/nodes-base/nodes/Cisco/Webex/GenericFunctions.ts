@@ -1,14 +1,12 @@
-import { createHash } from 'crypto';
+import type { OptionsWithUri } from 'request';
 
 import type {
 	ICredentialDataDecryptedObject,
 	IDataObject,
 	IExecuteFunctions,
 	IHookFunctions,
-	IHttpRequestMethods,
 	ILoadOptionsFunctions,
 	INodeProperties,
-	IRequestOptions,
 	IWebhookFunctions,
 	JsonObject,
 } from 'n8n-workflow';
@@ -16,9 +14,11 @@ import { NodeApiError } from 'n8n-workflow';
 
 import upperFirst from 'lodash/upperFirst';
 
+import { createHash } from 'crypto';
+
 export async function webexApiRequest(
 	this: IExecuteFunctions | ILoadOptionsFunctions | IHookFunctions | IWebhookFunctions,
-	method: IHttpRequestMethods,
+	method: string,
 	resource: string,
 
 	body: any = {},
@@ -26,7 +26,7 @@ export async function webexApiRequest(
 	uri?: string,
 	option: IDataObject = {},
 ): Promise<any> {
-	let options: IRequestOptions = {
+	let options: OptionsWithUri = {
 		method,
 		body,
 		qs,
@@ -55,7 +55,7 @@ export async function webexApiRequest(
 export async function webexApiRequestAllItems(
 	this: IExecuteFunctions | ILoadOptionsFunctions | IHookFunctions,
 	propertyName: string,
-	method: IHttpRequestMethods,
+	method: string,
 	endpoint: string,
 
 	body: any = {},

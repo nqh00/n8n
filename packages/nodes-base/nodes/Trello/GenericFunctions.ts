@@ -1,10 +1,10 @@
+import type { OptionsWithUri } from 'request';
+
 import type {
 	IDataObject,
 	IExecuteFunctions,
 	IHookFunctions,
-	IHttpRequestMethods,
 	ILoadOptionsFunctions,
-	IRequestOptions,
 } from 'n8n-workflow';
 
 /**
@@ -13,14 +13,14 @@ import type {
  */
 export async function apiRequest(
 	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions,
-	method: IHttpRequestMethods,
+	method: string,
 	endpoint: string,
 	body: object,
 	query?: IDataObject,
 ): Promise<any> {
 	query = query || {};
 
-	const options: IRequestOptions = {
+	const options: OptionsWithUri = {
 		method,
 		body,
 		qs: query,
@@ -28,16 +28,12 @@ export async function apiRequest(
 		json: true,
 	};
 
-	if (method === 'GET') {
-		delete options.body;
-	}
-
-	return await this.helpers.requestWithAuthentication.call(this, 'trelloApi', options);
+	return this.helpers.requestWithAuthentication.call(this, 'trelloApi', options);
 }
 
 export async function apiRequestAllItems(
 	this: IHookFunctions | IExecuteFunctions,
-	method: IHttpRequestMethods,
+	method: string,
 	endpoint: string,
 	body: IDataObject,
 	query: IDataObject = {},

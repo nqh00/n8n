@@ -6,8 +6,6 @@ import type {
 	INodeTypeDescription,
 	JsonObject,
 	NodeParameterValue,
-	IRequestOptions,
-	IHttpRequestMethods,
 } from 'n8n-workflow';
 import { NodeApiError, NodeOperationError } from 'n8n-workflow';
 
@@ -283,7 +281,7 @@ export class Chargebee implements INodeType {
 									},
 								],
 								default: 'after',
-								description: 'Operation to decide where the data should be mapped to',
+								description: 'Operation to decide where the the data should be mapped to',
 							},
 							{
 								displayName: 'Date',
@@ -330,7 +328,7 @@ export class Chargebee implements INodeType {
 									},
 								],
 								default: 'gt',
-								description: 'Operation to decide where the data should be mapped to',
+								description: 'Operation to decide where the the data should be mapped to',
 							},
 							{
 								displayName: 'Amount',
@@ -450,6 +448,7 @@ export class Chargebee implements INodeType {
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
 		const items = this.getInputData();
 		const returnData: INodeExecutionData[] = [];
+		let _item: INodeExecutionData;
 
 		const credentials = await this.getCredentials('chargebeeApi');
 
@@ -462,10 +461,11 @@ export class Chargebee implements INodeType {
 
 		for (let i = 0; i < items.length; i++) {
 			try {
+				_item = items[i];
 				const resource = this.getNodeParameter('resource', i);
 				const operation = this.getNodeParameter('operation', i);
 
-				let requestMethod: IHttpRequestMethods = 'GET';
+				let requestMethod = 'GET';
 				let endpoint = '';
 				body = {};
 				qs = {};
@@ -484,7 +484,7 @@ export class Chargebee implements INodeType {
 								key === 'customProperties' &&
 								(properties.customProperties as IDataObject).property !== undefined
 							) {
-								for (const customProperty of (properties.customProperties as IDataObject)
+								for (const customProperty of (properties.customProperties as IDataObject)!
 									.property! as CustomProperty[]) {
 									qs[customProperty.name] = customProperty.value;
 								}
@@ -591,7 +591,7 @@ export class Chargebee implements INodeType {
 						pass: '',
 					},
 					json: true,
-				} satisfies IRequestOptions;
+				};
 
 				let responseData;
 
@@ -627,7 +627,7 @@ export class Chargebee implements INodeType {
 					returnData.push(...responseData);
 				}
 			} catch (error) {
-				if (this.continueOnFail(error)) {
+				if (this.continueOnFail()) {
 					returnData.push({ error: error.message, json: {}, itemIndex: i });
 					continue;
 				}
@@ -635,6 +635,6 @@ export class Chargebee implements INodeType {
 			}
 		}
 
-		return [returnData];
+		return this.prepareOutputData(returnData);
 	}
 }

@@ -1,6 +1,7 @@
 <template>
 	<Modal
 		:name="INVITE_USER_MODAL_KEY"
+		@enter="onSubmit"
 		:title="
 			$locale.baseText(
 				showInviteUrls ? 'settings.users.copyInviteUrls' : 'settings.users.inviteNewUsers',
@@ -8,19 +9,9 @@
 		"
 		:center="true"
 		width="460px"
-		:event-bus="modalBus"
-		@enter="onSubmit"
+		:eventBus="modalBus"
 	>
 		<template #content>
-			<n8n-notice v-if="!isAdvancedPermissionsEnabled">
-				<i18n-t keypath="settings.users.advancedPermissions.warning">
-					<template #link>
-						<n8n-link size="small" @click="goToUpgradeAdvancedPermissions">
-							{{ $locale.baseText('settings.users.advancedPermissions.warning.link') }}
-						</n8n-link>
-					</template>
-				</i18n-t>
-			</n8n-notice>
 			<div v-if="showInviteUrls">
 				<n8n-users-list :users="invitedUsers">
 					<template #actions="{ user }">
@@ -42,9 +33,9 @@
 			<n8n-form-inputs
 				v-else
 				:inputs="config"
-				:event-bus="formBus"
-				:column-view="true"
-				@update="onInput"
+				:eventBus="formBus"
+				:columnView="true"
+				@input="onInput"
 				@submit="onSubmit"
 			/>
 		</template>
@@ -53,8 +44,8 @@
 				:loading="loading"
 				:disabled="!enabledButton"
 				:label="buttonLabel"
-				float="right"
 				@click="onSubmitClick"
+				float="right"
 			/>
 		</template>
 	</Modal>
@@ -63,20 +54,15 @@
 <script lang="ts">
 import { defineComponent } from 'vue';
 import { mapStores } from 'pinia';
-import { useToast } from '@/composables/useToast';
+import { useToast } from '@/composables';
+import { copyPaste } from '@/mixins/copyPaste';
 import Modal from './Modal.vue';
-import type { IFormInputs, IInviteResponse, IUser, InvitableRoleName } from '@/Interface';
-import {
-	EnterpriseEditionFeature,
-	VALID_EMAIL_REGEX,
-	INVITE_USER_MODAL_KEY,
-	ROLE,
-} from '@/constants';
+import type { IFormInputs, IInviteResponse, IUser } from '@/Interface';
+import { VALID_EMAIL_REGEX, INVITE_USER_MODAL_KEY } from '@/constants';
+import { ROLE } from '@/utils';
 import { useUsersStore } from '@/stores/users.store';
 import { useSettingsStore } from '@/stores/settings.store';
-import { useUIStore } from '@/stores/ui.store';
-import { createEventBus } from 'n8n-design-system/utils';
-import { useClipboard } from '@/composables/useClipboard';
+import { createEventBus } from 'n8n-design-system';
 
 const NAME_EMAIL_FORMAT_REGEX = /^.* <(.*)>$/;
 
@@ -93,6 +79,7 @@ function getEmail(email: string): string {
 
 export default defineComponent({
 	name: 'InviteUsersModal',
+	mixins: [copyPaste],
 	components: { Modal },
 	props: {
 		modalName: {
@@ -100,10 +87,7 @@ export default defineComponent({
 		},
 	},
 	setup() {
-		const clipboard = useClipboard();
-
 		return {
-			clipboard,
 			...useToast(),
 		};
 	},
@@ -113,7 +97,6 @@ export default defineComponent({
 			formBus: createEventBus(),
 			modalBus: createEventBus(),
 			emails: '',
-			role: ROLE.Member as InvitableRoleName,
 			showInviteUrls: null as IInviteResponse[] | null,
 			loading: false,
 			INVITE_USER_MODAL_KEY,
@@ -139,7 +122,7 @@ export default defineComponent({
 			},
 			{
 				name: 'role',
-				initialValue: ROLE.Member,
+				initialValue: 'member',
 				properties: {
 					label: this.$locale.baseText('auth.role'),
 					required: true,
@@ -149,11 +132,6 @@ export default defineComponent({
 							value: ROLE.Member,
 							label: this.$locale.baseText('auth.roles.member'),
 						},
-						{
-							value: ROLE.Admin,
-							label: this.$locale.baseText('auth.roles.admin'),
-							disabled: !this.isAdvancedPermissionsEnabled,
-						},
 					],
 					capitalize: true,
 				},
@@ -161,7 +139,7 @@ export default defineComponent({
 		];
 	},
 	computed: {
-		...mapStores(useUsersStore, useSettingsStore, useUIStore),
+		...mapStores(useUsersStore, useSettingsStore),
 		emailsCount(): number {
 			return this.emails.split(',').filter((email: string) => !!email.trim()).length;
 		},
@@ -186,13 +164,8 @@ export default defineComponent({
 			return this.showInviteUrls
 				? this.usersStore.allUsers.filter((user) =>
 						this.showInviteUrls!.find((invite) => invite.user.id === user.id),
-					)
+				  )
 				: [];
-		},
-		isAdvancedPermissionsEnabled(): boolean {
-			return this.settingsStore.isEnterpriseFeatureEnabled(
-				EnterpriseEditionFeature.AdvancedPermissions,
-			);
 		},
 	},
 	methods: {
@@ -216,12 +189,9 @@ export default defineComponent({
 
 			return false;
 		},
-		onInput(e: { name: string; value: InvitableRoleName }) {
+		onInput(e: { name: string; value: string }) {
 			if (e.name === 'emails') {
 				this.emails = e.value;
-			}
-			if (e.name === 'role') {
-				this.role = e.value;
 			}
 		},
 		async onSubmit() {
@@ -230,14 +200,14 @@ export default defineComponent({
 
 				const emails = this.emails
 					.split(',')
-					.map((email) => ({ email: getEmail(email), role: this.role }))
+					.map((email) => ({ email: getEmail(email) }))
 					.filter((invite) => !!invite.email);
 
 				if (emails.length === 0) {
 					throw new Error(this.$locale.baseText('settings.users.noUsersToInvite'));
 				}
 
-				const invited = await this.usersStore.inviteUsers(emails);
+				const invited: IInviteResponse[] = await this.usersStore.inviteUsers(emails);
 				const erroredInvites = invited.filter((invite) => invite.error);
 				const successfulEmailInvites = invited.filter(
 					(invite) => !invite.error && invite.user.emailSent,
@@ -264,7 +234,7 @@ export default defineComponent({
 
 				if (successfulUrlInvites.length) {
 					if (successfulUrlInvites.length === 1) {
-						void this.clipboard.copy(successfulUrlInvites[0].user.inviteAcceptUrl);
+						this.copyToClipboard(successfulUrlInvites[0].user.inviteAcceptUrl);
 					}
 
 					this.showMessage({
@@ -334,12 +304,9 @@ export default defineComponent({
 		},
 		onCopyInviteLink(user: IUser) {
 			if (user.inviteAcceptUrl && this.showInviteUrls) {
-				void this.clipboard.copy(user.inviteAcceptUrl);
+				this.copyToClipboard(user.inviteAcceptUrl);
 				this.showCopyInviteLinkToast([]);
 			}
-		},
-		goToUpgradeAdvancedPermissions() {
-			void this.uiStore.goToUpgrade('advanced-permissions', 'upgrade-advanced-permissions');
 		},
 	},
 });

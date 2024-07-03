@@ -5,16 +5,15 @@ export class MessageBox extends BasePage {
 		modal: () => cy.get('.el-message-box', { withinSubject: null }),
 		header: () => this.getters.modal().find('.el-message-box__title'),
 		content: () => this.getters.modal().find('.el-message-box__content'),
-		confirm: () => this.getters.modal().find('.btn--confirm').first(),
-		cancel: () => this.getters.modal().find('.btn--cancel').first(),
+		confirm: () => this.getters.modal().find('.btn--confirm'),
+		cancel: () => this.getters.modal().find('.btn--cancel'),
 	};
-
 	actions = {
 		confirm: () => {
-			this.getters.confirm().click({ force: true });
+			this.getters.confirm().click();
 		},
 		cancel: () => {
-			this.getters.cancel().click({ force: true });
+			this.getters.cancel().click();
 		},
 	};
 }

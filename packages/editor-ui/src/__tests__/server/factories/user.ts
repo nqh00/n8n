@@ -16,6 +16,9 @@ export const userFactory = Factory.extend<IUser>({
 	isDefaultUser() {
 		return false;
 	},
+	isOwner() {
+		return false;
+	},
 	isPending() {
 		return false;
 	},
@@ -24,8 +27,5 @@ export const userFactory = Factory.extend<IUser>({
 	},
 	signInType(): SignInType {
 		return SignInType.EMAIL;
-	},
-	mfaEnabled() {
-		return false;
 	},
 });

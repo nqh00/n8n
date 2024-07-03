@@ -8,8 +8,7 @@ import type {
 export class Sms77Api implements ICredentialType {
 	name = 'sms77Api';
 
-	// eslint-disable-next-line n8n-nodes-base/cred-class-field-display-name-miscased
-	displayName = 'seven API';
+	displayName = 'Sms77 API';
 
 	documentationUrl = 'sms77';
 
@@ -34,21 +33,8 @@ export class Sms77Api implements ICredentialType {
 
 	test: ICredentialTestRequest = {
 		request: {
-			baseURL: 'https://gateway.seven.io/api',
-			url: '/hooks',
-			qs: {
-				action: 'read',
-			},
+			baseURL: 'https://gateway.sms77.io/api',
+			url: '/balance',
 		},
-		rules: [
-			{
-				type: 'responseSuccessBody',
-				properties: {
-					key: 'success',
-					message: 'Invalid API Key',
-					value: undefined,
-				},
-			},
-		],
 	};
 }

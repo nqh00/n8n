@@ -8,14 +8,13 @@ import type {
 	IWebhookFunctions,
 	IHttpRequestOptions,
 	JsonObject,
-	IHttpRequestMethods,
 } from 'n8n-workflow';
 import { jsonParse, NodeApiError } from 'n8n-workflow';
 
 export async function awsApiRequest(
 	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions | IWebhookFunctions,
 	service: string,
-	method: IHttpRequestMethods,
+	method: string,
 	path: string,
 	body?: string | Buffer,
 	query: IDataObject = {},
@@ -46,7 +45,7 @@ export async function awsApiRequest(
 export async function awsApiRequestREST(
 	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions,
 	service: string,
-	method: IHttpRequestMethods,
+	method: string,
 	path: string,
 	body?: string,
 	query: IDataObject = {},
@@ -64,7 +63,7 @@ export async function awsApiRequestAllItems(
 	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions,
 	propertyName: string,
 	service: string,
-	method: IHttpRequestMethods,
+	method: string,
 	path: string,
 	body?: string,
 	query: IDataObject = {},

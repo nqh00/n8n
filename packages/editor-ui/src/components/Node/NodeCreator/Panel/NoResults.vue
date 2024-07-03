@@ -3,8 +3,8 @@
 		:class="{ [$style.noResults]: true, [$style.iconless]: !showIcon }"
 		data-test-id="node-creator-no-results"
 	>
-		<div v-if="showIcon" :class="$style.icon">
-			<NoResultsIcon />
+		<div :class="$style.icon" v-if="showIcon">
+			<no-results-icon />
 		</div>
 		<div :class="$style.title">
 			<slot name="title" />
@@ -22,7 +22,7 @@
 			</div>
 		</div>
 
-		<div v-if="showRequest" :class="$style.request">
+		<div :class="$style.request" v-if="showRequest">
 			<p v-text="$locale.baseText('nodeCreator.noResults.wantUsToMakeItFaster')" />
 			<div>
 				<n8n-link :to="REQUEST_NODE_FORM_URL">

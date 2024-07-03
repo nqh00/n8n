@@ -1,8 +1,6 @@
 import type { IPairedItemData, IRunData, ITaskData } from 'n8n-workflow';
-import type { IExecutionResponse, TargetItem } from '@/Interface';
-import { isNotNull } from '@/utils/typeGuards';
-
-export const MAX_ITEM_COUNT_FOR_PAIRING = 1000;
+import type { IExecutionResponse, TargetItem } from '../Interface';
+import { isNotNull } from '@/utils';
 
 /*
 	Utility functions that provide shared functionalities used to add paired item support to nodes
@@ -12,10 +10,7 @@ export function getPairedItemId(node: string, run: number, output: number, item:
 	return `${node}_r${run}_o${output}_i${item}`;
 }
 
-export function getSourceItems(
-	data: Partial<IExecutionResponse>,
-	target: TargetItem,
-): TargetItem[] {
+export function getSourceItems(data: IExecutionResponse, target: TargetItem): TargetItem[] {
 	if (!data?.data?.resultData?.runData) {
 		return [];
 	}
@@ -28,15 +23,15 @@ export function getSourceItems(
 	}
 
 	const item = taskData?.data?.main?.[target.outputIndex]?.[target.itemIndex];
-	if (item?.pairedItem === undefined) {
+	if (!item || item.pairedItem === undefined) {
 		return [];
 	}
 
 	const pairedItem: IPairedItemData[] = Array.isArray(item.pairedItem)
 		? item.pairedItem
 		: typeof item.pairedItem === 'object'
-			? [item.pairedItem]
-			: [{ item: item.pairedItem }];
+		? [item.pairedItem]
+		: [{ item: item.pairedItem }];
 	const sourceItems = pairedItem.map((item) => {
 		const input = item.input || 0;
 		return {
@@ -170,42 +165,16 @@ function getMapping(paths: { [item: string]: string[][] }): { [item: string]: Se
 	return mapping;
 }
 
-function getItemsCount(runData: IRunData) {
-	let itemsCount = 0;
-
-	for (const node in runData) {
-		for (const taskData of runData[node]) {
-			const data = taskData.data;
-			if (!data) continue;
-
-			for (const connectionType in data) {
-				const runsCount = data[connectionType].reduce((sum: number, run) => {
-					return run ? sum + run.length : sum;
-				}, 0);
-
-				itemsCount += runsCount;
-			}
-		}
-	}
-
-	return itemsCount;
-}
-
-export function getPairedItemsMapping(executionResponse: Partial<IExecutionResponse> | null): {
+export function getPairedItemsMapping(executionResponse: IExecutionResponse | null): {
 	[itemId: string]: Set<string>;
 } {
 	if (!executionResponse?.data?.resultData?.runData) {
 		return {};
 	}
 
+	const seen = new Set<string>();
 	const runData = executionResponse.data.resultData.runData;
 
-	const itemsCount = getItemsCount(runData);
-	if (itemsCount > MAX_ITEM_COUNT_FOR_PAIRING) {
-		return {};
-	}
-
-	const seen = new Set<string>();
 	const pinned = new Set(Object.keys(executionResponse.data.resultData.pinData || {}));
 
 	const paths: { [item: string]: string[][] } = {};

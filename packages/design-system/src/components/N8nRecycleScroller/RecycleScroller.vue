@@ -1,195 +1,238 @@
-<script lang="ts" setup>
-import type { ComponentPublicInstance } from 'vue';
-import { computed, onMounted, onBeforeMount, ref, nextTick, watch } from 'vue';
+<script lang="ts">
+/* eslint-disable @typescript-eslint/no-use-before-define */
 
-interface RecycleScrollerProps {
-	itemSize: number;
-	items: Array<Record<string, string>>;
-	itemKey: string;
-	offset?: number;
-}
+import type { PropType, ComponentPublicInstance } from 'vue';
+import { computed, defineComponent, onMounted, onBeforeMount, ref, nextTick, watch } from 'vue';
 
-const props = withDefaults(defineProps<RecycleScrollerProps>(), {
-	offset: 2,
-});
+export default defineComponent({
+	name: 'n8n-recycle-scroller',
+	props: {
+		itemSize: {
+			type: Number,
+			required: true,
+		},
+		items: {
+			type: Array as PropType<Array<Record<string, string>>>,
+			required: true,
+		},
+		itemKey: {
+			type: String,
+			required: true,
+		},
+		offset: {
+			type: Number,
+			default: 2,
+		},
+	},
+	setup(props) {
+		const wrapperRef = ref<HTMLElement | null>(null);
+		const scrollerRef = ref<HTMLElement | null>(null);
+		const itemsRef = ref<HTMLElement | null>(null);
+		const itemRefs = ref<Record<string, Element | ComponentPublicInstance | null>>({});
 
-const wrapperRef = ref<HTMLElement | null>(null);
-const scrollerRef = ref<HTMLElement | null>(null);
-const itemsRef = ref<HTMLElement | null>(null);
-const itemRefs = ref<Record<string, Element | ComponentPublicInstance | null>>({});
+		const scrollTop = ref(0);
+		const wrapperHeight = ref(0);
+		const windowHeight = ref(0);
 
-const scrollTop = ref(0);
-const wrapperHeight = ref(0);
-const windowHeight = ref(0);
+		const itemCount = computed(() => props.items.length);
 
-/** Cache */
+		/**
+		 * Cache
+		 */
 
-const itemSizeCache = ref<Record<string, number>>({});
-const itemPositionCache = computed(() => {
-	return props.items.reduce<Record<string, number>>((acc, item, index) => {
-		const key = item[props.itemKey];
-		const prevItem = props.items[index - 1];
-		const prevItemPosition = prevItem ? acc[prevItem[props.itemKey]] : 0;
-		const prevItemSize = prevItem ? itemSizeCache.value[prevItem[props.itemKey]] : 0;
+		const itemSizeCache = ref<Record<string, number>>({});
+		const itemPositionCache = computed(() => {
+			return props.items.reduce<Record<string, number>>((acc, item, index) => {
+				const key = item[props.itemKey];
+				const prevItem = props.items[index - 1];
+				const prevItemPosition = prevItem ? acc[prevItem[props.itemKey]] : 0;
+				const prevItemSize = prevItem ? itemSizeCache.value[prevItem[props.itemKey]] : 0;
 
-		acc[key] = prevItemPosition + prevItemSize;
+				acc[key] = prevItemPosition + prevItemSize;
 
-		return acc;
-	}, {});
-});
+				return acc;
+			}, {});
+		});
 
-/** Indexes */
+		/**
+		 * Indexes
+		 */
 
-const startIndex = computed(() => {
-	const foundIndex =
-		props.items.findIndex((item) => {
-			const itemPosition = itemPositionCache.value[item[props.itemKey]];
+		const startIndex = computed(() => {
+			const foundIndex =
+				props.items.findIndex((item) => {
+					const itemPosition = itemPositionCache.value[item[props.itemKey]];
 
-			return itemPosition >= scrollTop.value;
-		}) - 1;
-	const index = foundIndex - props.offset;
+					return itemPosition >= scrollTop.value;
+				}) - 1;
+			const index = foundIndex - props.offset;
 
-	return index < 0 ? 0 : index;
-});
+			return index < 0 ? 0 : index;
+		});
 
-const endIndex = computed(() => {
-	const foundIndex = props.items.findIndex((item) => {
-		const itemPosition = itemPositionCache.value[item[props.itemKey]];
-		const itemSize = itemSizeCache.value[item[props.itemKey]];
+		const endIndex = computed(() => {
+			const foundIndex = props.items.findIndex((item) => {
+				const itemPosition = itemPositionCache.value[item[props.itemKey]];
+				const itemSize = itemSizeCache.value[item[props.itemKey]];
 
-		return itemPosition + itemSize >= scrollTop.value + wrapperHeight.value;
-	});
-	const index = foundIndex + props.offset;
+				return itemPosition + itemSize >= scrollTop.value + wrapperHeight.value;
+			});
+			const index = foundIndex + props.offset;
 
-	return foundIndex === -1 ? props.items.length - 1 : index;
-});
+			return foundIndex === -1 ? props.items.length - 1 : index;
+		});
 
-const visibleItems = computed(() => {
-	return props.items.slice(startIndex.value, endIndex.value + 1);
-});
+		const visibleItems = computed(() => {
+			return props.items.slice(startIndex.value, endIndex.value + 1);
+		});
 
-watch(
-	() => visibleItems.value,
-	(currentValue, previousValue) => {
-		const difference = currentValue.filter(
-			(currentItem) =>
-				!previousValue.find(
-					(previousItem) => previousItem[props.itemKey] === currentItem[props.itemKey],
-				),
+		watch(
+			() => visibleItems.value,
+			(currentValue, previousValue) => {
+				const difference = currentValue.filter(
+					(currentItem) =>
+						!previousValue.find(
+							(previousItem) => previousItem[props.itemKey] === currentItem[props.itemKey],
+						),
+				);
+
+				if (difference.length > 0) {
+					updateItemSizeCache(difference);
+				}
+			},
 		);
 
-		if (difference.length > 0) {
-			updateItemSizeCache(difference);
+		/**
+		 * Computed sizes and styles
+		 */
+
+		const scrollerHeight = computed(() => {
+			const lastItem = props.items[props.items.length - 1];
+			const lastItemPosition = lastItem ? itemPositionCache.value[lastItem[props.itemKey]] : 0;
+			const lastItemSize = lastItem ? itemSizeCache.value[lastItem[props.itemKey]] : props.itemSize;
+
+			return lastItemPosition + lastItemSize;
+		});
+
+		const scrollerStyles = computed(() => ({
+			height: `${scrollerHeight.value}px`,
+		}));
+
+		const itemsStyles = computed(() => {
+			const offset = itemPositionCache.value[props.items[startIndex.value][props.itemKey]];
+
+			return {
+				transform: `translateY(${offset}px)`,
+			};
+		});
+
+		/**
+		 * Lifecycle hooks
+		 */
+
+		onBeforeMount(() => {
+			initializeItemSizeCache();
+		});
+
+		onMounted(() => {
+			if (wrapperRef.value) {
+				wrapperRef.value.addEventListener('scroll', onScroll);
+				updateItemSizeCache(visibleItems.value);
+			}
+
+			window.addEventListener('resize', onWindowResize);
+			onWindowResize();
+		});
+
+		/**
+		 * Event handlers
+		 */
+
+		function initializeItemSizeCache() {
+			props.items.forEach((item) => {
+				itemSizeCache.value = {
+					...itemSizeCache.value,
+					[item[props.itemKey]]: props.itemSize,
+				};
+			});
 		}
-	},
-);
 
-/** Computed sizes and styles */
+		function updateItemSizeCache(items: Array<Record<string, string>>) {
+			for (const item of items) {
+				onUpdateItemSize(item);
+			}
+		}
 
-const scrollerHeight = computed(() => {
-	const lastItem = props.items[props.items.length - 1];
-	const lastItemPosition = lastItem ? itemPositionCache.value[lastItem[props.itemKey]] : 0;
-	const lastItemSize = lastItem ? itemSizeCache.value[lastItem[props.itemKey]] : props.itemSize;
+		function onUpdateItemSize(item: { [key: string]: string }) {
+			nextTick(() => {
+				const itemId = item[props.itemKey];
+				const itemRef = itemRefs.value[itemId] as HTMLElement;
+				const previousSize = itemSizeCache.value[itemId];
+				const size = itemRef ? itemRef.offsetHeight : props.itemSize;
+				const difference = size - previousSize;
 
-	return lastItemPosition + lastItemSize;
-});
+				itemSizeCache.value = {
+					...itemSizeCache.value,
+					[item[props.itemKey]]: size,
+				};
 
-const scrollerStyles = computed(() => ({
-	height: `${scrollerHeight.value}px`,
-}));
+				if (wrapperRef.value && scrollTop.value) {
+					wrapperRef.value.scrollTop = wrapperRef.value.scrollTop + difference;
+					scrollTop.value = wrapperRef.value.scrollTop;
+				}
+			});
+		}
 
-const itemsStyles = computed(() => {
-	const offset = itemPositionCache.value[props.items[startIndex.value][props.itemKey]];
+		function onWindowResize() {
+			if (wrapperRef.value) {
+				wrapperHeight.value = wrapperRef.value.offsetHeight;
+				nextTick(() => {
+					updateItemSizeCache(visibleItems.value);
+				});
+			}
 
-	return {
-		transform: `translateY(${offset}px)`,
-	};
-});
+			windowHeight.value = window.innerHeight;
+		}
 
-/** Lifecycle hooks */
+		function onScroll() {
+			if (!wrapperRef.value) {
+				return;
+			}
 
-onBeforeMount(() => {
-	initializeItemSizeCache();
-});
-
-onMounted(() => {
-	if (wrapperRef.value) {
-		wrapperRef.value.addEventListener('scroll', onScroll);
-		updateItemSizeCache(visibleItems.value);
-	}
-
-	window.addEventListener('resize', onWindowResize);
-	onWindowResize();
-});
-
-/** Event handlers */
-
-function initializeItemSizeCache() {
-	props.items.forEach((item) => {
-		itemSizeCache.value = {
-			...itemSizeCache.value,
-			[item[props.itemKey]]: props.itemSize,
-		};
-	});
-}
-
-function updateItemSizeCache(items: Array<Record<string, string>>) {
-	for (const item of items) {
-		onUpdateItemSize(item);
-	}
-}
-
-function onUpdateItemSize(item: { [key: string]: string }) {
-	void nextTick(() => {
-		const itemId = item[props.itemKey];
-		const itemRef = itemRefs.value[itemId] as HTMLElement;
-		const previousSize = itemSizeCache.value[itemId];
-		const size = itemRef ? itemRef.offsetHeight : props.itemSize;
-		const difference = size - previousSize;
-
-		itemSizeCache.value = {
-			...itemSizeCache.value,
-			[item[props.itemKey]]: size,
-		};
-
-		if (wrapperRef.value && scrollTop.value) {
-			wrapperRef.value.scrollTop = wrapperRef.value.scrollTop + difference;
 			scrollTop.value = wrapperRef.value.scrollTop;
 		}
-	});
-}
 
-function onWindowResize() {
-	if (wrapperRef.value) {
-		wrapperHeight.value = wrapperRef.value.offsetHeight;
-		void nextTick(() => {
-			updateItemSizeCache(visibleItems.value);
-		});
-	}
-
-	windowHeight.value = window.innerHeight;
-}
-
-function onScroll() {
-	if (!wrapperRef.value) {
-		return;
-	}
-
-	scrollTop.value = wrapperRef.value.scrollTop;
-}
+		return {
+			startIndex,
+			endIndex,
+			itemCount,
+			itemSizeCache,
+			itemPositionCache,
+			itemsVisible: visibleItems,
+			itemsStyles,
+			scrollerStyles,
+			scrollerScrollTop: scrollTop,
+			scrollerRef,
+			wrapperRef,
+			itemsRef,
+			itemRefs,
+			onUpdateItemSize,
+		};
+	},
+});
 </script>
 
 <template>
-	<div ref="wrapperRef" class="recycle-scroller-wrapper">
-		<div ref="scrollerRef" class="recycle-scroller" :style="scrollerStyles">
-			<div ref="itemsRef" class="recycle-scroller-items-wrapper" :style="itemsStyles">
+	<div class="recycle-scroller-wrapper" ref="wrapperRef">
+		<div class="recycle-scroller" :style="scrollerStyles" ref="scrollerRef">
+			<div class="recycle-scroller-items-wrapper" :style="itemsStyles" ref="itemsRef">
 				<div
-					v-for="item in visibleItems"
+					v-for="item in itemsVisible"
 					:key="item[itemKey]"
-					:ref="(element) => (itemRefs[item[itemKey]] = element)"
 					class="recycle-scroller-item"
+					:ref="(element) => (itemRefs[item[itemKey]] = element)"
 				>
-					<slot :item="item" :update-item-size="onUpdateItemSize" />
+					<slot :item="item" :updateItemSize="onUpdateItemSize" />
 				</div>
 			</div>
 		</div>

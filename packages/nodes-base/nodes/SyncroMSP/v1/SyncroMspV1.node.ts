@@ -51,6 +51,6 @@ export class SyncroMspV1 implements INodeType {
 	};
 
 	async execute(this: IExecuteFunctions) {
-		return await router.call(this);
+		return router.call(this);
 	}
 }

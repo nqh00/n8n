@@ -8,7 +8,6 @@ import type {
 	INodeTypeDescription,
 } from 'n8n-workflow';
 
-import moment from 'moment-timezone';
 import { zoomApiRequest, zoomApiRequestAllItems } from './GenericFunctions';
 
 import { meetingFields, meetingOperations } from './MeetingDescription';
@@ -22,6 +21,8 @@ import { meetingFields, meetingOperations } from './MeetingDescription';
 // 	webinarOperations,
 // 	webinarFields,
 // } from './WebinarDescription';
+
+import moment from 'moment-timezone';
 
 interface Settings {
 	host_video?: boolean;
@@ -778,7 +779,7 @@ export class Zoom implements INodeType {
 				);
 				returnData.push(...executionData);
 			} catch (error) {
-				if (this.continueOnFail(error)) {
+				if (this.continueOnFail()) {
 					const executionErrorData = {
 						json: {} as IDataObject,
 						error: error.message,
@@ -791,6 +792,6 @@ export class Zoom implements INodeType {
 			}
 		}
 
-		return [returnData];
+		return this.prepareOutputData(returnData);
 	}
 }

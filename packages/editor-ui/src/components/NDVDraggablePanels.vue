@@ -1,33 +1,28 @@
 <template>
 	<div>
-		<NDVFloatingNodes
-			v-if="activeNode"
-			:root-node="activeNode"
-			@switch-selected-node="onSwitchSelectedNode"
-		/>
-		<div v-if="!hideInputAndOutput" :class="$style.inputPanel" :style="inputPanelStyles">
+		<div :class="$style.inputPanel" v-if="!hideInputAndOutput" :style="inputPanelStyles">
 			<slot name="input"></slot>
 		</div>
-		<div v-if="!hideInputAndOutput" :class="$style.outputPanel" :style="outputPanelStyles">
+		<div :class="$style.outputPanel" v-if="!hideInputAndOutput" :style="outputPanelStyles">
 			<slot name="output"></slot>
 		</div>
 		<div :class="$style.mainPanel" :style="mainPanelStyles">
 			<n8n-resize-wrapper
-				:is-resizing-enabled="currentNodePaneType !== 'unknown'"
+				:isResizingEnabled="currentNodePaneType !== 'unknown'"
 				:width="relativeWidthToPx(mainPanelDimensions.relativeWidth)"
-				:min-width="MIN_PANEL_WIDTH"
-				:grid-size="20"
-				:supported-directions="supportedResizeDirections"
+				:minWidth="MIN_PANEL_WIDTH"
+				:gridSize="20"
 				@resize="onResizeDebounced"
 				@resizestart="onResizeStart"
 				@resizeend="onResizeEnd"
+				:supportedDirections="supportedResizeDirections"
 			>
 				<div :class="$style.dragButtonContainer">
 					<PanelDragButton
-						v-if="!hideInputAndOutput && isDraggable"
 						:class="{ [$style.draggable]: true, [$style.visible]: isDragging }"
-						:can-move-left="canMoveLeft"
-						:can-move-right="canMoveRight"
+						:canMoveLeft="canMoveLeft"
+						:canMoveRight="canMoveRight"
+						v-if="!hideInputAndOutput && isDraggable"
 						@dragstart="onDragStart"
 						@drag="onDrag"
 						@dragend="onDragEnd"
@@ -46,16 +41,13 @@ import { defineComponent } from 'vue';
 import type { PropType } from 'vue';
 import { mapStores } from 'pinia';
 import { get } from 'lodash-es';
-import { useStorage } from '@/composables/useStorage';
 
 import type { INodeTypeDescription } from 'n8n-workflow';
 import PanelDragButton from './PanelDragButton.vue';
 
 import { LOCAL_STORAGE_MAIN_PANEL_RELATIVE_WIDTH, MAIN_NODE_PANEL_WIDTH } from '@/constants';
+import { debounceHelper } from '@/mixins/debounce';
 import { useNDVStore } from '@/stores/ndv.store';
-import { ndvEventBus } from '@/event-bus';
-import NDVFloatingNodes from '@/components/NDVFloatingNodes.vue';
-import { useDebounce } from '@/composables/useDebounce';
 
 const SIDE_MARGIN = 24;
 const SIDE_PANELS_MARGIN = 80;
@@ -73,9 +65,9 @@ const initialMainPanelWidth: { [key: string]: number } = {
 
 export default defineComponent({
 	name: 'NDVDraggablePanels',
+	mixins: [debounceHelper],
 	components: {
 		PanelDragButton,
-		NDVFloatingNodes,
 	},
 	props: {
 		isDraggable: {
@@ -88,14 +80,9 @@ export default defineComponent({
 			type: Number,
 		},
 		nodeType: {
-			type: Object as PropType<INodeTypeDescription | null>,
+			type: Object as PropType<INodeTypeDescription>,
 			default: () => ({}),
 		},
-	},
-	setup() {
-		const { callDebounced } = useDebounce();
-
-		return { callDebounced };
 	},
 	data(): {
 		windowWidth: number;
@@ -131,12 +118,9 @@ export default defineComponent({
 		setTimeout(() => {
 			this.initialized = true;
 		}, 0);
-
-		ndvEventBus.on('setPositionByName', this.setPositionByName);
 	},
-	beforeUnmount() {
+	destroyed() {
 		window.removeEventListener('resize', this.setTotalWidth);
-		ndvEventBus.off('setPositionByName', this.setPositionByName);
 	},
 	computed: {
 		...mapStores(useNDVStore),
@@ -146,9 +130,6 @@ export default defineComponent({
 			relativeRight: number;
 		} {
 			return this.ndvStore.getMainPanelDimensions(this.currentNodePaneType);
-		},
-		activeNode() {
-			return this.ndvStore.activeNode;
 		},
 		supportedResizeDirections(): string[] {
 			const supportedDirections = ['right'];
@@ -263,9 +244,6 @@ export default defineComponent({
 		},
 	},
 	methods: {
-		onSwitchSelectedNode(node: string) {
-			this.$emit('switchSelectedNode', node);
-		},
 		getInitialLeftPosition(width: number) {
 			if (this.currentNodePaneType === 'dragless')
 				return this.pxToRelativeWidth(SIDE_MARGIN + 1 + this.fixedPanelWidth);
@@ -309,7 +287,7 @@ export default defineComponent({
 					panelType: this.currentNodePaneType,
 					dimensions: {
 						relativeLeft: 1 - this.mainPanelDimensions.relativeWidth - this.maximumRightPosition,
-						relativeRight: this.maximumRightPosition,
+						relativeRight: this.maximumRightPosition as number,
 					},
 				});
 				return;
@@ -322,15 +300,6 @@ export default defineComponent({
 					relativeRight: mainPanelRelativeRight,
 				},
 			});
-		},
-		setPositionByName(position: 'minLeft' | 'maxRight' | 'initial') {
-			const positionByName: Record<string, number> = {
-				minLeft: this.minimumLeftPosition,
-				maxRight: this.maximumRightPosition,
-				initial: this.getInitialLeftPosition(this.mainPanelDimensions.relativeWidth),
-			};
-
-			this.setPositions(positionByName[position]);
 		},
 		pxToRelativeWidth(px: number) {
 			return px / this.windowWidth;
@@ -346,7 +315,7 @@ export default defineComponent({
 		},
 		onResizeDebounced(data: { direction: string; x: number; width: number }) {
 			if (this.initialized) {
-				void this.callDebounced(this.onResize, { debounceTime: 10, trailing: true }, data);
+				void this.callDebounced('onResize', { debounceTime: 10, trailing: true }, data);
 			}
 		},
 		onResize({ direction, x, width }: { direction: string; x: number; width: number }) {
@@ -363,9 +332,9 @@ export default defineComponent({
 			);
 		},
 		restorePositionData() {
-			const storedPanelWidthData = useStorage(
+			const storedPanelWidthData = window.localStorage.getItem(
 				`${LOCAL_STORAGE_MAIN_PANEL_RELATIVE_WIDTH}_${this.currentNodePaneType}`,
-			).value;
+			);
 
 			if (storedPanelWidthData) {
 				const parsedWidth = parseFloat(storedPanelWidthData);
@@ -378,8 +347,10 @@ export default defineComponent({
 			return false;
 		},
 		storePositionData() {
-			useStorage(`${LOCAL_STORAGE_MAIN_PANEL_RELATIVE_WIDTH}_${this.currentNodePaneType}`).value =
-				this.mainPanelDimensions.relativeWidth.toString();
+			window.localStorage.setItem(
+				`${LOCAL_STORAGE_MAIN_PANEL_RELATIVE_WIDTH}_${this.currentNodePaneType}`,
+				this.mainPanelDimensions.relativeWidth.toString(),
+			);
 		},
 		onDragStart() {
 			this.isDragging = true;

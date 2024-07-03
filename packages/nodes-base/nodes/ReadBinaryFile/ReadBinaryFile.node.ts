@@ -67,17 +67,15 @@ export class ReadBinaryFile implements INodeType {
 				}
 
 				const filePath = this.getNodeParameter('filePath', itemIndex);
-
 				const stream = await this.helpers.createReadStream(filePath);
 				const dataPropertyName = this.getNodeParameter('dataPropertyName', itemIndex);
-
 				newItem.binary![dataPropertyName] = await this.helpers.prepareBinaryData(stream, filePath);
 				returnData.push(newItem);
 			} catch (error) {
-				if (this.continueOnFail(error)) {
+				if (this.continueOnFail()) {
 					returnData.push({
 						json: {
-							error: (error as Error).message,
+							error: error.message,
 						},
 						pairedItem: {
 							item: itemIndex,
@@ -89,6 +87,6 @@ export class ReadBinaryFile implements INodeType {
 			}
 		}
 
-		return [returnData];
+		return this.prepareOutputData(returnData);
 	}
 }

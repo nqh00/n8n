@@ -1,10 +1,11 @@
+import { setup, workflowToTests, getWorkflowFilenames } from '../../../../test/nodes/Helpers';
+
 import nock from 'nock';
+import { executeWorkflow } from '../../../../test/nodes/ExecuteWorkflow';
+
+import type { WorkflowTestData } from '../../../../test/nodes/types';
+
 import type { INodeTypes } from 'n8n-workflow';
-import { setup, workflowToTests, getWorkflowFilenames } from '@test/nodes/Helpers';
-
-import { executeWorkflow } from '@test/nodes/ExecuteWorkflow';
-
-import type { WorkflowTestData } from '@test/nodes/types';
 
 describe('Test N8n Node, expect base_url to be received from credentials', () => {
 	const workflows = getWorkflowFilenames(__dirname);
@@ -31,6 +32,6 @@ describe('Test N8n Node, expect base_url to be received from credentials', () =>
 	};
 
 	for (const testData of tests) {
-		test(testData.description, async () => await testNode(testData, nodeTypes));
+		test(testData.description, async () => testNode(testData, nodeTypes));
 	}
 });

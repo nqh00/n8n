@@ -1,12 +1,12 @@
 /* eslint-disable @typescript-eslint/no-loop-func */
+import * as Helpers from '../../../test/nodes/Helpers';
+import type { WorkflowTestData } from '../../../test/nodes/types';
+import { executeWorkflow } from '../../../test/nodes/ExecuteWorkflow';
 import path from 'path';
-import * as Helpers from '@test/nodes/Helpers';
-import type { WorkflowTestData } from '@test/nodes/types';
-import { executeWorkflow } from '@test/nodes/ExecuteWorkflow';
 
 describe('Test Move Binary Data Node', () => {
 	beforeEach(async () => {
-		await Helpers.initBinaryDataService();
+		await Helpers.initBinaryDataManager();
 	});
 
 	const workflow = Helpers.readJsonFileSync(
@@ -84,7 +84,6 @@ describe('Test Move Binary Data Node', () => {
 										mimeType: 'application/json',
 										fileType: 'json',
 										fileSize: '59 B',
-										fileExtension: 'json',
 									},
 								},
 							},
@@ -104,7 +103,6 @@ describe('Test Move Binary Data Node', () => {
 										fileType: 'json',
 										fileSize: '10 B',
 										fileName: 'example.json',
-										fileExtension: 'json',
 									},
 								},
 							},

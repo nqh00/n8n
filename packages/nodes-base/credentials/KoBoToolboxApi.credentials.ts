@@ -2,7 +2,7 @@ import type {
 	IAuthenticateGeneric,
 	ICredentialTestRequest,
 	ICredentialType,
-	INodeProperties,
+	NodePropertyTypes,
 } from 'n8n-workflow';
 
 export class KoBoToolboxApi implements ICredentialType {
@@ -13,18 +13,17 @@ export class KoBoToolboxApi implements ICredentialType {
 	// See https://support.kobotoolbox.org/api.html
 	documentationUrl = 'koBoToolbox';
 
-	properties: INodeProperties[] = [
+	properties = [
 		{
 			displayName: 'API Root URL',
 			name: 'URL',
-			type: 'string',
+			type: 'string' as NodePropertyTypes,
 			default: 'https://kf.kobotoolbox.org/',
 		},
 		{
 			displayName: 'API Token',
 			name: 'token',
-			type: 'string',
-			typeOptions: { password: true },
+			type: 'string' as NodePropertyTypes,
 			default: '',
 			hint: 'You can get your API token at https://[api-root]/token/?format=json (for a logged in user)',
 		},

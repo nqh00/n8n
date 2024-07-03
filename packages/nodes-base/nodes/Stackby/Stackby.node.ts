@@ -7,7 +7,6 @@ import type {
 } from 'n8n-workflow';
 import { NodeOperationError } from 'n8n-workflow';
 
-import { generatePairedItemData } from '../../utils/utilities';
 import type { IRecord } from './GenericFunction';
 import { apiRequest, apiRequestAllItems } from './GenericFunction';
 
@@ -192,7 +191,7 @@ export class Stackby implements INodeType {
 						responseData.map((data: any) => data.field) as INodeExecutionData[],
 					);
 				} catch (error) {
-					if (this.continueOnFail(error)) {
+					if (this.continueOnFail()) {
 						const executionErrorData = this.helpers.constructExecutionMetaData(
 							this.helpers.returnJsonArray({ error: error.message }),
 							{ itemData: { item: i } },
@@ -228,7 +227,7 @@ export class Stackby implements INodeType {
 
 					returnData.push(...executionData);
 				} catch (error) {
-					if (this.continueOnFail(error)) {
+					if (this.continueOnFail()) {
 						const executionErrorData = this.helpers.constructExecutionMetaData(
 							this.helpers.returnJsonArray({ error: error.message }),
 							{ itemData: { item: i } },
@@ -282,11 +281,10 @@ export class Stackby implements INodeType {
 					responseData.map((data: any) => data.field) as INodeExecutionData[],
 				);
 			} catch (error) {
-				if (this.continueOnFail(error)) {
-					const itemData = generatePairedItemData(items.length);
+				if (this.continueOnFail()) {
 					const executionErrorData = this.helpers.constructExecutionMetaData(
 						this.helpers.returnJsonArray({ error: error.message }),
-						{ itemData },
+						{ itemData: { item: 0 } },
 					);
 					returnData.push(...executionErrorData);
 				} else {
@@ -332,7 +330,7 @@ export class Stackby implements INodeType {
 						responseData.map((data: any) => data.field) as INodeExecutionData[],
 					);
 				} catch (error) {
-					if (this.continueOnFail(error)) {
+					if (this.continueOnFail()) {
 						const executionErrorData = this.helpers.constructExecutionMetaData(
 							this.helpers.returnJsonArray({ error: error.message }),
 							{ itemData: { item: i } },
@@ -344,6 +342,6 @@ export class Stackby implements INodeType {
 				}
 			}
 		}
-		return [returnData];
+		return this.prepareOutputData(returnData);
 	}
 }

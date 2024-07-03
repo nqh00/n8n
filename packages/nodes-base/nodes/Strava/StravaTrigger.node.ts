@@ -1,4 +1,3 @@
-import { randomBytes } from 'crypto';
 import type {
 	IHookFunctions,
 	IWebhookFunctions,
@@ -9,6 +8,8 @@ import type {
 } from 'n8n-workflow';
 
 import { stravaApiRequest } from './GenericFunctions';
+
+import { randomBytes } from 'crypto';
 
 export class StravaTrigger implements INodeType {
 	description: INodeTypeDescription = {

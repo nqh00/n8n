@@ -10,7 +10,6 @@ export class NoOp implements INodeType {
 		displayName: 'No Operation, do nothing',
 		name: 'noOp',
 		icon: 'fa:arrow-right',
-		iconColor: 'gray',
 		group: ['organization'],
 		version: 1,
 		description: 'No Operation',
@@ -26,6 +25,6 @@ export class NoOp implements INodeType {
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
 		const items = this.getInputData();
 
-		return [items];
+		return this.prepareOutputData(items);
 	}
 }

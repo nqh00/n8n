@@ -1,5 +1,4 @@
 import type { INodeProperties } from 'n8n-workflow';
-import { includeInputFields } from './common.descriptions';
 
 export const CurrentDateDescription: INodeProperties[] = [
 	{
@@ -51,7 +50,6 @@ export const CurrentDateDescription: INodeProperties[] = [
 		},
 		default: {},
 		options: [
-			includeInputFields,
 			{
 				displayName: 'Timezone',
 				name: 'timezone',

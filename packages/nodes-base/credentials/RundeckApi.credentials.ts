@@ -24,7 +24,6 @@ export class RundeckApi implements ICredentialType {
 			displayName: 'Token',
 			name: 'token',
 			type: 'string',
-			typeOptions: { password: true },
 			default: '',
 		},
 	];

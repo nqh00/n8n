@@ -1,7 +1,7 @@
 /**
  * @type {(dir: string, mode: 'frontend' | undefined) => import('@types/eslint').ESLint.ConfigData}
  */
-module.exports = (tsconfigRootDir, mode) => {
+exports.sharedOptions = (tsconfigRootDir, mode) => {
 	const isFrontend = mode === 'frontend';
 	const parser = isFrontend ? 'vue-eslint-parser' : '@typescript-eslint/parser';
 	const extraParserOptions = isFrontend

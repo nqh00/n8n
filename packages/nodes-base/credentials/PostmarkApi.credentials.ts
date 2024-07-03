@@ -17,7 +17,6 @@ export class PostmarkApi implements ICredentialType {
 			displayName: 'Server API Token',
 			name: 'serverToken',
 			type: 'string',
-			typeOptions: { password: true },
 			default: '',
 		},
 	];

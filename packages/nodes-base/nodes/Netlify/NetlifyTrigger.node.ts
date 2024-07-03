@@ -9,8 +9,9 @@ import type {
 	IWebhookResponseData,
 } from 'n8n-workflow';
 
-import { snakeCase } from 'change-case';
 import { netlifyApiRequest } from './GenericFunctions';
+
+import { snakeCase } from 'change-case';
 
 export class NetlifyTrigger implements INodeType {
 	description: INodeTypeDescription = {

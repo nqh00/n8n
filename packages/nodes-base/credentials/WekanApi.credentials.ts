@@ -41,7 +41,6 @@ export class WekanApi implements ICredentialType {
 			displayName: 'Session Token',
 			name: 'token',
 			type: 'hidden',
-
 			typeOptions: {
 				expirable: true,
 			},

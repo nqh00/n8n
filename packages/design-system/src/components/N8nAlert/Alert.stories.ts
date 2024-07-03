@@ -1,4 +1,4 @@
-import type { StoryFn } from '@storybook/vue3';
+import type { StoryFn } from '@storybook/vue';
 import N8nAlert from './Alert.vue';
 import N8nIcon from '../N8nIcon';
 
@@ -18,13 +18,12 @@ export default {
 };
 
 const Template: StoryFn = (args, { argTypes }) => ({
-	setup: () => ({ args }),
 	props: Object.keys(argTypes),
 	components: {
 		N8nAlert,
 	},
 	template:
-		'<div style="position: relative; width: 100%; height: 300px;"><n8n-alert v-bind="args"><template #aside>custom content slot</template></n8n-alert></div>',
+		'<div style="position: relative; width: 100%; height: 300px;"><n8n-alert v-bind="$props"><template #aside>custom content slot</template></n8n-alert></div>',
 });
 
 export const ContentAsProps = Template.bind({});
@@ -39,16 +38,15 @@ ContentAsProps.args = {
 };
 
 const TemplateForSlots: StoryFn = (args, { argTypes }) => ({
-	setup: () => ({ args }),
 	props: Object.keys(argTypes),
 	components: {
 		N8nAlert,
 		N8nIcon,
 	},
 	template: `<div style="position: relative; width: 100%; height: 300px;">
-			  <n8n-alert v-bind="args">
+			  <n8n-alert v-bind="$props">
 					<template #title>Title</template>
-					Description
+					<template>Description</template>
 					<template #aside><button>Button</button></template>
 					<template #icon>
 						<n8n-icon icon="grin-stars" size="xlarge" />

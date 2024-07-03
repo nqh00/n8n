@@ -333,7 +333,7 @@ export class Baserow implements INodeType {
 					returnData.push(...executionData);
 				}
 			} catch (error) {
-				if (this.continueOnFail(error)) {
+				if (this.continueOnFail()) {
 					returnData.push({ error: error.message, json: {}, itemIndex: i });
 					continue;
 				}
@@ -341,6 +341,6 @@ export class Baserow implements INodeType {
 			}
 		}
 
-		return [returnData];
+		return this.prepareOutputData(returnData);
 	}
 }

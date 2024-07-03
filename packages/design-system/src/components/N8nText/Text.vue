@@ -1,48 +1,74 @@
 <template>
-	<component :is="tag" :class="['n8n-text', ...classes]" v-bind="$attrs">
+	<component :is="tag" :class="['n8n-text', ...classes]" v-on="$listeners">
 		<slot></slot>
 	</component>
 </template>
 
-<script lang="ts" setup>
-import { computed, useCssModule } from 'vue';
-import type { TextSize, TextColor, TextAlign } from 'n8n-design-system/types/text';
+<script lang="ts">
+import { defineComponent } from 'vue';
+export default defineComponent({
+	name: 'n8n-text',
+	props: {
+		bold: {
+			type: Boolean,
+			default: false,
+		},
+		size: {
+			type: String,
+			default: 'medium',
+			validator: (value: string): boolean =>
+				['xsmall', 'small', 'mini', 'medium', 'large', 'xlarge'].includes(value),
+		},
+		color: {
+			type: String,
+			validator: (value: string): boolean =>
+				[
+					'primary',
+					'text-dark',
+					'text-base',
+					'text-light',
+					'text-xlight',
+					'danger',
+					'success',
+					'warning',
+				].includes(value),
+		},
+		align: {
+			type: String,
+			validator: (value: string): boolean => ['right', 'left', 'center'].includes(value),
+		},
+		compact: {
+			type: Boolean,
+			default: false,
+		},
+		tag: {
+			type: String,
+			default: 'span',
+		},
+	},
+	computed: {
+		classes() {
+			const applied = [];
+			if (this.align) {
+				// eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+				applied.push(`align-${this.align}`);
+			}
+			if (this.color) {
+				applied.push(this.color);
+			}
 
-interface TextProps {
-	bold?: boolean;
-	size?: TextSize;
-	color?: TextColor;
-	align?: TextAlign;
-	compact?: boolean;
-	tag?: string;
-}
+			if (this.compact) {
+				applied.push('compact');
+			}
 
-defineOptions({ name: 'N8nText' });
-const props = withDefaults(defineProps<TextProps>(), {
-	bold: false,
-	size: 'medium',
-	compact: false,
-	tag: 'span',
-});
+			// eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+			applied.push(`size-${this.size}`);
 
-const $style = useCssModule();
-const classes = computed(() => {
-	const applied: string[] = [];
-	if (props.align) {
-		applied.push(`align-${props.align}`);
-	}
-	if (props.color) {
-		applied.push(props.color);
-	}
+			applied.push(this.bold ? 'bold' : 'regular');
 
-	if (props.compact) {
-		applied.push('compact');
-	}
-
-	applied.push(`size-${props.size}`);
-	applied.push(props.bold ? 'bold' : 'regular');
-
-	return applied.map((c) => $style[c]);
+			return applied.map((c) => this.$style[c]);
+		},
+	},
 });
 </script>
 
@@ -88,10 +114,6 @@ const classes = computed(() => {
 	color: var(--color-primary);
 }
 
-.secondary {
-	color: var(--color-secondary);
-}
-
 .text-dark {
 	color: var(--color-text-dark);
 }
@@ -109,7 +131,7 @@ const classes = computed(() => {
 }
 
 .danger {
-	color: var(--color-text-danger);
+	color: var(--color-danger);
 }
 
 .success {

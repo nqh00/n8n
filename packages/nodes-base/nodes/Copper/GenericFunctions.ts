@@ -1,13 +1,14 @@
 import { createHash } from 'crypto';
 
+import type { OptionsWithUri } from 'request';
+
 import type {
 	ICredentialDataDecryptedObject,
 	IDataObject,
 	IExecuteFunctions,
+	IExecuteSingleFunctions,
 	IHookFunctions,
-	IHttpRequestMethods,
 	ILoadOptionsFunctions,
-	IRequestOptions,
 	IWebhookFunctions,
 	JsonObject,
 } from 'n8n-workflow';
@@ -27,8 +28,13 @@ import type {
  * Make an authenticated API request to Copper.
  */
 export async function copperApiRequest(
-	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions | IWebhookFunctions,
-	method: IHttpRequestMethods,
+	this:
+		| IHookFunctions
+		| IExecuteFunctions
+		| IExecuteSingleFunctions
+		| ILoadOptionsFunctions
+		| IWebhookFunctions,
+	method: string,
 	resource: string,
 	body: IDataObject = {},
 	qs: IDataObject = {},
@@ -37,7 +43,7 @@ export async function copperApiRequest(
 ) {
 	const credentials = (await this.getCredentials('copperApi')) as { apiKey: string; email: string };
 
-	let options: IRequestOptions = {
+	let options: OptionsWithUri = {
 		headers: {
 			'X-PW-AccessToken': credentials.apiKey,
 			'X-PW-Application': 'developer_api',
@@ -147,7 +153,7 @@ export const adjustTaskFields = flow(adjustLeadFields, adjustProjectIds);
  */
 export async function copperApiRequestAllItems(
 	this: IHookFunctions | ILoadOptionsFunctions | IExecuteFunctions,
-	method: IHttpRequestMethods,
+	method: string,
 	resource: string,
 	body: IDataObject = {},
 	qs: IDataObject = {},
@@ -173,7 +179,7 @@ export async function copperApiRequestAllItems(
  */
 export async function handleListing(
 	this: IExecuteFunctions,
-	method: IHttpRequestMethods,
+	method: string,
 	endpoint: string,
 	qs: IDataObject = {},
 	body: IDataObject = {},
@@ -184,7 +190,7 @@ export async function handleListing(
 	const option = { resolveWithFullResponse: true };
 
 	if (returnAll) {
-		return await copperApiRequestAllItems.call(this, method, endpoint, body, qs, uri, option);
+		return copperApiRequestAllItems.call(this, method, endpoint, body, qs, uri, option);
 	}
 
 	const limit = this.getNodeParameter('limit', 0);

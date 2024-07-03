@@ -1,12 +1,25 @@
 import {
-	setWorkflowExecutionMetadata,
-	setAllWorkflowExecutionMetadata,
-	KV_LIMIT,
-	getWorkflowExecutionMetadata,
 	getAllWorkflowExecutionMetadata,
-} from '@/ExecutionMetadata';
-import { InvalidExecutionMetadataError } from '@/errors/invalid-execution-metadata.error';
-import type { IRunExecutionData } from 'n8n-workflow';
+	getWorkflowExecutionMetadata,
+	KV_LIMIT,
+	setAllWorkflowExecutionMetadata,
+	setWorkflowExecutionMetadata,
+	ExecutionMetadataValidationError,
+} from '@/WorkflowExecutionMetadata';
+import { LoggerProxy } from 'n8n-workflow';
+import type { ILogger, IRunExecutionData } from 'n8n-workflow';
+
+beforeAll(() => {
+	const fakeLogger = {
+		log: () => {},
+		debug: () => {},
+		verbose: () => {},
+		info: () => {},
+		warn: () => {},
+		error: () => {},
+	} as ILogger;
+	LoggerProxy.init(fakeLogger);
+});
 
 describe('Execution Metadata functions', () => {
 	test('setWorkflowExecutionMetadata will set a value', () => {
@@ -52,7 +65,7 @@ describe('Execution Metadata functions', () => {
 		} as IRunExecutionData;
 
 		expect(() => setWorkflowExecutionMetadata(executionData, 'test1', 1234)).not.toThrow(
-			InvalidExecutionMetadataError,
+			ExecutionMetadataValidationError,
 		);
 
 		expect(metadata).toEqual({
@@ -60,7 +73,7 @@ describe('Execution Metadata functions', () => {
 		});
 
 		expect(() => setWorkflowExecutionMetadata(executionData, 'test2', {})).toThrow(
-			InvalidExecutionMetadataError,
+			ExecutionMetadataValidationError,
 		);
 
 		expect(metadata).not.toEqual({
@@ -84,7 +97,7 @@ describe('Execution Metadata functions', () => {
 				test3: 'value3',
 				test4: 'value4',
 			}),
-		).toThrow(InvalidExecutionMetadataError);
+		).toThrow(ExecutionMetadataValidationError);
 
 		expect(metadata).toEqual({
 			test3: 'value3',
@@ -101,7 +114,7 @@ describe('Execution Metadata functions', () => {
 		} as IRunExecutionData;
 
 		expect(() => setWorkflowExecutionMetadata(executionData, 'te$t1$', 1234)).toThrow(
-			InvalidExecutionMetadataError,
+			ExecutionMetadataValidationError,
 		);
 
 		expect(metadata).not.toEqual({

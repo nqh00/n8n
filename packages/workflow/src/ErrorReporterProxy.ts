@@ -1,5 +1,11 @@
+import type { Primitives } from './utils';
 import * as Logger from './LoggerProxy';
-import { ApplicationError, type ReportingOptions } from './errors/application.error';
+
+export interface ReportingOptions {
+	level?: 'warning' | 'error' | 'fatal';
+	tags?: Record<string, Primitives>;
+	extra?: Record<string, unknown>;
+}
 
 interface ErrorReporter {
 	report: (error: Error | string, options?: ReportingOptions) => void;
@@ -10,8 +16,7 @@ const instance: ErrorReporter = {
 		if (error instanceof Error) {
 			let e = error;
 			do {
-				const meta = e instanceof ApplicationError ? e.extra : undefined;
-				Logger.error(`${e.constructor.name}: ${e.message}`, meta);
+				Logger.error(`${e.constructor.name}: ${e.message}`);
 				e = e.cause as Error;
 			} while (e);
 		}
@@ -24,7 +29,7 @@ export function init(errorReporter: ErrorReporter) {
 
 const wrap = (e: unknown) => {
 	if (e instanceof Error) return e;
-	if (typeof e === 'string') return new ApplicationError(e);
+	if (typeof e === 'string') return new Error(e);
 	return;
 };
 
@@ -33,10 +38,5 @@ export const error = (e: unknown, options?: ReportingOptions) => {
 	if (toReport) instance.report(toReport, options);
 };
 
-export const info = (msg: string, options?: ReportingOptions) => {
-	Logger.info(msg);
-	instance.report(msg, options);
-};
-
 export const warn = (warning: Error | string, options?: ReportingOptions) =>
-	error(warning, { ...options, level: 'warning' });
+	error(warning, { level: 'warning', ...options });
